@@ -112,6 +112,9 @@ extraResources:
   # aionrs binary (pre-compiled per platform/arch)
   - from: resources/bundled-aionrs
     to: bundled-aionrs
+  # Multica CLI binary built from the vendored Agent-Manager source
+  - from: resources/bundled-multica
+    to: bundled-multica
   - from: resources/hub
     to: hub
   - from: apps/agent-manager

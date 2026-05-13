@@ -131,6 +131,9 @@ export class AgentManagerService {
 
       const env = this.buildEnv(repoDir, runtimeDir);
       await this.ensureDependencies(repoDir, env);
+      const multicaCliPath = await this.ensureMulticaCli(repoDir, runtimeDir, env);
+      env.MULTICA_CLI_PATH = multicaCliPath;
+      env.PATH = this.withToolPaths(env.PATH || '', [path.dirname(multicaCliPath)]);
       await this.ensurePostgres(repoDir, runtimeDir, env);
 
       this.updateStatus('starting', 'Running Agent-Manager migrations');
@@ -150,10 +153,8 @@ export class AgentManagerService {
       await this.stopExistingLocalDaemon();
       this.updateStatus('starting', 'Starting Agent-Manager local runtime');
       this.spawnManaged(
-        'go',
+        multicaCliPath,
         [
-          'run',
-          './cmd/multica',
           '--profile',
           AGENT_MANAGER_DAEMON_PROFILE,
           'daemon',
@@ -173,7 +174,7 @@ export class AgentManagerService {
           '6',
         ],
         path.join(repoDir, 'server'),
-        this.buildDaemonEnv(env, runtimeDir),
+        this.buildDaemonEnv(env, runtimeDir, multicaCliPath),
         'daemon'
       );
       await this.waitForLocalDaemonReady(45000);
@@ -223,7 +224,7 @@ export class AgentManagerService {
     const frontendUrl = `http://localhost:${frontendPort}`;
     const backendUrl = `http://localhost:${backendPort}`;
     const wsUrl = `ws://localhost:${backendPort}/ws`;
-    const pathValue = this.withToolPaths(process.env.PATH || '');
+    const pathValue = this.withToolPaths(process.env.PATH || '', [path.join(runtimeDir, 'bin')]);
 
     return {
       ...process.env,
@@ -255,10 +256,11 @@ export class AgentManagerService {
       RESEND_API_KEY: '',
       MULTICA_CODEX_PATH: process.env.MULTICA_CODEX_PATH || 'codex',
       MULTICA_CODEX_WORKDIR: repoDir,
+      MULTICA_CLI_PATH: process.env.MULTICA_CLI_PATH || path.join(runtimeDir, 'bin', this.getMulticaExecutableName()),
     };
   }
 
-  private buildDaemonEnv(env: NodeJS.ProcessEnv, runtimeDir: string): NodeJS.ProcessEnv {
+  private buildDaemonEnv(env: NodeJS.ProcessEnv, runtimeDir: string, multicaCliPath: string): NodeJS.ProcessEnv {
     return {
       ...env,
       MULTICA_SERVER_URL: env.NEXT_PUBLIC_API_URL || this.getBackendUrl(),
@@ -270,6 +272,8 @@ export class AgentManagerService {
       MULTICA_WORKSPACES_ROOT: path.join(runtimeDir, 'workspaces'),
       MULTICA_LAUNCHED_BY: 'desktop',
       MULTICA_CODEX_PATH: env.MULTICA_CODEX_PATH || 'codex',
+      MULTICA_CLI_PATH: multicaCliPath,
+      PATH: this.withToolPaths(env.PATH || '', [path.dirname(multicaCliPath)]),
     };
   }
 
@@ -511,10 +515,101 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     return secret;
   }
 
-  private withToolPaths(pathValue: string): string {
+  private withToolPaths(pathValue: string, prependPaths: string[] = []): string {
     const existing = new Set(pathValue.split(path.delimiter).filter(Boolean));
+    const prepend = prependPaths.filter((item) => item && fs.existsSync(item) && !existing.has(item));
+    prepend.forEach((item) => existing.add(item));
     const additions = HOMEBREW_BIN_PATHS.filter((item) => fs.existsSync(item) && !existing.has(item));
-    return [...additions, pathValue].filter(Boolean).join(path.delimiter);
+    return [...prepend, ...additions, pathValue].filter(Boolean).join(path.delimiter);
+  }
+
+  private async ensureMulticaCli(repoDir: string, runtimeDir: string, env: NodeJS.ProcessEnv): Promise<string> {
+    const explicitPath = process.env.MULTICA_CLI_PATH;
+    if (explicitPath && fs.existsSync(explicitPath)) {
+      return explicitPath;
+    }
+
+    const bundledPath = this.resolveBundledMulticaCliPath();
+    if (bundledPath) {
+      this.ensureExecutable(bundledPath);
+      return bundledPath;
+    }
+
+    const binDir = path.join(runtimeDir, 'bin');
+    const cliPath = path.join(binDir, this.getMulticaExecutableName());
+    if (fs.existsSync(cliPath)) {
+      this.ensureExecutable(cliPath);
+      return cliPath;
+    }
+
+    fs.mkdirSync(binDir, { recursive: true });
+    this.updateStatus('starting', 'Building Agent-Manager CLI');
+    await this.runCommand(
+      'go',
+      [
+        'build',
+        '-trimpath',
+        '-ldflags',
+        this.getMulticaCliLdflags(),
+        '-o',
+        cliPath,
+        './cmd/multica',
+      ],
+      path.join(repoDir, 'server'),
+      env,
+      'multica cli build',
+      180000
+    );
+    this.ensureExecutable(cliPath);
+    return cliPath;
+  }
+
+  private resolveBundledMulticaCliPath(): string | null {
+    const platformArch = this.getGoPlatformArch();
+    const executable = this.getMulticaExecutableName();
+    const candidates = [];
+
+    if (app.isPackaged) {
+      candidates.push(path.join(process.resourcesPath, 'bundled-multica', platformArch, executable));
+    }
+
+    candidates.push(path.join(process.cwd(), 'resources', 'bundled-multica', platformArch, executable));
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private getGoPlatformArch(): string {
+    return this.getGoOS() + '-' + this.getGoArch();
+  }
+
+  private getGoOS(): string {
+    if (process.platform === 'win32') return 'windows';
+    return process.platform;
+  }
+
+  private getGoArch(): string {
+    if (process.arch === 'x64') return 'amd64';
+    return process.arch;
+  }
+
+  private getMulticaExecutableName(): string {
+    return this.getGoOS() === 'windows' ? 'multica.exe' : 'multica';
+  }
+
+  private getMulticaCliLdflags(): string {
+    return ['-X main.version=agent-club', '-X main.commit=vendored', '-X main.date=' + new Date().toISOString()].join(' ');
+  }
+
+  private ensureExecutable(filePath: string): void {
+    if (process.platform !== 'win32') {
+      fs.chmodSync(filePath, 0o755);
+    }
   }
 
   private async ensureDependencies(repoDir: string, env: NodeJS.ProcessEnv): Promise<void> {

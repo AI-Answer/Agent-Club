@@ -16,6 +16,7 @@ const path = require('path');
 const crypto = require('crypto');
 const prepareBundledBun = require('./prepareBundledBun');
 const prepareAionrs = require('./prepareAionrs');
+const { prepareMulticaCli } = require('./prepareMulticaCli');
 
 // DMG retry logic for macOS: detects DMG creation failures by checking artifacts
 // (.app exists but .dmg missing) and retries only the DMG step using
@@ -458,6 +459,8 @@ try {
   execSync('node scripts/prepareHubResources.js', { stdio: 'inherit', env: process.env });
   // 5b. Prepare aionrs binary (Rust CLI for agent integration)
   prepareAionrs();
+  // 5c. Prepare Multica CLI binary from vendored Agent-Manager source
+  prepareMulticaCli({ targetArch });
 
   // 6. 运行 electron-builder 生成分发包（DMG/ZIP/EXE等）
   // Run electron-builder to create distributables (DMG/ZIP/EXE, etc.)

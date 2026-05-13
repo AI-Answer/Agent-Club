@@ -195,6 +195,7 @@ lint-results.txt
 docs/superpowers/
 resources/bundled-bun
 resources/bundled-aionrs
+resources/bundled-multica
 resources/hub
 
 # Server build output

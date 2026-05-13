@@ -71,7 +71,9 @@
     "server:resetpass": "NODE_ENV=development bun dist-server/server.mjs --resetpass",
     "server:resetpass:prod": "NODE_ENV=production bun dist-server/server.mjs --resetpass",
     "build:renderer:web": "bunx vite build --config vite.renderer.config.ts",
-    "build:server": "node scripts/build-server.mjs"
+    "build:server": "node scripts/build-server.mjs",
+    "setup:multica-cli": "node scripts/setup-multica-cli.mjs",
+    "prepare:multica-cli": "node scripts/prepareMulticaCli.js"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.18.2",

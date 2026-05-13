@@ -31,6 +31,16 @@ function runPostInstall() {
           npm_config_build_from_source: 'true',
         },
       });
+
+      try {
+        console.log('Preparing bundled Multica CLI');
+        execSync('node scripts/setup-multica-cli.mjs --no-global-link', {
+          stdio: 'inherit',
+          env: process.env,
+        });
+      } catch (multicaError) {
+        console.warn('Multica CLI setup skipped:', multicaError.message);
+      }
     }
   } catch (e) {
     console.error('Postinstall failed:', e.message);
