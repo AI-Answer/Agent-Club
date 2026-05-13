@@ -1,7 +1,16 @@
 {
   "referenceLanguage": "en-US",
   "fallbackLanguage": "en-US",
-  "supportedLanguages": ["zh-CN", "en-US", "ja-JP", "zh-TW", "ko-KR", "tr-TR", "ru-RU", "uk-UA"],
+  "supportedLanguages": [
+    "zh-CN",
+    "en-US",
+    "ja-JP",
+    "zh-TW",
+    "ko-KR",
+    "tr-TR",
+    "ru-RU",
+    "uk-UA"
+  ],
   "modules": [
     "common",
     "agentMode",
@@ -22,6 +31,7 @@
     "guid",
     "agent",
     "team",
-    "pet"
+    "pet",
+    "agentManager"
   ]
 }

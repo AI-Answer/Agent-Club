@@ -1,0 +1,15 @@
+{
+  "title": "Agent-Manager",
+  "openExternal": "Open externally",
+  "startFailed": "Agent-Manager failed to start",
+  "status": {
+    "idle": "Idle",
+    "starting": "Starting",
+    "ready": "Ready",
+    "error": "Error",
+    "stopping": "Stopping",
+    "disabled": "Disabled"
+  },
+  "preparingSession": "Opening local Agent-Manager workspace...",
+  "starting": "Starting Agent-Manager..."
+}

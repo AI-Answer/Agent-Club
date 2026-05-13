@@ -70,6 +70,7 @@
     "config/webpack/",
     "scripts/",
     "src/agent/gemini/cli/",
-    "mobile/"
+    "mobile/",
+    "apps/agent-manager/"
   ]
 }

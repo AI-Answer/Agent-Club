@@ -1,10 +1,10 @@
-appId: com.aionui.app
-productName: AionUi
-executableName: AionUi
-copyright: Copyright © 2024 AionUi
+appId: com.agentclub.app
+productName: Agent Club
+executableName: Agent Club
+copyright: Copyright © 2026 Agent Club
 
 protocols:
-  - name: AionUi Protocol
+  - name: Agent Club Protocol
     schemes:
       - aionui
 
@@ -114,6 +114,15 @@ extraResources:
     to: bundled-aionrs
   - from: resources/hub
     to: hub
+  - from: apps/agent-manager
+    to: agent-manager
+    filter:
+      - "**/*"
+      - "!node_modules/**"
+      - "!**/node_modules/**"
+      - "!.git/**"
+      - "!.git"
+      - "!.agent-club/**"
 win:
   target:
     - nsis
@@ -172,13 +181,13 @@ linux:
   icon: resources/app.png
   artifactName: ${productName}-${version}-${os}-${arch}.${ext}
   category: Utility
-  maintainer: aionui
-  vendor: aionui
+  maintainer: agentclub
+  vendor: agentclub
   synopsis: ${description}
   description: ${description}
   desktop:
     entry:
-      Name: AionUi
+      Name: Agent Club
       Comment: ${description}
       Icon: aionui
       Categories: Office;Utility;

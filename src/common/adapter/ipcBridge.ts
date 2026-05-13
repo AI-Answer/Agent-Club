@@ -22,6 +22,7 @@ import type {
 } from '../update/updateTypes';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
+import type { AgentManagerStatus } from '../types/agentManager';
 
 export const shell = {
   openFile: bridge.buildProvider<void, string>('open-file'), // 使用系统默认程序打开文件
@@ -175,6 +176,12 @@ export const application = {
   ),
   // DevTools state change notification
   devToolsStateChanged: bridge.buildEmitter<{ isOpen: boolean }>('app.devtools-state-changed'),
+};
+
+export const agentManager = {
+  getStatus: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.get-status'),
+  restart: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.restart'),
+  statusChanged: bridge.buildEmitter<AgentManagerStatus>('agent-manager.status-changed'),
 };
 
 // Manual (opt-in) updates via GitHub Releases

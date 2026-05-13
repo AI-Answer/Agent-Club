@@ -10,6 +10,7 @@ import type { IConversationRepository } from '@process/services/database/IConver
 import type { IConversationService } from '@process/services/IConversationService';
 import type { IWorkerTaskManager } from '@process/task/IWorkerTaskManager';
 import { initAcpConversationBridge } from './acpConversationBridge';
+import { initAgentManagerBridge } from './agentManagerBridge';
 import { initApplicationBridge } from './applicationBridge';
 import { initAuthBridge } from './authBridge';
 import { initBedrockBridge } from './bedrockBridge';
@@ -59,6 +60,7 @@ export interface BridgeDependencies {
  */
 export function initAllBridges(deps: BridgeDependencies): void {
   initDialogBridge();
+  initAgentManagerBridge();
   initShellBridge();
   initFsBridge();
   initFileWatchBridge();
@@ -111,6 +113,7 @@ export async function initializeAcpDetector(): Promise<void> {
 
 export {
   initAcpConversationBridge,
+  initAgentManagerBridge,
   initApplicationBridge,
   initAuthBridge,
   initBedrockBridge,

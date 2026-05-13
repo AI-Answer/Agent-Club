@@ -5,6 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import { APP_BRAND_NAME } from '@/common/config/appBrand';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import { ConfigStorage, type ICssTheme } from '@/common/config/storage';
 import PwaPullToRefresh from '@/renderer/components/layout/PwaPullToRefresh';
@@ -476,7 +477,7 @@ const Layout: React.FC<{
                     ></path>
                   </svg>
                 </div>
-                <div className='flex-1 text-20px text-1 collapsed-hidden font-bold'>AionUi</div>
+                <div className='flex-1 text-20px text-1 collapsed-hidden font-bold'>{APP_BRAND_NAME}</div>
                 {isMobile && !collapsed && (
                   <button
                     type='button'

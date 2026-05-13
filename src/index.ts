@@ -33,6 +33,7 @@ import { setInitialLanguage } from '@process/services/i18n';
 import { workerTaskManager } from './process/task/workerTaskManagerSingleton';
 import { setupApplicationMenu } from './process/utils/appMenu';
 import { startWebServer } from './process/webserver';
+import { agentManagerService } from './process/services/agentManager';
 import { initializeZoomFactor, setupZoomForWindow } from './process/utils/zoom';
 import { getOrCreateAnalyticsId } from './process/utils/analyticsId';
 import {
@@ -531,6 +532,8 @@ const handleAppReady = async (): Promise<void> => {
     appReadyDone = true;
     mark('createWindow');
 
+    void agentManagerService.start();
+
     // Initialize desktop floating window (ambient bubble or legacy pet).
     //
     // AC-M1-10 / AC-M1-11: ambient and pet are two semantic forms of the same
@@ -779,6 +782,8 @@ app.on('before-quit', async () => {
   destroyTray();
 
   const cleanup = async () => {
+    await agentManagerService.stop();
+
     // Kill all agent worker processes
     await workerTaskManager.clear();
 

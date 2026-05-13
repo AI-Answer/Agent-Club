@@ -1,12 +1,11 @@
 {
-  "name": "AionUi",
+  "name": "agent-club",
   "version": "1.9.25",
-  "description": "Transform your command-line AI agent into a modern, efficient AI Chat interface.",
+  "description": "A bundled agent workspace that brings chat, teams, and task management into one Electron app.",
   "keywords": [],
   "license": "Apache-2.0",
   "author": {
-    "name": "AionUi",
-    "email": "service@aionui.com"
+    "name": "Agent Club"
   },
   "main": "./out/main/index.js",
   "scripts": {
@@ -250,5 +249,5 @@
   "patchedDependencies": {
     "7zip-bin@5.2.0": "patches/7zip-bin@5.2.0.patch"
   },
-  "productName": "AionUi"
+  "productName": "Agent Club"
 }
