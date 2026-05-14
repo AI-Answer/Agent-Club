@@ -14,6 +14,7 @@ import {
   MemoryOne,
   Puzzle,
   Robot,
+  Shield,
   Speed,
   System,
 } from '@icon-park/react';
@@ -32,6 +33,7 @@ export const BUILTIN_TAB_IDS = [
   'assistants',
   'capabilities',
   'memory',
+  'security',
   'hooks',
   'display',
   'webui',
@@ -165,6 +167,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         label: t('settings.memory', { defaultValue: 'Memory' }),
         icon: <MemoryOne />,
         path: 'memory',
+      },
+      security: {
+        id: 'security',
+        label: t('settings.security', { defaultValue: 'Security' }),
+        icon: <Shield />,
+        path: 'security',
       },
       hooks: {
         id: 'hooks',

@@ -16,6 +16,7 @@ import {
   MemoryOne,
   Puzzle,
   Robot,
+  Shield,
   System,
 } from '@icon-park/react';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +62,12 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       label: t('settings.memory', { defaultValue: 'Memory' }),
       icon: <MemoryOne theme='outline' size='16' />,
       path: 'memory',
+    },
+    security: {
+      id: 'security',
+      label: t('settings.security', { defaultValue: 'Security' }),
+      icon: <Shield theme='outline' size='16' />,
+      path: 'security',
     },
     hooks: {
       id: 'hooks',

@@ -286,6 +286,7 @@
   "tools": "Tools",
   "capabilities": "Capabilities",
   "memory": "Memory",
+  "security": "Security",
   "hooks": "Hooks",
   "capabilitiesTab": {
     "skills": "Skills",
@@ -311,6 +312,40 @@
         "description": "Runs when an extension is turned off."
       }
     }
+  },
+  "securityPage": {
+    "title": "Security",
+    "subtitle": "Manage the local agent vault and 1Password bridge used by trusted agents.",
+    "vaultTitle": "Agent Vault",
+    "noKeys": "No keys saved yet",
+    "keyCount": "{{count}} key saved",
+    "keyCount_plural": "{{count}} keys saved",
+    "vaultWarning": "Enabled vault values are injected into new agent processes and exposed through the agent-club-vault MCP server. Use this only with agents you trust.",
+    "vaultPlaceholder": "OPENAI_API_KEY=sk-...\nGITHUB_TOKEN=op://Private/GitHub/token\nCOMPOSIO_API_KEY=...",
+    "vaultPathPending": "Vault file path will appear after saving.",
+    "showFile": "Show File",
+    "saveVault": "Save Vault",
+    "saved": "Vault saved",
+    "saveFailed": "Failed to save vault",
+    "loadFailed": "Failed to load security settings",
+    "onePasswordTitle": "1Password MCP Bridge",
+    "onePasswordSubtitle": "Connect 1Password CLI so op:// references in the vault can resolve for trusted agents.",
+    "onePasswordAccount": "Account",
+    "onePasswordAccountPlaceholder": "my.1password.com or account shorthand",
+    "onePasswordToken": "Service account token",
+    "onePasswordTokenPlaceholder": "OP_SERVICE_ACCOUNT_TOKEN",
+    "onePasswordTokenSaved": "Saved token hidden. Enter a new token to replace it.",
+    "resolveReferences": "Resolve op:// secret references",
+    "testOnePassword": "Test 1Password CLI",
+    "saveOnePassword": "Save 1Password",
+    "onePasswordSaved": "1Password settings saved",
+    "onePasswordSaveFailed": "Failed to save 1Password settings",
+    "onePasswordTestFailed": "Failed to test 1Password CLI",
+    "onePasswordFound": "1Password CLI found",
+    "onePasswordMissing": "1Password CLI was not found",
+    "onePasswordCliVersion": "op {{version}}",
+    "onePasswordCliNotFound": "op not found",
+    "onePasswordNote": "Use op:// vault/item/field references in the vault to keep raw passwords in 1Password while agents receive resolved values only when this bridge is enabled."
   },
   "memoryPage": {
     "title": "Memory",

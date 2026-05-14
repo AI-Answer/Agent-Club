@@ -19,6 +19,7 @@ import type {
   TChatConversation,
   TProviderWithModel,
 } from '@/common/config/storage';
+import type { OnePasswordSecurityConfig } from '@/common/types/security';
 import { ChatMessageStorage, ChatStorage, ConfigStorage, EnvStorage } from '@/common/config/storage';
 import {
   copyDirectoryRecursively,
@@ -34,10 +35,13 @@ import { getDatabase } from '../services/database/export';
 import type { AcpBackendConfig } from '@/common/types/acpTypes';
 import { migrateFromElectronConfig, importConfigFromFile } from './configMigration';
 import {
+  BUILTIN_AGENT_VAULT_ID,
+  BUILTIN_AGENT_VAULT_NAME,
   BUILTIN_IMAGE_GEN_ID,
   BUILTIN_IMAGE_GEN_LEGACY_NAMES,
   BUILTIN_IMAGE_GEN_NAME,
 } from '../resources/builtinMcp/constants';
+import { applyAgentVaultToProcessEnv, getAgentVaultRuntimeStateSync } from '@process/services/security/agentVaultRuntime';
 // Platform and architecture types (moved from deleted updateConfig)
 type PlatformType = 'win32' | 'darwin' | 'linux';
 type ArchitectureType = 'x64' | 'arm64' | 'ia32' | 'arm';
@@ -777,6 +781,93 @@ const ensureBuiltinMcpServers = async (): Promise<void> => {
       changed = true;
     }
 
+    const vaultState = getAgentVaultRuntimeStateSync();
+    const onePasswordConfig = {
+      enabled: false,
+      resolveReferences: true,
+      ...((await configFile.get('security.onePassword').catch((): undefined => undefined)) as
+        | OnePasswordSecurityConfig
+        | undefined),
+    };
+    const vaultScriptPath = getBuiltinMcpScriptPath('builtin-mcp-agent-vault');
+    const vaultEnv: Record<string, string> = {
+      AGENT_CLUB_VAULT_FILE: vaultState.filePath,
+      AGENT_CLUB_VAULT_ENABLED: vaultState.enabled ? '1' : '0',
+      AGENT_CLUB_OP_RESOLVE: onePasswordConfig.enabled && onePasswordConfig.resolveReferences !== false ? '1' : '0',
+    };
+    if (onePasswordConfig.enabled && onePasswordConfig.serviceAccountToken?.trim()) {
+      vaultEnv.OP_SERVICE_ACCOUNT_TOKEN = onePasswordConfig.serviceAccountToken.trim();
+    }
+    if (onePasswordConfig.enabled && onePasswordConfig.account?.trim()) {
+      vaultEnv.OP_ACCOUNT = onePasswordConfig.account.trim();
+    }
+
+    const vaultOriginalJson = JSON.stringify(
+      {
+        mcpServers: {
+          [BUILTIN_AGENT_VAULT_NAME]: {
+            command: 'node',
+            args: [vaultScriptPath],
+            env: {
+              ...vaultEnv,
+              ...(vaultEnv.OP_SERVICE_ACCOUNT_TOKEN
+                ? { OP_SERVICE_ACCOUNT_TOKEN: '<saved in Agent Club security settings>' }
+                : {}),
+            },
+          },
+        },
+      },
+      null,
+      2
+    );
+    const vaultIdx = mcpServers.findIndex(
+      (server) => server.id === BUILTIN_AGENT_VAULT_ID || server.name === BUILTIN_AGENT_VAULT_NAME
+    );
+    const vaultServer: IMcpServer = {
+      id: BUILTIN_AGENT_VAULT_ID,
+      name: BUILTIN_AGENT_VAULT_NAME,
+      description:
+        'Built-in Agent Club vault for trusted agents. Provides local .env keys and optional 1Password op:// resolution.',
+      enabled: vaultState.enabled,
+      builtin: true,
+      status: 'connected',
+      transport: {
+        type: 'stdio',
+        command: 'node',
+        args: [vaultScriptPath],
+        env: vaultEnv,
+      },
+      createdAt: vaultIdx >= 0 ? mcpServers[vaultIdx].createdAt : now,
+      updatedAt: now,
+      originalJson: vaultOriginalJson,
+    };
+
+    if (vaultIdx >= 0) {
+      const existing = mcpServers[vaultIdx];
+      const needsUpdate =
+        existing.name !== vaultServer.name ||
+        existing.enabled !== vaultServer.enabled ||
+        existing.status !== vaultServer.status ||
+        existing.transport.type !== 'stdio' ||
+        existing.transport.command !== 'node' ||
+        JSON.stringify(existing.transport.type === 'stdio' ? existing.transport.args || [] : []) !==
+          JSON.stringify([vaultScriptPath]) ||
+        JSON.stringify(existing.transport.type === 'stdio' ? existing.transport.env || {} : {}) !==
+          JSON.stringify(vaultEnv) ||
+        existing.originalJson !== vaultOriginalJson;
+
+      if (needsUpdate) {
+        mcpServers[vaultIdx] = {
+          ...existing,
+          ...vaultServer,
+        };
+        changed = true;
+      }
+    } else {
+      mcpServers.push(vaultServer);
+      changed = true;
+    }
+
     if (changed) {
       await configFile.set('mcp.config', mcpServers);
       console.log('[AionUi] Built-in MCP servers ensured');
@@ -887,6 +978,7 @@ const initStorage = async () => {
 
   // 4.2 Ensure built-in MCP servers exist and are up-to-date
   await ensureBuiltinMcpServers();
+  applyAgentVaultToProcessEnv();
   mark('4.2 builtinMcpServers');
 
   // 5. 初始化内置助手（Assistants）

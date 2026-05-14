@@ -8,6 +8,8 @@
 // when the built-in MCP server boots in a standalone stdio process.
 export const BUILTIN_IMAGE_GEN_ID = 'builtin-image-gen';
 export const BUILTIN_IMAGE_GEN_NAME = 'agent-club-image-generation';
+export const BUILTIN_AGENT_VAULT_ID = 'builtin-agent-vault';
+export const BUILTIN_AGENT_VAULT_NAME = 'agent-club-vault';
 export const BUILTIN_IMAGE_GEN_LEGACY_NAMES = [
   'AionUi Image Generation',
   'aionui-image-generation',

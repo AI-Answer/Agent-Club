@@ -27,6 +27,7 @@ import { initGeminiConversationBridge } from './geminiConversationBridge';
 import { initMcpBridge } from './mcpBridge';
 import { initMemoryBridge } from './memoryBridge';
 import { initModelBridge } from './modelBridge';
+import { initSecurityBridge } from './securityBridge';
 import { initPreviewHistoryBridge } from './previewHistoryBridge';
 import { initShellBridge } from './shellBridge';
 import { initStarOfficeBridge } from './starOfficeBridge';
@@ -76,6 +77,7 @@ export function initAllBridges(deps: BridgeDependencies): void {
   initModelBridge();
   initMcpBridge();
   initMemoryBridge();
+  initSecurityBridge();
   initPreviewHistoryBridge();
   initDocumentBridge();
   initPptPreviewBridge();
@@ -133,6 +135,7 @@ export {
   initMemoryBridge,
   initModelBridge,
   initNotificationBridge,
+  initSecurityBridge,
   initOfficeWatchBridge,
   initPptPreviewBridge,
   initPreviewHistoryBridge,

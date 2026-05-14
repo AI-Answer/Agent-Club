@@ -7,6 +7,7 @@
 import type { AcpBackend, AcpBackendAll, AcpBackendConfig } from '@/common/types/acpTypes';
 import type { JourneyKitsVisibility } from '@/common/types/journeyKits';
 import type { HonchoMemoryConfig } from '@/common/types/memory';
+import type { AgentVaultConfig, OnePasswordSecurityConfig } from '@/common/types/security';
 import type { SpeechToTextConfig } from '@/common/types/speech';
 import { storage } from '@office-ai/platform';
 
@@ -79,6 +80,8 @@ export interface IConfigStorageRefer {
   'mcp.config': IMcpServer[];
   'mcp.agentInstallStatus': Record<string, string[]>;
   'memory.honcho'?: HonchoMemoryConfig;
+  'security.agentVault'?: AgentVaultConfig;
+  'security.onePassword'?: OnePasswordSecurityConfig;
   'journeyKits.config'?: {
     apiKey?: string;
     author?: string;
@@ -626,6 +629,7 @@ export interface IMcpServer {
 
 /** Stable ID for the built-in image generation MCP server */
 export const BUILTIN_IMAGE_GEN_ID = 'builtin-image-gen';
+export const BUILTIN_AGENT_VAULT_ID = 'builtin-agent-vault';
 
 export interface IMcpTool {
   name: string;

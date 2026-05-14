@@ -26,6 +26,12 @@ import type { AgentManagerStatus } from '../types/agentManager';
 import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from '../types/memory';
 import type { ComposioToolRouterSetupRequest, ComposioToolRouterSetupResult } from '../types/composio';
 import type {
+  AgentVaultSaveRequest,
+  OnePasswordCliStatus,
+  OnePasswordSecuritySaveRequest,
+  SecuritySettingsState,
+} from '../types/security';
+import type {
   JourneyKitsConfigPublic,
   JourneyKitsConfigSaveRequest,
   JourneyKitsDeleteRequest,
@@ -202,6 +208,19 @@ export const agentManager = {
 export const memory = {
   testHoncho: bridge.buildProvider<IBridgeResponse<HonchoSetupResult>, HonchoMemoryConfig>('memory.honcho.test'),
   getHonchoSnapshot: bridge.buildProvider<IBridgeResponse<HonchoMemorySnapshot>, void>('memory.honcho.snapshot'),
+};
+
+export const security = {
+  getState: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, void>('security.get-state'),
+  saveAgentVault: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, AgentVaultSaveRequest>(
+    'security.agent-vault.save'
+  ),
+  saveOnePassword: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, OnePasswordSecuritySaveRequest>(
+    'security.one-password.save'
+  ),
+  testOnePasswordCli: bridge.buildProvider<IBridgeResponse<OnePasswordCliStatus>, void>(
+    'security.one-password.test-cli'
+  ),
 };
 
 // Manual (opt-in) updates via GitHub Releases

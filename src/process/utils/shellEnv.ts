@@ -18,6 +18,7 @@ import { execFile, execFileSync, spawn } from 'child_process';
 import { accessSync, existsSync, readFileSync, readdirSync } from 'fs';
 import os from 'os';
 import path from 'path';
+import { getAgentVaultEnvForChildProcess } from '@process/services/security/agentVaultRuntime';
 
 /** Enable ACP performance diagnostics via ACP_PERF=1 */
 const PERF_LOG = process.env.ACP_PERF === '1';
@@ -462,6 +463,7 @@ export function getEnhancedEnv(customEnv?: Record<string, string>): Record<strin
   return {
     ...process.env,
     ...shellEnv,
+    ...getAgentVaultEnvForChildProcess(),
     ...customEnv,
     // PATH must be set after spreading to ensure merged value is used
     // When customEnv.PATH exists, merge it with the already merged path (fix: don't override)
