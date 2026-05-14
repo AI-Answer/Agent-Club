@@ -42,7 +42,7 @@ type CommandResult = {
 export class AgentManagerService {
   private processes = new Set<ChildProcess>();
   private startPromise: Promise<AgentManagerStatus> | null = null;
-  private status: AgentManagerStatus = this.createStatus('idle', 'Agent-Manager is idle');
+  private status: AgentManagerStatus = this.createStatus('idle', `${AGENT_MANAGER_NAME} is idle`);
 
   getStatus(): AgentManagerStatus {
     return this.status;
@@ -50,7 +50,7 @@ export class AgentManagerService {
 
   async start(): Promise<AgentManagerStatus> {
     if (process.env.AGENT_MANAGER_AUTOSTART === '0') {
-      this.updateStatus('disabled', 'Agent-Manager autostart is disabled');
+      this.updateStatus('disabled', `${AGENT_MANAGER_NAME} autostart is disabled`);
       return this.status;
     }
 
@@ -77,12 +77,12 @@ export class AgentManagerService {
   async stop(): Promise<void> {
     if (this.processes.size === 0) {
       if (this.status.state !== 'idle') {
-        this.updateStatus('idle', 'Agent-Manager is stopped');
+        this.updateStatus('idle', `${AGENT_MANAGER_NAME} is stopped`);
       }
       return;
     }
 
-    this.updateStatus('stopping', 'Stopping Agent-Manager');
+    this.updateStatus('stopping', `Stopping ${AGENT_MANAGER_NAME}`);
     const processes = Array.from(this.processes);
     this.processes.clear();
 
@@ -115,11 +115,11 @@ export class AgentManagerService {
       )
     );
 
-    this.updateStatus('idle', 'Agent-Manager is stopped');
+    this.updateStatus('idle', `${AGENT_MANAGER_NAME} is stopped`);
   }
 
   private async startInternal(): Promise<AgentManagerStatus> {
-    this.updateStatus('starting', 'Preparing Agent-Manager');
+    this.updateStatus('starting', `Preparing ${AGENT_MANAGER_NAME}`);
 
     try {
       const repoDir = this.resolveRepoDir();
@@ -138,22 +138,22 @@ export class AgentManagerService {
       env.PATH = this.withToolPaths(env.PATH || '', [path.dirname(multicaCliPath)]);
       await this.ensurePostgres(repoDir, runtimeDir, env);
 
-      this.updateStatus('starting', 'Running Agent-Manager migrations');
+      this.updateStatus('starting', `Running ${AGENT_MANAGER_NAME} migrations`);
       await this.runCommand('go', ['run', './cmd/migrate', 'up'], path.join(repoDir, 'server'), env, 'migrate', 120000);
       await this.seedLocalWorkspace(repoDir, env);
 
       const backendHealthUrl = `${env.NEXT_PUBLIC_API_URL}/health`;
       if (await this.isHttpAvailable(backendHealthUrl, 1000)) {
-        console.log('[AgentManager] reusing existing Agent-Manager backend');
+        console.log(`[AgentManager] reusing existing ${AGENT_MANAGER_NAME} backend`);
       } else {
-        this.updateStatus('starting', 'Starting Agent-Manager backend');
+        this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} backend`);
         this.spawnManaged('go', ['run', './cmd/server'], path.join(repoDir, 'server'), env, 'backend');
       }
       await this.waitForHttp(backendHealthUrl, 90000);
 
       await this.ensureLocalDaemonProfile(repoDir, env);
       await this.stopExistingLocalDaemon();
-      this.updateStatus('starting', 'Starting Agent-Manager local runtime');
+      this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} local runtime`);
       this.spawnManaged(
         multicaCliPath,
         [
@@ -186,22 +186,24 @@ export class AgentManagerService {
       const frontendPort = Number(env.FRONTEND_PORT || DEFAULT_FRONTEND_PORT);
       if (await this.isPortOpen('127.0.0.1', frontendPort, 500)) {
         if (await this.tryWaitForHttp(frontendUrl, 15000)) {
-          console.log('[AgentManager] reusing existing Agent-Manager web UI');
+          console.log(`[AgentManager] reusing existing ${AGENT_MANAGER_NAME} web UI`);
         } else {
-          throw new Error(`Agent-Manager web port ${frontendPort} is in use but ${frontendUrl} is not responding`);
+          throw new Error(
+            `${AGENT_MANAGER_NAME} web port ${frontendPort} is in use but ${frontendUrl} is not responding`
+          );
         }
       } else {
-        this.updateStatus('starting', 'Starting Agent-Manager web UI');
+        this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} web UI`);
         this.spawnManaged('pnpm', ['dev:web'], repoDir, env, 'web');
       }
       await this.waitForHttp(frontendUrl, 120000);
 
-      this.updateStatus('ready', 'Agent-Manager is running');
+      this.updateStatus('ready', `${AGENT_MANAGER_NAME} is running`);
       void this.prewarmFrontendRoutes();
       return this.status;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.updateStatus('error', 'Agent-Manager failed to start', message);
+      this.updateStatus('error', `${AGENT_MANAGER_NAME} failed to start`, message);
       return this.status;
     }
   }
@@ -333,12 +335,12 @@ export class AgentManagerService {
     });
 
     if (!response.ok) {
-      throw new Error(`Agent-Manager local login returned ${response.status}`);
+      throw new Error(`${AGENT_MANAGER_NAME} local login returned ${response.status}`);
     }
 
     const payload = (await response.json()) as { token?: string };
     if (!payload.token) {
-      throw new Error('Agent-Manager local login did not return a token');
+      throw new Error(`${AGENT_MANAGER_NAME} local login did not return a token`);
     }
     return payload.token;
   }
@@ -361,7 +363,7 @@ export class AgentManagerService {
       await this.fetchWithTimeout(shutdownUrl, 5000, 'POST');
       await this.waitForPortClosed('127.0.0.1', AGENT_MANAGER_DAEMON_HEALTH_PORT, 10000);
     } catch {
-      // No prior Agent-Manager daemon is running.
+      // No prior Local Agent Manager daemon is running.
     }
   }
 
@@ -384,7 +386,7 @@ export class AgentManagerService {
       await this.delay(1000);
     }
 
-    throw new Error('Timed out waiting for Agent-Manager local runtime');
+    throw new Error(`Timed out waiting for ${AGENT_MANAGER_NAME} local runtime`);
   }
 
   private async syncLocalRuntimeAgents(repoDir: string, env: NodeJS.ProcessEnv): Promise<void> {
@@ -419,6 +421,7 @@ runtime_seed AS (
     r.id AS runtime_id,
     r.provider,
     CASE r.provider
+      WHEN 'hermes' THEN 'Hermes Chief of Staff'
       WHEN 'codex' THEN 'Codex Builder'
       WHEN 'claude' THEN 'Claude Assistant'
       WHEN 'openclaw' THEN 'OpenClaw Operator'
@@ -427,6 +430,7 @@ runtime_seed AS (
       ELSE initcap(r.provider) || ' Agent'
     END AS name,
     CASE r.provider
+      WHEN 'hermes' THEN 'Coordinates local agent work through Hermes and keeps Agent Club tasks moving.'
       WHEN 'codex' THEN 'Runs implementation tasks through the Codex runtime bundled with Agent Club.'
       WHEN 'claude' THEN 'Runs planning and implementation tasks through the Claude runtime detected by Agent Club.'
       WHEN 'openclaw' THEN 'Runs OpenClaw workflows from the local Agent Club runtime.'
@@ -435,6 +439,7 @@ runtime_seed AS (
       ELSE 'Runs tasks through the local Agent Club runtime provider.'
     END AS description,
     CASE r.provider
+      WHEN 'hermes' THEN 'Act as the Chief of Staff: understand the goal, route work to the right tools, keep progress observable, and report concise next steps.'
       WHEN 'codex' THEN 'Keep edits scoped, run focused checks, and report concrete results back to Agent Club.'
       WHEN 'claude' THEN 'Plan clearly, execute carefully, and keep Agent Club tasks updated with concise progress notes.'
       WHEN 'openclaw' THEN 'Operate local OpenClaw workflows and keep task state synchronized with Agent Club.'
@@ -545,18 +550,10 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     }
 
     fs.mkdirSync(binDir, { recursive: true });
-    this.updateStatus('starting', 'Building Agent-Manager CLI');
+    this.updateStatus('starting', `Building ${AGENT_MANAGER_NAME} CLI`);
     await this.runCommand(
       'go',
-      [
-        'build',
-        '-trimpath',
-        '-ldflags',
-        this.getMulticaCliLdflags(),
-        '-o',
-        cliPath,
-        './cmd/multica',
-      ],
+      ['build', '-trimpath', '-ldflags', this.getMulticaCliLdflags(), '-o', cliPath, './cmd/multica'],
       path.join(repoDir, 'server'),
       env,
       'multica cli build',
@@ -619,14 +616,14 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   }
 
   private async ensureDependencies(repoDir: string, env: NodeJS.ProcessEnv): Promise<void> {
-    this.assertCommand('pnpm', ['--version'], 'pnpm is required to start Agent-Manager.');
-    this.assertCommand('go', ['version'], 'Go is required to start the Agent-Manager backend.');
+    this.assertCommand('pnpm', ['--version'], `pnpm is required to start ${AGENT_MANAGER_NAME}.`);
+    this.assertCommand('go', ['version'], `Go is required to start the ${AGENT_MANAGER_NAME} backend.`);
 
     if (fs.existsSync(path.join(repoDir, 'node_modules', '.modules.yaml'))) {
       return;
     }
 
-    this.updateStatus('starting', 'Installing Agent-Manager dependencies');
+    this.updateStatus('starting', `Installing ${AGENT_MANAGER_NAME} dependencies`);
     await this.runCommand('pnpm', ['install'], repoDir, env, 'pnpm install', 240000);
   }
 
@@ -643,7 +640,7 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     fs.writeFileSync(passwordPath, `${POSTGRES_PASSWORD}\n`, { mode: 0o600 });
 
     if (!fs.existsSync(path.join(pgDataDir, 'PG_VERSION'))) {
-      this.updateStatus('starting', 'Initializing Agent-Manager database');
+      this.updateStatus('starting', `Initializing ${AGENT_MANAGER_NAME} database`);
       await this.runCommand(
         initdb,
         ['-D', pgDataDir, '-U', 'multica', '--pwfile', passwordPath, '--auth-local=trust', '--auth-host=md5'],
@@ -655,7 +652,7 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     }
 
     if (!(await this.isPortOpen('127.0.0.1', postgresPort, 500))) {
-      this.updateStatus('starting', 'Starting Agent-Manager database');
+      this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} database`);
       this.spawnManaged(
         pgBin,
         ['-D', pgDataDir, '-h', '127.0.0.1', '-p', String(postgresPort)],
@@ -770,7 +767,7 @@ ON CONFLICT (workspace_id, name) DO UPDATE
 
     child.on('error', (error) => {
       this.processes.delete(child);
-      this.updateStatus('error', `Failed to start Agent-Manager ${label}`, error.message);
+      this.updateStatus('error', `Failed to start ${AGENT_MANAGER_NAME} ${label}`, error.message);
     });
 
     return child;
@@ -782,7 +779,7 @@ ON CONFLICT (workspace_id, name) DO UPDATE
       throw new Error(`${AGENT_MANAGER_NAME} database URL is not configured`);
     }
 
-    this.updateStatus('starting', 'Preparing local Agent-Manager workspace');
+    this.updateStatus('starting', `Preparing local ${AGENT_MANAGER_NAME} workspace`);
 
     const psql = this.getPostgresCommand('psql');
     await this.runCommand(
@@ -813,7 +810,7 @@ workspace_upsert AS (
   VALUES (
     'Agent Club',
     '${AGENT_MANAGER_WORKSPACE_SLUG}',
-    'Local Agent-Manager workspace bundled with Agent Club.',
+    'Local Agent Manager workspace bundled with Agent Club.',
     'Agent Club is the local operating workspace for bundled applications, agents, and task management.',
     '{"agentClub":true,"managedBy":"Agent Club"}'::jsonb,
     '[]'::jsonb,
@@ -971,7 +968,7 @@ project_selected AS (
 issue_seed(title, description, status, priority, agent_name, number, position) AS (
   VALUES
     ('Review bundled applications', 'Keep track of which local tools are bundled into Agent Club and whether each one starts correctly.', 'todo', 'medium', 'Coordinator', 1, 1),
-    ('Maintain Agent-Manager workspace', 'Use this board for task management, agents, and application planning inside the bundled Multica instance.', 'in_progress', 'high', 'Builder', 2, 2),
+    ('Maintain Local Agent Manager workspace', 'Use this board for task management, agents, and application planning inside the bundled Multica instance.', 'in_progress', 'high', 'Builder', 2, 2),
     ('Document next integrations', 'Capture candidates for the next apps or automations that should be added to Agent Club.', 'todo', 'low', 'Researcher', 3, 3)
 )
 INSERT INTO issue (
@@ -1080,7 +1077,7 @@ WHERE title = 'Agent Club Operating Board'
   private async prewarmFrontendRoutes(): Promise<void> {
     const frontendUrl = this.getFrontendUrl();
     const routes = [
-      '/agent-club-boot?next=%2Fagent-club%2Fissues',
+      '/agent-club-boot?next=%2Fagent-club%2Fagents',
       '/agent-club/issues',
       '/agent-club/projects',
       '/agent-club/agents',
@@ -1092,7 +1089,7 @@ WHERE title = 'Agent Club Operating Board'
       '/agent-club/skills',
     ];
 
-    console.log('[AgentManager] prewarming common Agent-Manager screens');
+    console.log(`[AgentManager] prewarming common ${AGENT_MANAGER_NAME} screens`);
 
     for (const route of routes) {
       const url = `${frontendUrl}${route}`;
@@ -1104,7 +1101,7 @@ WHERE title = 'Agent Club Operating Board'
       }
     }
 
-    console.log('[AgentManager] common Agent-Manager screens prewarmed');
+    console.log(`[AgentManager] common ${AGENT_MANAGER_NAME} screens prewarmed`);
   }
 
   private async fetchWithTimeout(url: string, timeoutMs: number, method: 'GET' | 'POST' = 'GET'): Promise<void> {
@@ -1151,11 +1148,11 @@ WHERE title = 'Agent Club Operating Board'
     signal: NodeJS.Signals | null
   ): Promise<void> {
     if (label === 'web' && (await this.isHttpAvailable(this.getFrontendUrl(), 5000))) {
-      console.log('[AgentManager:web] exited, but Agent-Manager web UI is still available');
+      console.log(`[AgentManager:web] exited, but ${AGENT_MANAGER_NAME} web UI is still available`);
       return;
     }
 
-    this.updateStatus('error', 'Agent-Manager process exited', `${label} exited with code ${code ?? signal}`);
+    this.updateStatus('error', `${AGENT_MANAGER_NAME} process exited`, `${label} exited with code ${code ?? signal}`);
   }
 
   private async waitForHttp(url: string, timeoutMs: number): Promise<void> {

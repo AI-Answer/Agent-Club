@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
-const FALLBACK_PATH = "/agent-club/issues";
-const WORKSPACE_SLUG = "agent-club";
-const LOCAL_EMAIL = "agent-club@local.agentclub";
+const FALLBACK_PATH = '/agent-club/agents';
+const WORKSPACE_SLUG = 'agent-club';
+const LOCAL_EMAIL = 'agent-club@local.agentclub';
 
 function apiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL || "http://localhost:18330").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:18330').replace(/\/$/, '');
 }
 
 function getSafePath(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
     return FALLBACK_PATH;
   }
 
@@ -29,7 +29,7 @@ async function readError(response: Response): Promise<string> {
 
 function setWorkspaceCookies(): void {
   const oneYear = 60 * 60 * 24 * 365;
-  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `multica_logged_in=1; path=/; max-age=${oneYear}; SameSite=Lax${secure}`;
   document.cookie = `last_workspace_slug=${WORKSPACE_SLUG}; path=/; max-age=${oneYear}; SameSite=Lax${secure}`;
 }
@@ -42,15 +42,15 @@ export default function AgentClubBootPage() {
 
     async function openWorkspace() {
       const params = new URLSearchParams(window.location.search);
-      const next = getSafePath(params.get("next"));
+      const next = getSafePath(params.get('next'));
 
       try {
-        window.localStorage.removeItem("multica_token");
+        window.localStorage.removeItem('multica_token');
         const response = await fetch(`${apiBaseUrl()}/auth/agent-club`, {
-          method: "POST",
-          credentials: "include",
+          method: 'POST',
+          credentials: 'include',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({ email: LOCAL_EMAIL }),
         });
@@ -78,9 +78,9 @@ export default function AgentClubBootPage() {
   }, []);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
-      <p className="max-w-md text-center text-sm text-muted-foreground">
-        {error ? `Agent-Manager could not open: ${error}` : "Opening Agent-Manager..."}
+    <main className='flex min-h-screen items-center justify-center bg-background px-6 text-foreground'>
+      <p className='max-w-md text-center text-sm text-muted-foreground'>
+        {error ? `Local Agent Manager could not open: ${error}` : 'Opening Local Agent Manager...'}
       </p>
     </main>
   );

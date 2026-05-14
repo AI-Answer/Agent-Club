@@ -68,6 +68,19 @@ type UseGuidAgentSelectionOptions = {
   locationKey?: string;
 };
 
+function isHermesAgent(agent: AvailableAgent): boolean {
+  const signature = `${agent.backend} ${agent.name} ${agent.customAgentId ?? ''}`.toLowerCase();
+  return signature.includes('hermes');
+}
+
+function getDefaultAgentKey(agents: AvailableAgent[] | undefined): string {
+  if (!agents || agents.length === 0) return 'aionrs';
+
+  const directAgents = agents.filter((agent) => !agent.isPreset && agent.backend !== 'remote');
+  const preferred = directAgents.find(isHermesAgent) || directAgents[0] || agents.find((agent) => !agent.isPreset);
+  return preferred ? getAgentKeyUtil(preferred) : 'aionrs';
+}
+
 /**
  * Hook that manages agent selection, availability, and preset assistant logic.
  */
@@ -235,8 +248,7 @@ export const useGuidAgentSelection = ({
 
     if (resetAssistant && !resetHandledRef.current) {
       resetHandledRef.current = true;
-      const firstCliAgent = availableAgents.find((a) => !a.isPreset);
-      const fallbackKey = firstCliAgent ? getAgentKey(firstCliAgent) : 'aionrs';
+      const fallbackKey = getDefaultAgentKey(availableAgents);
       _setSelectedAgentKey(fallbackKey);
       ConfigStorage.set('guid.lastSelectedAgent', fallbackKey).catch((error) => {
         console.error('Failed to save reset agent key:', error);
@@ -270,11 +282,8 @@ export const useGuidAgentSelection = ({
           }
         }
 
-        // No saved preference or stale key — default to first detected engine
-        const firstAgent = availableAgents[0];
-        if (firstAgent) {
-          _setSelectedAgentKey(getAgentKey(firstAgent));
-        }
+        // No saved preference or stale key — prefer Hermes Chief of Staff when installed.
+        _setSelectedAgentKey(getDefaultAgentKey(availableAgents));
       } catch (error) {
         console.error('Failed to load last selected agent:', error);
       }
@@ -473,8 +482,7 @@ export const useGuidAgentSelection = ({
 
   // Key of the first non-preset CLI agent (used as fallback when leaving preset mode)
   const defaultAgentKey = useMemo(() => {
-    const firstCliAgent = availableAgents?.find((a) => !a.isPreset);
-    return firstCliAgent ? getAgentKey(firstCliAgent) : 'aionrs';
+    return getDefaultAgentKey(availableAgents);
   }, [availableAgents]);
 
   return {

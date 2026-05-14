@@ -456,8 +456,9 @@ export const ACP_BACKENDS_ALL: Record<AcpBackendAll, AcpBackendConfig> = {
   },
   hermes: {
     id: 'hermes',
-    name: 'Hermes Agent',
-    description: 'AI agent by Nous Research with 90+ tools, persistent memory, and multi-platform support',
+    name: 'Hermes Chief of Staff',
+    description:
+      'Chief-of-staff agent powered by Hermes, with local tool execution, persistent memory, and multi-platform support',
     cliCommand: 'hermes',
     authRequired: true,
     enabled: true, // ✅ Nous Research Hermes Agent，使用 `hermes acp` 启动

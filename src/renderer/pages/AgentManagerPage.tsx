@@ -14,7 +14,7 @@ const initialStatus: AgentManagerStatus = {
   state: 'starting',
   url: 'http://localhost:3330',
   backendUrl: 'http://localhost:18330',
-  message: 'Starting Agent-Manager',
+  message: `Starting ${AGENT_MANAGER_NAME}`,
   updatedAt: Date.now(),
 };
 
@@ -35,13 +35,16 @@ const AgentManagerPage: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    ipcBridge.agentManager.getStatus.invoke().then((nextStatus) => {
-      if (mounted) {
-        setStatus(nextStatus);
-      }
-    }).catch((error) => {
-      console.error('Failed to read Agent-Manager status:', error);
-    });
+    ipcBridge.agentManager.getStatus
+      .invoke()
+      .then((nextStatus) => {
+        if (mounted) {
+          setStatus(nextStatus);
+        }
+      })
+      .catch((error) => {
+        console.error(`Failed to read ${AGENT_MANAGER_NAME} status:`, error);
+      });
 
     const unsubscribe = ipcBridge.agentManager.statusChanged.on((nextStatus) => {
       setStatus(nextStatus);
@@ -72,15 +75,18 @@ const AgentManagerPage: React.FC = () => {
 
   const handleRestart = () => {
     setFrameKey((current) => current + 1);
-    void ipcBridge.agentManager.restart.invoke().then(setStatus).catch((error) => {
-      console.error('Failed to restart Agent-Manager:', error);
-    });
+    void ipcBridge.agentManager.restart
+      .invoke()
+      .then(setStatus)
+      .catch((error) => {
+        console.error(`Failed to restart ${AGENT_MANAGER_NAME}:`, error);
+      });
   };
 
   const handleOpenExternal = () => {
     const url = status.state === 'ready' ? buildBootUrl(status.url) : status.url;
     void ipcBridge.shell.openExternal.invoke(url).catch((error) => {
-      console.error('Failed to open Agent-Manager externally:', error);
+      console.error(`Failed to open ${AGENT_MANAGER_NAME} externally:`, error);
     });
   };
 
