@@ -77,6 +77,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // page; `teams` is reserved for future team management.
   "issues",
   "projects",
+  "goals",
   "autopilots",
   "agents",
   "squads",

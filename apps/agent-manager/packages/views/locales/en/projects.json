@@ -51,6 +51,7 @@
     "copy_link": "Copy link",
     "delete_action": "Delete project",
     "section_properties": "Properties",
+    "section_goals": "Goals",
     "section_progress": "Progress",
     "section_description": "Description",
     "description_placeholder": "Add description...",

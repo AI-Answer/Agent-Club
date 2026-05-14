@@ -1,0 +1,516 @@
+version: 2
+
+goal:
+  title: "Native Goals in Local Agent Manager"
+  slug: "local-agent-manager-native-goals"
+  kind: existing_plan
+  tranche: "Build native project-scoped goals in Local Agent Manager, expand goals into normal issue work, route work to agents, and verify the local workflow."
+  status: done
+  intake:
+    original_request: "Make the native Local Agent Manager goals plan into a /goal, spin up the board, and run it."
+    interpreted_outcome: "Local Agent Manager natively supports planning project goals, expanding them into issue work, assigning agents, and tracking progress over time."
+    input_shape: existing_plan
+    audience: "Sam using Agent Club as a local agent operating cockpit."
+    authority: requested
+    proof_type: test
+    completion_proof: "Goal CRUD, goal-linked issue boards, planner expansion, agent/task tracking, local UI smoke check, repo checks, commit, and push are complete."
+    likely_misfire: "Shipping a GoalBuddy sync, a duplicate board system, or project rename instead of native many-goals-per-project functionality in Local Agent Manager."
+    blind_spots_considered:
+      - "Projects must remain top-level containers; goals are many-per-project."
+      - "Cards inside a goal should be normal Multica issues."
+      - "Sub-agent tracking should use existing agent, squad, issue, task-run, comment, and execution-log surfaces in v1."
+      - "Hermes Chief of Staff is preferred for planning but cannot be a hard dependency."
+      - "Goal runs need a GoalBuddy-agents-like readiness check so required planner, worker, and reviewer sub-agents are selected or surfaced as missing before execution."
+    existing_plan_facts:
+      - "Add a first-class goal model scoped to workspace and project."
+      - "Add goal_id to issues and issue APIs."
+      - "Add goal UI surfaces: sidebar nav, project detail goals section, goal detail planning room, and scoped board."
+      - "Add planner expansion that creates or queues normal Multica issues for agents."
+      - "Add goal-run agent readiness so required sub-agents are enabled, selected, tested, and used when the goal plan requires them."
+      - "GoalBuddy is execution scaffolding only, not product architecture."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/local-agent-manager-native-goals/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/local-agent-manager-native-goals"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the existing Multica project, issue, task-run, quick-create, autopilot, route, CLI, and UI surfaces that native goals should build on."
+    inputs:
+      - "apps/agent-manager/server/migrations"
+      - "apps/agent-manager/server/pkg/db/queries"
+      - "apps/agent-manager/server/internal/handler"
+      - "apps/agent-manager/server/internal/service"
+      - "apps/agent-manager/server/internal/daemon"
+      - "apps/agent-manager/server/cmd/multica"
+      - "apps/agent-manager/packages/core"
+      - "apps/agent-manager/packages/views"
+      - "apps/agent-manager/apps/web/app"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Prefer concrete file-path evidence over generic advice."
+      - "Preserve the existing plan and validate it before implementation."
+    expected_output:
+      - "Implementation surface map."
+      - "Existing primitives to reuse."
+      - "Risks and sequencing notes."
+      - "Recommended first Worker slice."
+    receipt:
+      result: done
+      note: "notes/T001-surface-map.md"
+      summary: "Mapped the Multica surfaces for native goals: projects, issue boards, issue filtering, task queue/runs, quick-create planning tasks, routes, CLI, and reusable board UI. Recommended goal rows plus issue.goal_id, with goal expansion as a quick-create-like planner task."
+      evidence:
+        - "apps/agent-manager/server/migrations/034_projects.up.sql"
+        - "apps/agent-manager/server/pkg/db/queries/issue.sql"
+        - "apps/agent-manager/server/internal/service/task.go"
+        - "apps/agent-manager/server/internal/daemon/prompt.go"
+        - "apps/agent-manager/packages/views/issues/components/board-view.tsx"
+      facts:
+        - "Projects already own issues through issue.project_id."
+        - "Existing issue board/status/assignee/task-run surfaces can carry goal work cards."
+        - "Quick-create is the closest existing pattern for a planner agent turning intent into issues."
+      contradictions: []
+      ambiguity_requiring_judge:
+        - "Whether to implement backend goal CRUD first or issue goal_id first."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Validate the Project -> Goals -> Issues -> Agent task runs architecture and choose the safest first implementation slice."
+    inputs:
+      - "T001 receipt."
+      - "Goal charter and existing plan facts."
+    constraints:
+      - "Do not implement."
+      - "Reject GoalBuddy sync or duplicate board architecture."
+      - "Choose a slice that leaves the app runnable and reviewable."
+    expected_output:
+      - "Decision."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify."
+      - "stop_if."
+      - "Deferred tasks."
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      summary: "Approved the native architecture: add project-scoped goal rows, then link normal issues to goals in a separate slice. First Worker should implement backend goal CRUD/API/types only, leaving issue goal_id, UI, and expansion for later slices."
+      evidence:
+        - "docs/goals/local-agent-manager-native-goals/notes/T001-surface-map.md"
+        - "apps/agent-manager/server/internal/handler/project.go"
+        - "apps/agent-manager/server/pkg/db/queries/project.sql"
+      next_allowed_task: T003
+      blocked_tasks: []
+      required_board_updates:
+        - "Activate T003 as the first Worker slice."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add backend native goal schema, sqlc queries, Go handlers, API client methods, and core types selected by Judge."
+    allowed_files:
+      - "apps/agent-manager/server/migrations/**"
+      - "apps/agent-manager/server/pkg/db/queries/**"
+      - "apps/agent-manager/server/pkg/db/generated/**"
+      - "apps/agent-manager/server/internal/handler/**"
+      - "apps/agent-manager/server/cmd/server/router.go"
+      - "apps/agent-manager/packages/core/types/**"
+      - "apps/agent-manager/packages/core/api/**"
+      - "apps/agent-manager/packages/core/goals/**"
+      - "apps/agent-manager/packages/core/index.ts"
+      - "apps/agent-manager/packages/core/package.json"
+    verify:
+      - "cd apps/agent-manager && make sqlc"
+      - "cd apps/agent-manager/server && go test ./internal/handler ./cmd/server"
+    stop_if:
+      - "Schema requires destructive migration of existing project or issue data."
+      - "Need to change authentication or workspace membership semantics."
+      - "sqlc generation or Go tests fail twice for reasons outside this slice."
+    receipt:
+      result: done
+      note: "notes/T003-backend-goals.md"
+      summary: "Added native goal schema, sqlc queries/generated code, workspace-scoped Go CRUD handlers/routes, core TypeScript types, API client methods, and React Query goal helpers."
+      evidence:
+        - "apps/agent-manager/server/migrations/089_goals.up.sql"
+        - "apps/agent-manager/server/pkg/db/queries/goal.sql"
+        - "apps/agent-manager/server/internal/handler/goal.go"
+        - "apps/agent-manager/server/cmd/server/router.go"
+        - "apps/agent-manager/packages/core/types/goal.ts"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/goals/queries.ts"
+        - "apps/agent-manager/packages/core/goals/mutations.ts"
+      changed_files:
+        - "apps/agent-manager/server/migrations/089_goals.up.sql"
+        - "apps/agent-manager/server/migrations/089_goals.down.sql"
+        - "apps/agent-manager/server/pkg/db/queries/goal.sql"
+        - "apps/agent-manager/server/pkg/db/generated/goal.sql.go"
+        - "apps/agent-manager/server/pkg/db/generated/models.go"
+        - "apps/agent-manager/server/internal/handler/goal.go"
+        - "apps/agent-manager/server/cmd/server/router.go"
+        - "apps/agent-manager/packages/core/types/goal.ts"
+        - "apps/agent-manager/packages/core/types/index.ts"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/goals/index.ts"
+        - "apps/agent-manager/packages/core/goals/queries.ts"
+        - "apps/agent-manager/packages/core/goals/mutations.ts"
+        - "apps/agent-manager/packages/core/package.json"
+      commands:
+        - cmd: "GOBIN=/tmp/agent-club-bin go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0"
+          status: pass
+        - cmd: "cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+          status: pass
+        - cmd: "cd apps/agent-manager/server && go test ./internal/handler ./cmd/server"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+          status: pass
+      verification:
+        - "PASS: cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+        - "PASS: cd apps/agent-manager/server && go test ./internal/handler ./cmd/server"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+      caveats:
+        - "Local PATH did not include sqlc; generation used sqlc v1.30.0 installed under /tmp/agent-club-bin for this run."
+        - "Issue goal linkage, UI, and planner expansion remain queued."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add goal_id support to issues, issue filtering, child issue inheritance, and Multica CLI goal/issue commands."
+    allowed_files:
+      - "apps/agent-manager/server/migrations/**"
+      - "apps/agent-manager/server/pkg/db/queries/**"
+      - "apps/agent-manager/server/pkg/db/generated/**"
+      - "apps/agent-manager/server/internal/handler/issue.go"
+      - "apps/agent-manager/server/cmd/multica/**"
+      - "apps/agent-manager/packages/core/types/**"
+      - "apps/agent-manager/packages/core/api/**"
+      - "apps/agent-manager/packages/core/issues/**"
+      - "apps/agent-manager/packages/core/package.json"
+    verify:
+      - "cd apps/agent-manager && make sqlc"
+      - "cd apps/agent-manager/server && go test ./internal/handler ./cmd/multica"
+    stop_if:
+      - "Goal-linked issues cannot be validated without changing project ownership semantics."
+      - "CLI changes require a broader command refactor."
+      - "Generated SQL or tests fail twice for reasons outside this slice."
+    receipt:
+      result: done
+      note: "notes/T004-issue-goal-linkage.md"
+      summary: "Added issue.goal_id schema/linkage, issue list/create/update filtering and inheritance, TypeScript API/types, issue CLI --goal flags, goal ID resolution, and a new multica goal CLI command set."
+      changed_files:
+        - "apps/agent-manager/server/migrations/090_issue_goal_id.up.sql"
+        - "apps/agent-manager/server/migrations/090_issue_goal_id.down.sql"
+        - "apps/agent-manager/server/pkg/db/queries/issue.sql"
+        - "apps/agent-manager/server/pkg/db/generated/issue.sql.go"
+        - "apps/agent-manager/server/pkg/db/generated/models.go"
+        - "apps/agent-manager/server/internal/handler/issue.go"
+        - "apps/agent-manager/server/cmd/multica/cmd_goal.go"
+        - "apps/agent-manager/server/cmd/multica/cmd_id_resolver.go"
+        - "apps/agent-manager/server/cmd/multica/cmd_issue.go"
+        - "apps/agent-manager/server/cmd/multica/main.go"
+        - "apps/agent-manager/packages/core/types/issue.ts"
+        - "apps/agent-manager/packages/core/types/api.ts"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/issues/queries.ts"
+        - "apps/agent-manager/packages/core/issues/ws-updaters.test.ts"
+      commands:
+        - cmd: "cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+          status: pass
+        - cmd: "cd apps/agent-manager/server && go test ./internal/handler ./cmd/multica"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/core test -- issues/ws-updaters.test.ts"
+          status: pass
+      verification:
+        - "PASS: cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+        - "PASS: cd apps/agent-manager/server && go test ./internal/handler ./cmd/multica"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/core test -- issues/ws-updaters.test.ts"
+      caveats:
+        - "Goal board UI and planner expansion remain queued."
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add frontend goal navigation, project goal list, goal detail planning page, create/edit dialogs, and scoped goal issue board."
+    allowed_files:
+      - "apps/agent-manager/apps/web/app/**"
+      - "apps/agent-manager/apps/desktop/src/renderer/src/**"
+      - "apps/agent-manager/packages/core/paths/**"
+      - "apps/agent-manager/server/internal/handler/reserved_slugs.json"
+      - "apps/agent-manager/packages/core/modals/**"
+      - "apps/agent-manager/packages/core/goals/**"
+      - "apps/agent-manager/packages/core/issues/**"
+      - "apps/agent-manager/packages/core/package.json"
+      - "apps/agent-manager/packages/views/package.json"
+      - "apps/agent-manager/packages/views/goals/**"
+      - "apps/agent-manager/packages/views/issues/**"
+      - "apps/agent-manager/packages/views/projects/**"
+      - "apps/agent-manager/packages/views/layout/**"
+      - "apps/agent-manager/packages/views/editor/utils/link-handler.ts"
+      - "apps/agent-manager/packages/views/locales/**"
+      - "apps/agent-manager/packages/views/modals/**"
+    verify:
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "cd apps/agent-manager && pnpm -w exec vitest run packages/core/paths packages/views/goals packages/views/projects"
+    stop_if:
+      - "Goal board requires replacing existing issue board components instead of scoping them."
+      - "Localization parity cannot be preserved cleanly."
+      - "Frontend tests fail twice for reasons outside this slice."
+    receipt:
+      result: done
+      note: "notes/T005-frontend-goals.md"
+      summary: "Added native goal navigation, project goal lists, create/edit flows, goal detail planning page, and scoped goal issue boards in the Local Agent Manager UI."
+      evidence:
+        - "apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/goals/page.tsx"
+        - "apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/goals/[id]/page.tsx"
+        - "apps/agent-manager/packages/views/goals/components/goals-page.tsx"
+        - "apps/agent-manager/packages/views/goals/components/goal-detail.tsx"
+        - "apps/agent-manager/packages/views/modals/create-goal.tsx"
+        - "apps/agent-manager/packages/views/issues/components/board-view.tsx"
+        - "apps/agent-manager/packages/views/projects/components/project-detail.tsx"
+      changed_files:
+        - "apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/goals/page.tsx"
+        - "apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/goals/[id]/page.tsx"
+        - "apps/agent-manager/apps/desktop/src/renderer/src/pages/goal-detail-page.tsx"
+        - "apps/agent-manager/apps/desktop/src/renderer/src/routes.tsx"
+        - "apps/agent-manager/packages/views/goals/**"
+        - "apps/agent-manager/packages/views/modals/create-goal.tsx"
+        - "apps/agent-manager/packages/views/issues/components/board-view.tsx"
+        - "apps/agent-manager/packages/views/issues/components/board-column.tsx"
+        - "apps/agent-manager/packages/views/issues/components/list-view.tsx"
+        - "apps/agent-manager/packages/views/projects/components/project-detail.tsx"
+        - "apps/agent-manager/packages/views/layout/app-sidebar.tsx"
+        - "apps/agent-manager/packages/core/paths/**"
+        - "apps/agent-manager/packages/core/goals/config.ts"
+        - "apps/agent-manager/packages/views/locales/**"
+      commands:
+        - cmd: "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/core test -- paths"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/views test -- projects goals layout"
+          status: pass
+        - cmd: "Browser smoke at http://localhost:3330/agent-club/goals after agent-club-boot auth"
+          status: pass
+      verification:
+        - "PASS: cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/core test -- paths"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/views test -- projects goals layout"
+        - "PASS: Browser smoke landed on /agent-club/goals and showed Goals/New Goal/Create first goal."
+      caveats:
+        - "First browser navigation timed out while Next compiled the new route; retry after compile passed."
+        - "Planner expansion and sub-agent readiness remain queued in T006."
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add planner-agent goal expansion plus a sub-agent readiness layer that checks required planner/worker/reviewer roles, selects enabled local agents or squads, surfaces missing setup, and instructs the planner to create goal-linked issues/sub-issues without duplicates."
+    allowed_files:
+      - "apps/agent-manager/server/cmd/server/router.go"
+      - "apps/agent-manager/server/internal/service/**"
+      - "apps/agent-manager/server/internal/daemon/**"
+      - "apps/agent-manager/server/internal/handler/**"
+      - "apps/agent-manager/server/pkg/db/queries/**"
+      - "apps/agent-manager/server/pkg/db/generated/**"
+      - "apps/agent-manager/packages/core/api/**"
+      - "apps/agent-manager/packages/core/types/**"
+      - "apps/agent-manager/packages/core/goals/**"
+      - "apps/agent-manager/packages/views/goals/**"
+      - "apps/agent-manager/packages/views/locales/**"
+    verify:
+      - "cd apps/agent-manager && make sqlc"
+      - "cd apps/agent-manager/server && go test ./internal/service ./internal/daemon ./internal/handler"
+    stop_if:
+      - "Expansion requires provider-specific internal subagent capture."
+      - "No available local agent can be selected without user credentials or external setup."
+      - "Required sub-agent checks would need to mutate credentials, install third-party CLIs, or enable external providers without explicit user action."
+      - "Tests fail twice for reasons outside this slice."
+    receipt:
+      result: done
+      note: "notes/T006-agent-readiness-expansion.md"
+      summary: "Added native goal readiness checks for planner/worker/reviewer coverage, goal expansion queueing, daemon prompt context, UI readiness chips, and the Expand Goal action. Installed GoalBuddy's dedicated Scout/Worker/Judge helpers and refreshed the bundled/managed local CLI so spawned agents have goal commands."
+      evidence:
+        - "apps/agent-manager/server/internal/handler/goal.go"
+        - "apps/agent-manager/server/internal/service/task.go"
+        - "apps/agent-manager/server/internal/daemon/prompt.go"
+        - "apps/agent-manager/packages/core/goals/mutations.ts"
+        - "apps/agent-manager/packages/views/goals/components/goal-detail.tsx"
+        - "/Users/saminyasar/.codex/agents/goal_scout.toml"
+        - "/Users/saminyasar/.codex/agents/goal_worker.toml"
+        - "/Users/saminyasar/.codex/agents/goal_judge.toml"
+        - "apps/agent-manager/apps/desktop/resources/bin/multica"
+        - "apps/agent-manager/.agent-club/bin/multica"
+      changed_files:
+        - "apps/agent-manager/server/internal/handler/goal.go"
+        - "apps/agent-manager/server/internal/service/task.go"
+        - "apps/agent-manager/server/internal/daemon/prompt.go"
+        - "apps/agent-manager/server/internal/daemon/types.go"
+        - "apps/agent-manager/server/internal/daemon/prompt_test.go"
+        - "apps/agent-manager/server/internal/handler/agent.go"
+        - "apps/agent-manager/server/internal/handler/daemon.go"
+        - "apps/agent-manager/server/cmd/server/router.go"
+        - "apps/agent-manager/packages/core/types/goal.ts"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/goals/queries.ts"
+        - "apps/agent-manager/packages/core/goals/mutations.ts"
+        - "apps/agent-manager/packages/views/goals/components/goal-detail.tsx"
+        - "apps/agent-manager/packages/views/locales/en/goals.json"
+        - "apps/agent-manager/packages/views/locales/zh-Hans/goals.json"
+      commands:
+        - cmd: "npx goalbuddy agents"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+          status: pass
+        - cmd: "cd apps/agent-manager/server && go test ./internal/daemon ./internal/handler"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+          status: pass
+        - cmd: "cd apps/agent-manager && pnpm --filter @multica/views test -- goals"
+          status: pass
+        - cmd: "cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+          status: pass
+        - cmd: "cd apps/agent-manager/server && go test ./internal/service ./internal/daemon ./internal/handler"
+          status: pass
+        - cmd: "cd apps/agent-manager && make build"
+          status: pass
+        - cmd: "cd apps/agent-manager/apps/desktop && pnpm run bundle-cli"
+          status: pass
+        - cmd: "apps/agent-manager/.agent-club/bin/multica --profile agent-club goal list --output json"
+          status: pass
+      verification:
+        - "PASS: GoalBuddy agents installed under /Users/saminyasar/.codex/agents."
+        - "PASS: TypeScript and Go checks passed."
+        - "PASS: Browser smoke showed readiness and Expand Goal on the goal detail page."
+        - "PASS: Local smoke goal was deleted after verification."
+        - "PASS: Refreshed managed local CLI can run goal commands and issue create --goal."
+      caveats:
+        - "Readiness confirms enabled local agents and squads; provider-specific external tools still require user credentials and setup."
+  - id: T007
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether native goals support planning a goal, expanding it into tasks, assigning/routing agents, and tracking work over time inside Local Agent Manager."
+    inputs:
+      - "Receipts from T003 through T006."
+      - "Current dirty diff."
+      - "Verification command outputs."
+      - "Local UI smoke-test notes."
+    constraints:
+      - "Do not implement."
+      - "Reject completion if any required Worker slice is still queued, active, or unverified."
+      - "Reject completion if the feature depends on GoalBuddy product sync."
+    expected_output:
+      - "complete | not_complete."
+      - "full_outcome_complete: true | false."
+      - "Missing evidence."
+      - "Next task if not complete."
+    receipt:
+      result: done
+      note: "notes/T007-audit.md"
+      decision: complete
+      full_outcome_complete: true
+      summary: "Audited the native goal architecture and verified it does not depend on GoalBuddy sync. Found and fixed a stale managed CLI cache so spawned agents can run the new goal commands."
+      evidence:
+        - "docs/goals/local-agent-manager-native-goals/notes/T006-agent-readiness-expansion.md"
+        - "apps/agent-manager/server/internal/handler/goal.go"
+        - "apps/agent-manager/server/internal/daemon/prompt.go"
+        - "apps/agent-manager/packages/views/goals/components/goal-detail.tsx"
+        - "apps/agent-manager/.agent-club/bin/multica"
+      residual_risk:
+        - "Historical goal analytics beyond the scoped board are deferred."
+        - "External provider credentials still require explicit user setup."
+  - id: T999
+    type: pm
+    assignee: PM
+    status: done
+    reasoning_hint: high
+    objective: "Run final verification, commit, push to GitHub, and report the shipped state."
+    inputs:
+      - "T007 audit receipt."
+      - "Current branch and git status."
+    constraints:
+      - "Do not commit unrelated user changes unless they are part of this goal."
+      - "Do not push secrets or local vault files."
+    expected_output:
+      - "Final verification summary."
+      - "Commit SHA."
+      - "Pushed branch."
+      - "Remaining risks, if any."
+    receipt:
+      result: done
+      note: "notes/T999-final.md"
+      summary: "Ran final verification, committed the native goal workflow, pushed the branch to GitHub, and left the local app running with the refreshed managed CLI."
+      commit: "final commit containing this receipt"
+      branch: "feat/journeykits-composio-integration"
+      remote: "origin"
+      repository: "https://github.com/Samin12/Agent-Club.git"
+      verification:
+        - "PASS: git diff --check"
+        - "PASS: cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/core test -- paths issues/ws-updaters.test.ts"
+        - "PASS: cd apps/agent-manager && pnpm --filter @multica/views test -- projects goals layout"
+        - "PASS: cd apps/agent-manager/server && go test ./internal/service ./internal/daemon ./internal/handler ./cmd/multica"
+        - "PASS: cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+        - "PASS: cd apps/agent-manager && make build"
+        - "PASS: apps/agent-manager/.agent-club/bin/multica --profile agent-club goal list --output json"
+        - "PASS: GoalBuddy state checker passed with installed Scout/Worker/Judge agents."
+      runtime:
+        - "Local Agent Manager web: http://localhost:3330"
+        - "Electron renderer: http://localhost:5173"
+        - "Backend health: http://localhost:18330/health"
+        - "Daemon registered Claude, Codex, OpenClaw, and Hermes runtimes from refreshed managed CLI."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T007
+    commands:
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "cd apps/agent-manager && pnpm --filter @multica/views test -- goals"
+      - "cd apps/agent-manager && PATH=\"/tmp/agent-club-bin:$PATH\" make sqlc"
+      - "cd apps/agent-manager/server && go test ./internal/service ./internal/daemon ./internal/handler"
+      - "npx goalbuddy agents"
+      - "cd apps/agent-manager && make build"
+      - "apps/agent-manager/.agent-club/bin/multica --profile agent-club goal list --output json"

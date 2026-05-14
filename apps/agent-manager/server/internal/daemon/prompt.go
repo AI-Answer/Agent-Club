@@ -25,6 +25,9 @@ func BuildPrompt(task Task, provider string) string {
 		return buildAutopilotPrompt(task)
 	}
 	if task.QuickCreatePrompt != "" {
+		if task.GoalID != "" {
+			return buildGoalExpansionPrompt(task)
+		}
 		return buildQuickCreatePrompt(task)
 	}
 	var b strings.Builder
@@ -32,6 +35,53 @@ func BuildPrompt(task Task, provider string) string {
 	fmt.Fprintf(&b, "Your assigned issue ID is: %s\n\n", task.IssueID)
 	fmt.Fprintf(&b, "Start by running `multica issue get %s --output json` to understand your task, then complete it.\n", task.IssueID)
 	fmt.Fprintf(&b, "If you need comment history, `multica issue comment list %s --output json` returns all comments for the issue (server caps at 2000). Pass `--since <RFC3339>` to fetch only comments newer than a known cursor.\n", task.IssueID)
+	return b.String()
+}
+
+func buildGoalExpansionPrompt(task Task) string {
+	var b strings.Builder
+	b.WriteString("You are running as a goal-planning assistant for a Multica workspace.\n\n")
+	b.WriteString("A user asked Local Agent Manager to expand a native goal into executable issue work for local agents. There may be existing goal issues already. Your job is to create only the missing normal Multica issues and sub-issues for this goal.\n\n")
+
+	if task.GoalTitle != "" {
+		fmt.Fprintf(&b, "Goal:\n# %s\n\n", task.GoalTitle)
+	}
+	if strings.TrimSpace(task.GoalDescription) != "" {
+		fmt.Fprintf(&b, "Goal description:\n%s\n\n", strings.TrimSpace(task.GoalDescription))
+	}
+	fmt.Fprintf(&b, "Goal ID: %s\n", task.GoalID)
+	if task.ProjectID != "" {
+		if task.ProjectTitle != "" {
+			fmt.Fprintf(&b, "Project: %s (%s)\n\n", task.ProjectTitle, task.ProjectID)
+		} else {
+			fmt.Fprintf(&b, "Project ID: %s\n\n", task.ProjectID)
+		}
+	}
+	if strings.TrimSpace(task.QuickCreatePrompt) != "" {
+		fmt.Fprintf(&b, "User planning note:\n> %s\n\n", strings.TrimSpace(task.QuickCreatePrompt))
+	}
+
+	b.WriteString("Required workflow:\n")
+	fmt.Fprintf(&b, "1. Run `multica goal get %s --output json` to refresh the goal before planning.\n", task.GoalID)
+	fmt.Fprintf(&b, "2. Run `multica issue list --goal %s --output json` and use it as the duplicate-prevention source of truth.\n", task.GoalID)
+	b.WriteString("3. Run `multica agent list --output json` and `multica squad list --output json` so planner, worker, and reviewer roles use enabled local agents or squads available in this workspace.\n")
+	b.WriteString("4. Compare proposed cards against existing issue titles, descriptions, and parent/child relationships. If an issue already covers a work item, do not create another issue for it.\n")
+	b.WriteString("5. Create only the missing goal-linked cards with `multica issue create`. Every created issue MUST include the goal flag and the project flag shown below.\n\n")
+
+	b.WriteString("Issue creation rules:\n")
+	fmt.Fprintf(&b, "- Always pass `--goal %q` on every created issue.\n", task.GoalID)
+	if task.ProjectID != "" {
+		fmt.Fprintf(&b, "- Always pass `--project %q` on every created issue.\n", task.ProjectID)
+	}
+	b.WriteString("- Create a small parent planning issue only when it helps group the work; otherwise create leaf issues directly.\n")
+	b.WriteString("- Use `--parent <issue-id-or-key>` for sub-issues when a parent already exists or after you create a new parent.\n")
+	b.WriteString("- Assign implementation work to an enabled worker agent or squad with `--assignee-id` when unambiguous. If reviewer work is needed, create a separate review issue assigned to an enabled reviewer agent or squad.\n")
+	b.WriteString("- Keep the plan practical: usually 3-8 issues total, with clear titles, concrete descriptions, and no invented requirements.\n")
+	b.WriteString("- Do not retry a failed create command blindly; retrying can create duplicates. Inspect the error and stop if the issue may have been created.\n\n")
+
+	b.WriteString("Completion output:\n")
+	b.WriteString("- After creating or confirming the missing cards, print one concise summary listing created issue keys and skipped duplicates.\n")
+	b.WriteString("- Do not leave a comment on an issue unless you created or updated that issue and the comment is necessary context.\n")
 	return b.String()
 }
 

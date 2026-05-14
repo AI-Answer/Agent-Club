@@ -472,16 +472,25 @@ func (s *TaskService) EnqueueTaskForMention(ctx context.Context, issue db.Issue,
 // onto the agent's Instructions, matching the behavior of issue-bound
 // tasks assigned to the squad.
 type QuickCreateContext struct {
-	Type        string `json:"type"`
-	Prompt      string `json:"prompt"`
-	RequesterID string `json:"requester_id"`
-	WorkspaceID string `json:"workspace_id"`
-	ProjectID   string `json:"project_id,omitempty"`
-	SquadID     string `json:"squad_id,omitempty"`
+	Type            string `json:"type"`
+	Mode            string `json:"mode,omitempty"`
+	Prompt          string `json:"prompt"`
+	RequesterID     string `json:"requester_id"`
+	WorkspaceID     string `json:"workspace_id"`
+	ProjectID       string `json:"project_id,omitempty"`
+	GoalID          string `json:"goal_id,omitempty"`
+	GoalTitle       string `json:"goal_title,omitempty"`
+	GoalDescription string `json:"goal_description,omitempty"`
+	SquadID         string `json:"squad_id,omitempty"`
 }
 
 // QuickCreateContextType marks a task as a quick-create job.
 const QuickCreateContextType = "quick_create"
+
+// GoalExpansionMode marks a quick-create-shaped task whose prompt expands a
+// goal into multiple normal, goal-linked Multica issues instead of creating
+// one issue from a modal sentence.
+const GoalExpansionMode = "goal_expand"
 
 // EnqueueQuickCreateTask creates a queued task that has no issue / chat /
 // autopilot link — the user's natural-language prompt is stored in the
@@ -550,6 +559,70 @@ func (s *TaskService) EnqueueQuickCreateTask(ctx context.Context, workspaceID, r
 	// cycle. Without this the user perceives "quick create never
 	// triggered" because the modal closes immediately and the task
 	// sits in 'queued' until the next sleepWithContextOrWakeup tick.
+	s.NotifyTaskEnqueued(ctx, task)
+	return task, nil
+}
+
+// EnqueueGoalExpansionTask queues a planner agent to turn a native goal into
+// normal goal-linked Multica issues. It deliberately reuses the quick-create
+// task shape so daemon dispatch, project resource injection, inbox reporting,
+// and origin stamping keep working without adding a second untracked task
+// primitive.
+func (s *TaskService) EnqueueGoalExpansionTask(ctx context.Context, workspaceID, requesterID pgtype.UUID, goal db.Goal, agentID, squadID pgtype.UUID, prompt string) (db.AgentTaskQueue, error) {
+	agent, err := s.Queries.GetAgent(ctx, agentID)
+	if err != nil {
+		return db.AgentTaskQueue{}, fmt.Errorf("load agent: %w", err)
+	}
+	if agent.ArchivedAt.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
+	}
+	if !agent.RuntimeID.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent has no runtime")
+	}
+
+	if strings.TrimSpace(prompt) == "" {
+		prompt = "Expand this goal into a practical issue plan for local agents."
+	}
+
+	payload := QuickCreateContext{
+		Type:        QuickCreateContextType,
+		Mode:        GoalExpansionMode,
+		Prompt:      prompt,
+		RequesterID: util.UUIDToString(requesterID),
+		WorkspaceID: util.UUIDToString(workspaceID),
+		ProjectID:   util.UUIDToString(goal.ProjectID),
+		GoalID:      util.UUIDToString(goal.ID),
+		GoalTitle:   goal.Title,
+	}
+	if goal.Description.Valid {
+		payload.GoalDescription = goal.Description.String
+	}
+	if squadID.Valid {
+		payload.SquadID = util.UUIDToString(squadID)
+	}
+	contextJSON, err := json.Marshal(payload)
+	if err != nil {
+		return db.AgentTaskQueue{}, fmt.Errorf("marshal goal expansion context: %w", err)
+	}
+
+	task, err := s.Queries.CreateQuickCreateTask(ctx, db.CreateQuickCreateTaskParams{
+		AgentID:   agentID,
+		RuntimeID: agent.RuntimeID,
+		Priority:  priorityToInt("high"),
+		Context:   contextJSON,
+	})
+	if err != nil {
+		return db.AgentTaskQueue{}, fmt.Errorf("create goal expansion task: %w", err)
+	}
+
+	slog.Info("goal expansion task enqueued",
+		"task_id", util.UUIDToString(task.ID),
+		"goal_id", payload.GoalID,
+		"agent_id", util.UUIDToString(agentID),
+		"squad_id", payload.SquadID,
+		"requester_id", util.UUIDToString(requesterID),
+		"workspace_id", util.UUIDToString(workspaceID),
+	)
 	s.NotifyTaskEnqueued(ctx, task)
 	return task, nil
 }

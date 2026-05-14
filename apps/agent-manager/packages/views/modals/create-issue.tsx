@@ -106,6 +106,9 @@ export function ManualCreatePanel({
   const [projectId, setProjectId] = useState<string | undefined>(
     (data?.project_id as string) || undefined,
   );
+  const [goalId] = useState<string | undefined>(
+    (data?.goal_id as string) || undefined,
+  );
   const [parentIssueId, setParentIssueId] = useState<string | undefined>(
     (data?.parent_issue_id as string) || undefined,
   );
@@ -182,6 +185,7 @@ export function ManualCreatePanel({
         attachment_ids: attachmentIds.length > 0 ? attachmentIds : undefined,
         parent_issue_id: parentIssueId,
         project_id: projectId,
+        goal_id: goalId,
       });
 
       // Link queued children to the new parent. Deferred to after create
@@ -280,6 +284,7 @@ export function ManualCreatePanel({
           ? { squad_id: assigneeId }
           : {}),
       ...(projectId ? { project_id: projectId } : {}),
+      ...(goalId ? { goal_id: goalId } : {}),
     });
   };
 

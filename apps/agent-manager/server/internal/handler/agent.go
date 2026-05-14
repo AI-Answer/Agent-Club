@@ -155,6 +155,9 @@ type AgentTaskResponse struct {
 	ProjectID               string                `json:"project_id,omitempty"`        // issue's project, when present
 	ProjectTitle            string                `json:"project_title,omitempty"`     // for surfacing in agent context
 	ProjectResources        []ProjectResourceData `json:"project_resources,omitempty"` // resources attached to the project
+	GoalID                  string                `json:"goal_id,omitempty"`           // native goal being expanded, when present
+	GoalTitle               string                `json:"goal_title,omitempty"`        // native goal title for planner context
+	GoalDescription         string                `json:"goal_description,omitempty"`  // native goal description for planner context
 	CreatedAt               string                `json:"created_at"`
 	PriorSessionID          string                `json:"prior_session_id,omitempty"`          // session ID from a previous task on same issue
 	PriorWorkDir            string                `json:"prior_work_dir,omitempty"`            // work_dir from a previous task on same issue

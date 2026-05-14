@@ -107,6 +107,7 @@ export function BoardView({
   myIssuesScope,
   myIssuesFilter,
   projectId,
+  goalId,
 }: {
   issues: Issue[];
   visibleStatuses: IssueStatus[];
@@ -122,6 +123,8 @@ export function BoardView({
   myIssuesFilter?: MyIssuesFilter;
   /** When set, the per-column "+" pre-fills the project on the create form. */
   projectId?: string;
+  /** When set, the per-column "+" links the created issue to this goal. */
+  goalId?: string;
 }) {
   const sortBy = useViewStore((s) => s.sortBy);
   const sortDirection = useViewStore((s) => s.sortDirection);
@@ -293,6 +296,7 @@ export function BoardView({
             childProgressMap={childProgressMap}
             myIssuesOpts={myIssuesOpts}
             projectId={projectId}
+            goalId={goalId}
           />
         ))}
 
@@ -322,6 +326,7 @@ function PaginatedBoardColumn({
   childProgressMap,
   myIssuesOpts,
   projectId,
+  goalId,
 }: {
   status: IssueStatus;
   issueIds: string[];
@@ -329,6 +334,7 @@ function PaginatedBoardColumn({
   childProgressMap?: Map<string, ChildProgress>;
   myIssuesOpts?: { scope: string; filter: MyIssuesFilter };
   projectId?: string;
+  goalId?: string;
 }) {
   const { loadMore, hasMore, isLoading, total } = useLoadMoreByStatus(
     status,
@@ -342,6 +348,7 @@ function PaginatedBoardColumn({
       childProgressMap={childProgressMap}
       totalCount={total}
       projectId={projectId}
+      goalId={goalId}
       footer={
         hasMore ? (
           <InfiniteScrollSentinel onVisible={loadMore} loading={isLoading} />

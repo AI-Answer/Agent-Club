@@ -12,6 +12,7 @@ export interface CreateIssueRequest {
   assignee_id?: string;
   parent_issue_id?: string;
   project_id?: string;
+  goal_id?: string;
   due_date?: string;
   attachment_ids?: string[];
 }
@@ -27,6 +28,7 @@ export interface UpdateIssueRequest {
   due_date?: string | null;
   parent_issue_id?: string | null;
   project_id?: string | null;
+  goal_id?: string | null;
 }
 
 export interface ListIssuesParams {
@@ -39,6 +41,7 @@ export interface ListIssuesParams {
   assignee_ids?: string[];
   creator_id?: string;
   project_id?: string;
+  goal_id?: string;
   open_only?: boolean;
 }
 

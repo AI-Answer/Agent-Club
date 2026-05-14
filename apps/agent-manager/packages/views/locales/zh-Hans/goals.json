@@ -1,0 +1,79 @@
+{
+  "common": {
+    "close": "关闭",
+    "collapse_tooltip": "收起",
+    "expand_tooltip": "展开"
+  },
+  "page": {
+    "title": "目标",
+    "new_goal": "新建目标",
+    "empty": "还没有目标",
+    "create_first": "创建第一个目标"
+  },
+  "table": {
+    "name": "名称",
+    "project": "项目",
+    "status": "状态",
+    "planner": "规划者",
+    "updated": "更新",
+    "unknown_project": "未知项目"
+  },
+  "status": {
+    "planned": "已计划",
+    "in_progress": "进行中",
+    "paused": "已暂停",
+    "completed": "已完成",
+    "cancelled": "已取消"
+  },
+  "planner": {
+    "no_planner": "无规划者",
+    "search_placeholder": "搜索规划者...",
+    "members_group": "成员",
+    "agents_group": "智能体",
+    "squads_group": "小队",
+    "no_results": "无结果"
+  },
+  "create_goal": {
+    "title": "创建目标",
+    "breadcrumb": "新建目标",
+    "title_placeholder": "给目标命名",
+    "description_placeholder": "添加背景、成功标准、约束或计划...",
+    "footer_hint": "目标卡片是关联到此目标的普通 issue。",
+    "submit": "创建目标",
+    "submitting": "正在创建...",
+    "toast_created": "目标已创建",
+    "toast_failed": "目标创建失败"
+  },
+  "detail": {
+    "breadcrumb_fallback": "工作区",
+    "goal_label": "目标",
+    "not_found": "未找到目标",
+    "title_placeholder": "未命名目标",
+    "description_placeholder": "描述目标、计划或成功标准...",
+    "new_issue": "新建 issue",
+    "empty_issues_title": "此目标还没有 issue",
+    "empty_issues_hint": "为智能体或队友创建关联到目标的工作卡片。",
+    "empty_issues_new_button": "新建 issue",
+    "toast_move_issue_failed": "移动 issue 失败",
+    "readiness": {
+      "title": "智能体就绪",
+      "ready": "已就绪",
+      "missing": "需要设置",
+      "checking": "正在检查智能体...",
+      "no_actor": "未选择执行者",
+      "available_count_one": "{{count}} 个可用",
+      "available_count_other": "{{count}} 个可用",
+      "roles": {
+        "planner": "规划者",
+        "worker": "执行者",
+        "reviewer": "审核者"
+      }
+    },
+    "expand": {
+      "button": "展开目标",
+      "queuing": "正在排队...",
+      "toast_queued": "目标展开已排队",
+      "toast_failed": "目标展开排队失败"
+    }
+  }
+}

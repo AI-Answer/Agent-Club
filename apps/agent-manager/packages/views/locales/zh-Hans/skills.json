@@ -61,7 +61,8 @@
     "source_runtime_unknown": "来自某个运行时",
     "source_clawhub": "来自 ClawHub",
     "source_skills_sh": "来自 Skills.sh",
-    "source_github": "来自 GitHub"
+    "source_github": "来自 GitHub",
+    "source_journeykits": "来自 JourneyKits"
   },
   "detail": {
     "all_skills": "全部 skill",
@@ -84,6 +85,7 @@
       "origin_clawhub": "导入自 · ClawHub",
       "origin_skills_sh": "导入自 · Skills.sh",
       "origin_github": "导入自 · GitHub",
+      "origin_journeykits": "导入自 · JourneyKits",
       "origin_workspace": "工作区",
       "updated_label": "{{when}}更新",
       "by_creator": "由 {{name}}"
@@ -119,7 +121,15 @@
       "imported_clawhub": "从 ClawHub 导入",
       "imported_skills_sh": "从 Skills.sh 导入",
       "imported_github": "从 GitHub 导入",
+      "imported_journeykits": "从 JourneyKits 导入",
       "provider": "provider · {{provider}}"
+    },
+    "journeykits_publish": {
+      "title": "JourneyKits 发布",
+      "body": "发布需要所有者权限。请使用拥有 kit 所有权的 JourneyKits 账号来打包、提交或更新此 skill。",
+      "open_kit": "打开 kit",
+      "open_console": "打开 Console",
+      "guide": "发布指南"
     },
     "not_found": {
       "title": "未找到该 skill",
@@ -205,6 +215,7 @@
       "importing_clawhub": "正在从 ClawHub 导入...",
       "importing_skills_sh": "正在从 Skills.sh 导入...",
       "importing_github": "正在从 GitHub 导入...",
+      "importing_journeykits": "正在从 JourneyKits 导入...",
       "name_conflict_hint": "导入的 skill 名称已存在——请先删除已有的再重试。",
       "fallback_error": "导入失败",
       "cancel": "取消",

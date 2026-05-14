@@ -1337,6 +1337,11 @@ func (h *Handler) ClaimTaskByRuntime(w http.ResponseWriter, r *http.Request) {
 			hasQuickCreate = true
 			resp.QuickCreatePrompt = qc.Prompt
 			resp.WorkspaceID = qc.WorkspaceID
+			if qc.Mode == service.GoalExpansionMode {
+				resp.GoalID = qc.GoalID
+				resp.GoalTitle = qc.GoalTitle
+				resp.GoalDescription = qc.GoalDescription
+			}
 
 			// When the user picked a project in the modal, surface its title
 			// and resources to the daemon so the agent has the same context

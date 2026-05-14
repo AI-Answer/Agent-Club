@@ -245,6 +245,7 @@ func init() {
 	issueListCmd.Flags().String("assignee", "", "Filter by assignee name (member, agent, or squad; fuzzy match)")
 	issueListCmd.Flags().String("assignee-id", "", "Filter by assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
 	issueListCmd.Flags().String("project", "", "Filter by project ID")
+	issueListCmd.Flags().String("goal", "", "Filter by goal ID")
 	issueListCmd.Flags().Int("limit", 50, "Maximum number of issues to return")
 	issueListCmd.Flags().Int("offset", 0, "Number of issues to skip (for pagination)")
 
@@ -262,6 +263,7 @@ func init() {
 	issueCreateCmd.Flags().String("assignee-id", "", "Assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
 	issueCreateCmd.Flags().String("parent", "", "Parent issue ID")
 	issueCreateCmd.Flags().String("project", "", "Project ID")
+	issueCreateCmd.Flags().String("goal", "", "Goal ID")
 	issueCreateCmd.Flags().String("due-date", "", "Due date (RFC3339 format)")
 	issueCreateCmd.Flags().String("output", "json", "Output format: table or json")
 	issueCreateCmd.Flags().StringSlice("attachment", nil, "File path(s) to attach (can be specified multiple times)")
@@ -276,6 +278,7 @@ func init() {
 	issueUpdateCmd.Flags().String("assignee", "", "New assignee name (member, agent, or squad; fuzzy match)")
 	issueUpdateCmd.Flags().String("assignee-id", "", "New assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
 	issueUpdateCmd.Flags().String("project", "", "Project ID")
+	issueUpdateCmd.Flags().String("goal", "", "Goal ID (use --goal \"\" to clear)")
 	issueUpdateCmd.Flags().String("due-date", "", "New due date (RFC3339 format)")
 	issueUpdateCmd.Flags().String("parent", "", "Parent issue ID (use --parent \"\" to clear)")
 	issueUpdateCmd.Flags().String("output", "json", "Output format: table or json")
@@ -378,6 +381,13 @@ func runIssueList(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 		params.Set("project_id", project.ID)
+	}
+	if v, _ := cmd.Flags().GetString("goal"); v != "" {
+		goal, err := resolveGoalID(ctx, client, v)
+		if err != nil {
+			return err
+		}
+		params.Set("goal_id", goal.ID)
 	}
 
 	path := "/api/issues"
@@ -551,6 +561,13 @@ func runIssueCreate(cmd *cobra.Command, _ []string) error {
 		}
 		body["project_id"] = project.ID
 	}
+	if v, _ := cmd.Flags().GetString("goal"); v != "" {
+		goal, err := resolveGoalID(ctx, client, v)
+		if err != nil {
+			return fmt.Errorf("resolve goal: %w", err)
+		}
+		body["goal_id"] = goal.ID
+	}
 	if v, _ := cmd.Flags().GetString("due-date"); v != "" {
 		body["due_date"] = v
 	}
@@ -684,6 +701,18 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("resolve project: %w", err)
 			}
 			body["project_id"] = project.ID
+		}
+	}
+	if cmd.Flags().Changed("goal") {
+		v, _ := cmd.Flags().GetString("goal")
+		if v == "" {
+			body["goal_id"] = nil
+		} else {
+			goal, err := resolveGoalID(ctx, client, v)
+			if err != nil {
+				return fmt.Errorf("resolve goal: %w", err)
+			}
+			body["goal_id"] = goal.ID
 		}
 	}
 	if cmd.Flags().Changed("due-date") {

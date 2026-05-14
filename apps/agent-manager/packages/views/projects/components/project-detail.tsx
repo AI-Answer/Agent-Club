@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, PanelRight, Pin, PinOff, Plus, Trash2, UserMinus } from "lucide-react";
+import { Check, ChevronRight, Link2, ListTodo, MoreHorizontal, PanelRight, Pin, PinOff, Plus, Target, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ import type { Issue, IssueStatus, ProjectStatus, ProjectPriority } from "@multic
 import { useAuthStore } from "@multica/core/auth";
 import { projectDetailOptions } from "@multica/core/projects/queries";
 import { useUpdateProject, useDeleteProject } from "@multica/core/projects/mutations";
+import { goalListOptions } from "@multica/core/goals/queries";
+import { GOAL_STATUS_CONFIG } from "@multica/core/goals";
 import { pinListOptions } from "@multica/core/pins";
 import { useCreatePin, useDeletePin } from "@multica/core/pins";
 import { myIssueListOptions, childIssueProgressOptions, type MyIssuesFilter } from "@multica/core/issues/queries";
@@ -70,6 +72,7 @@ import {
 } from "@multica/ui/components/ui/alert-dialog";
 import { useT } from "../../i18n";
 import { useProjectStatusLabels, useProjectPriorityLabels } from "./labels";
+import { useGoalStatusLabels } from "../../goals/components/labels";
 
 // ---------------------------------------------------------------------------
 // Property row — sidebar property display
@@ -198,6 +201,48 @@ function ProjectIssuesContent({
   );
 }
 
+function ProjectGoalsSection({ projectId }: { projectId: string }) {
+  const { t } = useT("goals");
+  const statusLabels = useGoalStatusLabels();
+  const wsId = useWorkspaceId();
+  const wsPaths = useWorkspacePaths();
+  const { data: goals = [] } = useQuery(goalListOptions(wsId, { project_id: projectId }));
+
+  return (
+    <div className="space-y-1 pl-2">
+      {goals.length > 0 ? (
+        goals.map((goal) => {
+          const statusCfg = GOAL_STATUS_CONFIG[goal.status];
+          return (
+            <AppLink
+              key={goal.id}
+              href={wsPaths.goalDetail(goal.id)}
+              className="flex min-h-8 items-center gap-2 rounded-md px-2 -mx-2 text-xs transition-colors hover:bg-accent/50"
+            >
+              <Target className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{goal.title}</span>
+              <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 font-medium", statusCfg.badgeBg, statusCfg.badgeText)}>
+                {statusLabels[goal.status]}
+              </span>
+            </AppLink>
+          );
+        })
+      ) : (
+        <div className="py-1 text-xs text-muted-foreground">{t(($) => $.page.empty)}</div>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mt-1 h-7 px-2 text-xs text-muted-foreground"
+        onClick={() => useModalStore.getState().open("create-goal", { project_id: projectId })}
+      >
+        <Plus className="size-3.5 mr-1" />
+        {t(($) => $.page.new_goal)}
+      </Button>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // ProjectDetail
 // ---------------------------------------------------------------------------
@@ -238,6 +283,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+  const [goalsOpen, setGoalsOpen] = useState(true);
   const [progressOpen, setProgressOpen] = useState(true);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
 
@@ -467,6 +513,18 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             </Popover>
           </PropRow>
         </div>}
+      </div>
+
+      {/* Goals */}
+      <div>
+        <button
+          className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors mb-2 hover:bg-accent/70 ${goalsOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setGoalsOpen(!goalsOpen)}
+        >
+          {t(($) => $.detail.section_goals)}
+          <ChevronRight className={`!size-3 shrink-0 stroke-[2.5] text-muted-foreground transition-transform ${goalsOpen ? "rotate-90" : ""}`} />
+        </button>
+        {goalsOpen && <ProjectGoalsSection projectId={projectId} />}
       </div>
 
       {/* Progress */}

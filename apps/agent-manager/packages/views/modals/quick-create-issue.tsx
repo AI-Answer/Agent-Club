@@ -199,6 +199,7 @@ export function AgentCreatePanel({
     const seed = (data?.project_id as string | undefined) ?? lastProjectId;
     return seed ?? null;
   });
+  const goalId = (data?.goal_id as string | undefined) ?? null;
 
   // Stale-id sweep. Once the project list query has actually resolved
   // (`isSuccess` — distinct from "data is the empty default during loading"),
@@ -357,7 +358,10 @@ export function AgentCreatePanel({
     // channel that already carries agent_id / parent_issue_id. The manual
     // panel reads `data.project_id` on mount; this preserves the user's
     // selection across the mode flip without piping a third store through.
-    onSwitchMode?.(projectId ? { project_id: projectId } : null);
+    onSwitchMode?.({
+      ...(projectId ? { project_id: projectId } : {}),
+      ...(goalId ? { goal_id: goalId } : {}),
+    });
   };
 
   return (

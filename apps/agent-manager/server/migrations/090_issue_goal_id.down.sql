@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_issue_goal;
+
+ALTER TABLE issue DROP COLUMN IF EXISTS goal_id;

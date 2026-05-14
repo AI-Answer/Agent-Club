@@ -42,7 +42,7 @@ export const issueKeys = {
 
 export type MyIssuesFilter = Pick<
   ListIssuesParams,
-  "assignee_id" | "assignee_ids" | "creator_id" | "project_id"
+  "assignee_id" | "assignee_ids" | "creator_id" | "project_id" | "goal_id"
 >;
 
 /** Page size per status column. */

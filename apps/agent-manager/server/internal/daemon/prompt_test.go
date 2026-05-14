@@ -94,3 +94,37 @@ func TestBuildQuickCreatePromptProjectPinning(t *testing.T) {
 		t.Errorf("buildQuickCreatePrompt without project must NOT mention --project, got:\n%s", plain)
 	}
 }
+
+func TestBuildGoalExpansionPromptRequiresGoalLinkedNonDuplicateIssues(t *testing.T) {
+	const goalID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+	const projectID = "11111111-2222-3333-4444-555555555555"
+	out := BuildPrompt(Task{
+		QuickCreatePrompt: "plan this goal",
+		GoalID:            goalID,
+		GoalTitle:         "Ship native goals",
+		GoalDescription:   "Make project-scoped goals usable by agents.",
+		ProjectID:         projectID,
+		ProjectTitle:      "Agent Club",
+	}, "codex")
+
+	mustContain := []string{
+		"goal-planning assistant",
+		"multica goal get " + goalID,
+		"multica issue list --goal " + goalID,
+		"duplicate-prevention source of truth",
+		"multica agent list --output json",
+		"multica squad list --output json",
+		"--goal \"" + goalID + "\"",
+		"--project \"" + projectID + "\"",
+		"--parent <issue-id-or-key>",
+		"enabled reviewer agent or squad",
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(out, s) {
+			t.Errorf("buildGoalExpansionPrompt missing %q\n--- output ---\n%s", s, out)
+		}
+	}
+	if strings.Contains(out, "Run exactly one `multica issue create`") {
+		t.Errorf("goal expansion prompt must not inherit one-issue quick-create output rule:\n%s", out)
+	}
+}

@@ -75,6 +75,21 @@ export type {
   CreateProjectResourceRequest,
   ListProjectResourcesResponse,
 } from "./project";
+export type {
+  Goal,
+  GoalStatus,
+  GoalPlannerType,
+  CreateGoalRequest,
+  UpdateGoalRequest,
+  ListGoalsResponse,
+  GoalReadinessActor,
+  GoalReadinessRole,
+  GoalReadinessRoleName,
+  GoalReadinessStatus,
+  GoalReadinessResponse,
+  ExpandGoalRequest,
+  ExpandGoalResponse,
+} from "./goal";
 export type { PinnedItem, PinnedItemType, CreatePinRequest, ReorderPinsRequest } from "./pin";
 export type {
   GitHubInstallation,

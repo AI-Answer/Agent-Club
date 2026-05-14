@@ -66,6 +66,13 @@ import type {
   ProjectResource,
   CreateProjectResourceRequest,
   ListProjectResourcesResponse,
+  Goal,
+  CreateGoalRequest,
+  UpdateGoalRequest,
+  ListGoalsResponse,
+  GoalReadinessResponse,
+  ExpandGoalRequest,
+  ExpandGoalResponse,
   Label,
   CreateLabelRequest,
   UpdateLabelRequest,
@@ -465,6 +472,7 @@ export class ApiClient {
     if (params?.assignee_ids?.length) search.set("assignee_ids", params.assignee_ids.join(","));
     if (params?.creator_id) search.set("creator_id", params.creator_id);
     if (params?.project_id) search.set("project_id", params.project_id);
+    if (params?.goal_id) search.set("goal_id", params.goal_id);
     if (params?.open_only) search.set("open_only", "true");
     const path = `/api/issues?${search}`;
     const raw = await this.fetch<unknown>(path);
@@ -1355,6 +1363,47 @@ export class ApiClient {
 
   async deleteProject(id: string): Promise<void> {
     await this.fetch(`/api/projects/${id}`, { method: "DELETE" });
+  }
+
+  // Goals
+  async listGoals(params?: { project_id?: string; status?: string }): Promise<ListGoalsResponse> {
+    const search = new URLSearchParams();
+    if (params?.project_id) search.set("project_id", params.project_id);
+    if (params?.status) search.set("status", params.status);
+    return this.fetch(`/api/goals?${search}`);
+  }
+
+  async getGoal(id: string): Promise<Goal> {
+    return this.fetch(`/api/goals/${id}`);
+  }
+
+  async createGoal(data: CreateGoalRequest): Promise<Goal> {
+    return this.fetch("/api/goals", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateGoal(id: string, data: UpdateGoalRequest): Promise<Goal> {
+    return this.fetch(`/api/goals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteGoal(id: string): Promise<void> {
+    await this.fetch(`/api/goals/${id}`, { method: "DELETE" });
+  }
+
+  async getGoalReadiness(id: string): Promise<GoalReadinessResponse> {
+    return this.fetch(`/api/goals/${id}/readiness`);
+  }
+
+  async expandGoal(id: string, data: ExpandGoalRequest = {}): Promise<ExpandGoalResponse> {
+    return this.fetch(`/api/goals/${id}/expand`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   // Project resources

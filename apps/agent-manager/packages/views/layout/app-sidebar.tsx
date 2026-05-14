@@ -34,6 +34,7 @@ import {
   X,
   Zap,
   Users,
+  Target,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -107,6 +108,7 @@ type NavKey =
   | "myIssues"
   | "issues"
   | "projects"
+  | "goals"
   | "autopilots"
   | "agents"
   | "squads"
@@ -121,6 +123,7 @@ type NavLabelKey =
   | "my_issues"
   | "issues"
   | "projects"
+  | "goals"
   | "autopilots"
   | "agents"
   | "squads"
@@ -137,6 +140,7 @@ const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "issues", labelKey: "issues", icon: ListTodo },
   { key: "projects", labelKey: "projects", icon: FolderKanban },
+  { key: "goals", labelKey: "goals", icon: Target },
   { key: "autopilots", labelKey: "autopilots", icon: Zap },
   { key: "agents", labelKey: "agents", icon: Bot },
   { key: "squads", labelKey: "squads", icon: Users },
@@ -450,10 +454,15 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
       e.preventDefault();
       const lastMode = useCreateModeStore.getState().lastMode;
       if (lastMode === "manual") {
-        // Auto-fill project when on a project detail page (manual form only —
+        // Auto-fill scope when on a project or goal detail page (manual form only —
         // agent mode lets the agent infer project from the prompt).
         const projectMatch = pathname.match(/^\/[^/]+\/projects\/([^/]+)$/);
-        const data = projectMatch ? { project_id: projectMatch[1] } : undefined;
+        const goalMatch = pathname.match(/^\/[^/]+\/goals\/([^/]+)$/);
+        const data = projectMatch
+          ? { project_id: projectMatch[1] }
+          : goalMatch
+            ? { goal_id: goalMatch[1] }
+            : undefined;
         useModalStore.getState().open("create-issue", data);
       } else {
         useModalStore.getState().open("quick-create-issue");

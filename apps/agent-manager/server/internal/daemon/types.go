@@ -33,32 +33,35 @@ type ProjectResourceData struct {
 // Task represents a claimed task from the server.
 // Agent data (name, skills) is populated by the claim endpoint.
 type Task struct {
-	ID                      string          `json:"id"`
-	AgentID                 string          `json:"agent_id"`
-	RuntimeID               string          `json:"runtime_id"`
-	IssueID                 string          `json:"issue_id"`
-	WorkspaceID             string          `json:"workspace_id"`
-	Agent                   *AgentData      `json:"agent,omitempty"`
+	ID                      string                `json:"id"`
+	AgentID                 string                `json:"agent_id"`
+	RuntimeID               string                `json:"runtime_id"`
+	IssueID                 string                `json:"issue_id"`
+	WorkspaceID             string                `json:"workspace_id"`
+	Agent                   *AgentData            `json:"agent,omitempty"`
 	Repos                   []RepoData            `json:"repos,omitempty"`
-	ProjectID               string                `json:"project_id,omitempty"`        // issue's project, when present
-	ProjectTitle            string                `json:"project_title,omitempty"`     // human-readable project title for context injection
-	ProjectResources        []ProjectResourceData `json:"project_resources,omitempty"` // project-scoped resources to expose to the agent
-	PriorSessionID          string          `json:"prior_session_id,omitempty"`          // Claude session ID from a previous task on this issue
-	PriorWorkDir            string          `json:"prior_work_dir,omitempty"`            // work_dir from a previous task on this issue
-	TriggerCommentID        string          `json:"trigger_comment_id,omitempty"`        // comment that triggered this task
-	TriggerCommentContent   string          `json:"trigger_comment_content,omitempty"`   // content of the triggering comment
-	TriggerAuthorType       string          `json:"trigger_author_type,omitempty"`       // "agent" or "member" — author kind for the triggering comment
-	TriggerAuthorName       string          `json:"trigger_author_name,omitempty"`       // display name of the triggering comment author
-	ChatSessionID           string          `json:"chat_session_id,omitempty"`           // non-empty for chat tasks
-	ChatMessage             string          `json:"chat_message,omitempty"`              // user message content for chat tasks
-	ChatMessageAttachments  []ChatAttachmentMeta `json:"chat_message_attachments,omitempty"` // attachments linked to the chat message; agent uses these to `multica attachment download <id>`
-	AutopilotRunID          string          `json:"autopilot_run_id,omitempty"`          // non-empty for autopilot run_only tasks
-	AutopilotID             string          `json:"autopilot_id,omitempty"`              // autopilot that spawned this run
-	AutopilotTitle          string          `json:"autopilot_title,omitempty"`           // autopilot title used as task context
-	AutopilotDescription    string          `json:"autopilot_description,omitempty"`     // autopilot description used as task prompt
-	AutopilotSource         string          `json:"autopilot_source,omitempty"`          // manual, schedule, webhook, or api
-	AutopilotTriggerPayload json.RawMessage `json:"autopilot_trigger_payload,omitempty"` // optional trigger payload for webhook/api runs
-	QuickCreatePrompt       string          `json:"quick_create_prompt,omitempty"`       // user's natural-language input for quick-create tasks
+	ProjectID               string                `json:"project_id,omitempty"`                // issue's project, when present
+	ProjectTitle            string                `json:"project_title,omitempty"`             // human-readable project title for context injection
+	ProjectResources        []ProjectResourceData `json:"project_resources,omitempty"`         // project-scoped resources to expose to the agent
+	GoalID                  string                `json:"goal_id,omitempty"`                   // native goal being expanded, when present
+	GoalTitle               string                `json:"goal_title,omitempty"`                // human-readable goal title for planner context
+	GoalDescription         string                `json:"goal_description,omitempty"`          // native goal description for planner context
+	PriorSessionID          string                `json:"prior_session_id,omitempty"`          // Claude session ID from a previous task on this issue
+	PriorWorkDir            string                `json:"prior_work_dir,omitempty"`            // work_dir from a previous task on this issue
+	TriggerCommentID        string                `json:"trigger_comment_id,omitempty"`        // comment that triggered this task
+	TriggerCommentContent   string                `json:"trigger_comment_content,omitempty"`   // content of the triggering comment
+	TriggerAuthorType       string                `json:"trigger_author_type,omitempty"`       // "agent" or "member" — author kind for the triggering comment
+	TriggerAuthorName       string                `json:"trigger_author_name,omitempty"`       // display name of the triggering comment author
+	ChatSessionID           string                `json:"chat_session_id,omitempty"`           // non-empty for chat tasks
+	ChatMessage             string                `json:"chat_message,omitempty"`              // user message content for chat tasks
+	ChatMessageAttachments  []ChatAttachmentMeta  `json:"chat_message_attachments,omitempty"`  // attachments linked to the chat message; agent uses these to `multica attachment download <id>`
+	AutopilotRunID          string                `json:"autopilot_run_id,omitempty"`          // non-empty for autopilot run_only tasks
+	AutopilotID             string                `json:"autopilot_id,omitempty"`              // autopilot that spawned this run
+	AutopilotTitle          string                `json:"autopilot_title,omitempty"`           // autopilot title used as task context
+	AutopilotDescription    string                `json:"autopilot_description,omitempty"`     // autopilot description used as task prompt
+	AutopilotSource         string                `json:"autopilot_source,omitempty"`          // manual, schedule, webhook, or api
+	AutopilotTriggerPayload json.RawMessage       `json:"autopilot_trigger_payload,omitempty"` // optional trigger payload for webhook/api runs
+	QuickCreatePrompt       string                `json:"quick_create_prompt,omitempty"`       // user's natural-language input for quick-create tasks
 }
 
 // ChatAttachmentMeta is the structured attachment metadata the daemon

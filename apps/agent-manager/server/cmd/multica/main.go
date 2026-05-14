@@ -17,9 +17,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "multica",
-	Short: "Multica CLI — local agent runtime and management tool",
-	Long:  "Work seamlessly with Multica from the command line.",
+	Use:           "multica",
+	Short:         "Multica CLI — local agent runtime and management tool",
+	Long:          "Work seamlessly with Multica from the command line.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }
@@ -39,6 +39,7 @@ func init() {
 	// Core commands
 	issueCmd.GroupID = groupCore
 	projectCmd.GroupID = groupCore
+	goalCmd.GroupID = groupCore
 	labelCmd.GroupID = groupCore
 	agentCmd.GroupID = groupCore
 	autopilotCmd.GroupID = groupCore
@@ -62,6 +63,7 @@ func init() {
 
 	rootCmd.AddCommand(issueCmd)
 	rootCmd.AddCommand(projectCmd)
+	rootCmd.AddCommand(goalCmd)
 	rootCmd.AddCommand(labelCmd)
 	rootCmd.AddCommand(agentCmd)
 	rootCmd.AddCommand(autopilotCmd)

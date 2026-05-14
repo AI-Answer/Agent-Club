@@ -393,6 +393,19 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Goals
+			r.Route("/api/goals", func(r chi.Router) {
+				r.Get("/", h.ListGoals)
+				r.Post("/", h.CreateGoal)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetGoal)
+					r.Put("/", h.UpdateGoal)
+					r.Delete("/", h.DeleteGoal)
+					r.Get("/readiness", h.GetGoalReadiness)
+					r.Post("/expand", h.ExpandGoal)
+				})
+			})
+
 			// Squads
 			r.Route("/api/squads", func(r chi.Router) {
 				r.Get("/", h.ListSquads)

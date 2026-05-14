@@ -1,0 +1,79 @@
+{
+  "common": {
+    "close": "Close",
+    "collapse_tooltip": "Collapse",
+    "expand_tooltip": "Expand"
+  },
+  "page": {
+    "title": "Goals",
+    "new_goal": "New Goal",
+    "empty": "No goals yet",
+    "create_first": "Create first goal"
+  },
+  "table": {
+    "name": "Name",
+    "project": "Project",
+    "status": "Status",
+    "planner": "Planner",
+    "updated": "Updated",
+    "unknown_project": "Unknown project"
+  },
+  "status": {
+    "planned": "Planned",
+    "in_progress": "In Progress",
+    "paused": "Paused",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "planner": {
+    "no_planner": "No planner",
+    "search_placeholder": "Search planners...",
+    "members_group": "Members",
+    "agents_group": "Agents",
+    "squads_group": "Squads",
+    "no_results": "No results"
+  },
+  "create_goal": {
+    "title": "Create goal",
+    "breadcrumb": "New goal",
+    "title_placeholder": "Name the goal",
+    "description_placeholder": "Add context, success proof, constraints, or the plan...",
+    "footer_hint": "Goal cards are normal issues scoped to this goal.",
+    "submit": "Create Goal",
+    "submitting": "Creating...",
+    "toast_created": "Goal created",
+    "toast_failed": "Failed to create goal"
+  },
+  "detail": {
+    "breadcrumb_fallback": "Workspace",
+    "goal_label": "Goal",
+    "not_found": "Goal not found",
+    "title_placeholder": "Untitled goal",
+    "description_placeholder": "Describe the goal, plan, or success proof...",
+    "new_issue": "New Issue",
+    "empty_issues_title": "No issues in this goal yet",
+    "empty_issues_hint": "Create goal-linked work cards for agents or teammates.",
+    "empty_issues_new_button": "New Issue",
+    "toast_move_issue_failed": "Failed to move issue",
+    "readiness": {
+      "title": "Agent readiness",
+      "ready": "Ready",
+      "missing": "Setup needed",
+      "checking": "Checking agents...",
+      "no_actor": "No actor selected",
+      "available_count_one": "{{count}} available",
+      "available_count_other": "{{count}} available",
+      "roles": {
+        "planner": "Planner",
+        "worker": "Workers",
+        "reviewer": "Reviewer"
+      }
+    },
+    "expand": {
+      "button": "Expand Goal",
+      "queuing": "Queuing...",
+      "toast_queued": "Goal expansion queued",
+      "toast_failed": "Failed to queue goal expansion"
+    }
+  }
+}

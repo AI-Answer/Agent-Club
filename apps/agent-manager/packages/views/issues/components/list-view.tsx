@@ -26,6 +26,7 @@ export function ListView({
   myIssuesScope,
   myIssuesFilter,
   projectId,
+  goalId,
 }: {
   issues: Issue[];
   visibleStatuses: IssueStatus[];
@@ -35,6 +36,8 @@ export function ListView({
   myIssuesFilter?: MyIssuesFilter;
   /** When set, the per-section "+" pre-fills the project on the create form. */
   projectId?: string;
+  /** When set, the per-section "+" links the created issue to this goal. */
+  goalId?: string;
 }) {
   const sortBy = useViewStore((s) => s.sortBy);
   const sortDirection = useViewStore((s) => s.sortDirection);
@@ -90,6 +93,7 @@ export function ListView({
             childProgressMap={childProgressMap}
             myIssuesOpts={myIssuesOpts}
             projectId={projectId}
+            goalId={goalId}
           />
         ))}
       </Accordion.Root>
@@ -103,12 +107,14 @@ function StatusAccordionItem({
   childProgressMap,
   myIssuesOpts,
   projectId,
+  goalId,
 }: {
   status: IssueStatus;
   issues: Issue[];
   childProgressMap: Map<string, ChildProgress>;
   myIssuesOpts?: { scope: string; filter: MyIssuesFilter };
   projectId?: string;
+  goalId?: string;
 }) {
   const { t } = useT("issues");
   const selectedIds = useIssueSelectionStore((s) => s.selectedIds);
@@ -159,7 +165,11 @@ function StatusAccordionItem({
                   onClick={() =>
                     useModalStore
                       .getState()
-                      .open("create-issue", { status, ...(projectId ? { project_id: projectId } : {}) })
+                      .open("create-issue", {
+                        status,
+                        ...(projectId ? { project_id: projectId } : {}),
+                        ...(goalId ? { goal_id: goalId } : {}),
+                      })
                   }
                 />
               }
