@@ -99,6 +99,19 @@ export async function saveAgentVaultRuntimeState(params: {
   return getAgentVaultRuntimeStateSync();
 }
 
+export async function ensureAgentVaultFileExists(): Promise<string> {
+  const paths = getAgentVaultPaths();
+
+  await fsp.mkdir(paths.dir, { recursive: true });
+
+  if (!fs.existsSync(paths.filePath)) {
+    await fsp.writeFile(paths.filePath, '', { encoding: 'utf8', mode: 0o600 });
+    await fsp.chmod(paths.filePath, 0o600).catch(() => {});
+  }
+
+  return paths.filePath;
+}
+
 export function applyAgentVaultToProcessEnv(): AgentVaultRuntimeState {
   const state = getAgentVaultRuntimeStateSync();
 

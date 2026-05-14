@@ -6,7 +6,7 @@ import type {
   SecuritySettingsState,
 } from '@/common/types/security';
 import { Alert, Button, Input, Message, Switch } from '@arco-design/web-react';
-import { CheckOne, FolderOpen, Refresh, Shield } from '@icon-park/react';
+import { CheckOne, FileCode, FolderOpen, Refresh, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
@@ -31,6 +31,8 @@ const SecuritySettings: React.FC = () => {
   const [message, contextHolder] = Message.useMessage();
   const [loading, setLoading] = useState(true);
   const [savingVault, setSavingVault] = useState(false);
+  const [openingVaultFile, setOpeningVaultFile] = useState(false);
+  const [revealingVaultFile, setRevealingVaultFile] = useState(false);
   const [savingOnePassword, setSavingOnePassword] = useState(false);
   const [testingOnePassword, setTestingOnePassword] = useState(false);
   const [agentVault, setAgentVault] = useState<AgentVaultState>(EMPTY_VAULT);
@@ -98,6 +100,36 @@ const SecuritySettings: React.FC = () => {
       setSavingVault(false);
     }
   }, [hydrate, message, t, vaultContent, vaultEnabled]);
+
+  const handleOpenVaultFile = useCallback(async () => {
+    setOpeningVaultFile(true);
+    try {
+      const result = await ipcBridge.security.openAgentVaultFile.invoke();
+      if (!result.success) {
+        message.error(result.msg || t('settings.securityPage.openFileFailed'));
+        return;
+      }
+      hydrate(result.data);
+      message.success(t('settings.securityPage.openFileStarted'));
+    } finally {
+      setOpeningVaultFile(false);
+    }
+  }, [hydrate, message, t]);
+
+  const handleRevealVaultFile = useCallback(async () => {
+    setRevealingVaultFile(true);
+    try {
+      const result = await ipcBridge.security.revealAgentVaultFile.invoke();
+      if (!result.success) {
+        message.error(result.msg || t('settings.securityPage.showFileFailed'));
+        return;
+      }
+      hydrate(result.data);
+      message.success(t('settings.securityPage.showFileStarted'));
+    } finally {
+      setRevealingVaultFile(false);
+    }
+  }, [hydrate, message, t]);
 
   const handleSaveOnePassword = useCallback(async () => {
     setSavingOnePassword(true);
@@ -187,9 +219,18 @@ const SecuritySettings: React.FC = () => {
               </div>
               <div className='flex shrink-0 items-center gap-8px'>
                 <Button
+                  icon={<FileCode size='14' />}
+                  disabled={!agentVault.filePath}
+                  loading={openingVaultFile}
+                  onClick={handleOpenVaultFile}
+                >
+                  {t('settings.securityPage.openFile')}
+                </Button>
+                <Button
                   icon={<FolderOpen size='14' />}
                   disabled={!agentVault.filePath}
-                  onClick={() => void ipcBridge.shell.showItemInFolder.invoke(agentVault.filePath)}
+                  loading={revealingVaultFile}
+                  onClick={handleRevealVaultFile}
                 >
                   {t('settings.securityPage.showFile')}
                 </Button>

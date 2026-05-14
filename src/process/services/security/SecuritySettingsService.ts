@@ -18,6 +18,7 @@ import { ProcessConfig } from '@process/utils/initStorage';
 import { getEnhancedEnv } from '@process/utils/shellEnv';
 import {
   applyAgentVaultToProcessEnv,
+  ensureAgentVaultFileExists,
   getAgentVaultRuntimeStateSync,
   saveAgentVaultRuntimeState,
 } from './agentVaultRuntime';
@@ -127,6 +128,11 @@ class SecuritySettingsService {
       agentVault: this.toAgentVaultState(),
       onePassword: toPublicOnePasswordConfig(await this.getOnePasswordConfig()),
     };
+  }
+
+  async prepareAgentVaultFile(): Promise<SecuritySettingsState> {
+    await ensureAgentVaultFileExists();
+    return this.getState();
   }
 
   async saveAgentVault(request: AgentVaultSaveRequest): Promise<SecuritySettingsState> {

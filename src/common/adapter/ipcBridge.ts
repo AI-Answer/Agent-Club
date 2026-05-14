@@ -215,6 +215,12 @@ export const security = {
   saveAgentVault: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, AgentVaultSaveRequest>(
     'security.agent-vault.save'
   ),
+  openAgentVaultFile: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, void>(
+    'security.agent-vault.open-file'
+  ),
+  revealAgentVaultFile: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, void>(
+    'security.agent-vault.reveal-file'
+  ),
   saveOnePassword: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, OnePasswordSecuritySaveRequest>(
     'security.one-password.save'
   ),
