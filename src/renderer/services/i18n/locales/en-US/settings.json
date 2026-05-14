@@ -75,6 +75,7 @@
     "journeyKitsDeleteConfirmContent": "Delete \"{{name}}\" from your JourneyKits repository?",
     "journeyKitsDeleteSuccess": "JourneyKit deleted",
     "journeyKitsDeleteFailed": "Failed to delete JourneyKit",
+    "openJourneyKit": "Open",
     "clearKey": "Clear Key",
     "install": "Install"
   },

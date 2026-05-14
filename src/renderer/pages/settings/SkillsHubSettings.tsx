@@ -682,7 +682,7 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                       </div>
                       <div className='flex items-center gap-6px shrink-0'>
                         <Button size='mini' className='rd-6px' onClick={() => handleOpenJourneyKit(kit)}>
-                          {t('common.open', { defaultValue: 'Open' })}
+                          {t('settings.skillsHub.openJourneyKit', { defaultValue: 'Open' })}
                         </Button>
                         <Button size='mini' status='danger' className='rd-6px' onClick={() => handleDeleteJourneyKit(kit)}>
                           {t('common.delete', { defaultValue: 'Delete' })}

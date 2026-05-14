@@ -1694,6 +1694,7 @@ export type I18nKey =
   | 'settings.skillsHub.noRecommendations'
   | 'settings.skillsHub.noSearchResults'
   | 'settings.skillsHub.noSkills'
+  | 'settings.skillsHub.openJourneyKit'
   | 'settings.skillsHub.recommend'
   | 'settings.skillsHub.recommendSuccess'
   | 'settings.skillsHub.refreshMyKits'
