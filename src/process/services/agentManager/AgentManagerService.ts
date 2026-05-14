@@ -260,10 +260,7 @@ export class AgentManagerService {
       if (exact) {
         return exact;
       }
-      const partial = projects.find((project) => this.normalizeName(project.title).includes(normalizedHint));
-      if (partial) {
-        return partial;
-      }
+      return this.createGoalProject(backendUrl, token, projectHint?.trim() || AGENT_MANAGER_DEFAULT_PROJECT_TITLE);
     }
 
     const defaultProject = projects.find(
@@ -277,13 +274,25 @@ export class AgentManagerService {
       return projects[0];
     }
 
+    return this.createGoalProject(backendUrl, token, AGENT_MANAGER_DEFAULT_PROJECT_TITLE, {
+      description: 'Default task board for Agent Club apps, agents, and bundled workflows.',
+      priority: 'high',
+    });
+  }
+
+  private createGoalProject(
+    backendUrl: string,
+    token: string,
+    title: string,
+    options?: { description?: string; priority?: string }
+  ): Promise<AgentManagerProjectSummary> {
     return this.agentManagerApi<AgentManagerProjectSummary>(backendUrl, '/api/projects', token, {
       method: 'POST',
       body: JSON.stringify({
-        title: AGENT_MANAGER_DEFAULT_PROJECT_TITLE,
-        description: 'Default task board for Agent Club apps, agents, and bundled workflows.',
+        title,
+        description: options?.description || `Created from an Agent Club chat goal for ${title}.`,
         status: 'in_progress',
-        priority: 'high',
+        priority: options?.priority || 'medium',
       }),
     });
   }
