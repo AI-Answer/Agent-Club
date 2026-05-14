@@ -8,7 +8,7 @@ import type {
 } from '@/common/types/security';
 import { Alert, Button, Input, Message, Switch } from '@arco-design/web-react';
 import { CheckOne, Connection, FileCode, FolderOpen, Install, LinkOne, Refresh, Shield } from '@icon-park/react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
 
@@ -32,6 +32,8 @@ const EMPTY_ONE_PASSWORD: OnePasswordSecurityPublicConfig = {
 const SecuritySettings: React.FC = () => {
   const { t } = useTranslation();
   const [message, contextHolder] = Message.useMessage();
+  const messageRef = useRef(message);
+  const tRef = useRef(t);
   const [loading, setLoading] = useState(true);
   const [savingVault, setSavingVault] = useState(false);
   const [openingVaultFile, setOpeningVaultFile] = useState(false);
@@ -50,6 +52,14 @@ const SecuritySettings: React.FC = () => {
   const [onePasswordCliStatus, setOnePasswordCliStatus] = useState<OnePasswordCliStatus | null>(null);
   const [onePasswordConnectionStatus, setOnePasswordConnectionStatus] =
     useState<OnePasswordConnectionStatus | null>(null);
+
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   const vaultSummary = useMemo(() => {
     if (!agentVault.keyCount) return t('settings.securityPage.noKeys');
@@ -75,14 +85,14 @@ const SecuritySettings: React.FC = () => {
     try {
       const result = await ipcBridge.security.getState.invoke();
       if (!result.success) {
-        message.error(result.msg || t('settings.securityPage.loadFailed'));
+        messageRef.current.error(result.msg || tRef.current('settings.securityPage.loadFailed'));
         return;
       }
       hydrate(result.data);
     } finally {
       setLoading(false);
     }
-  }, [hydrate, message, t]);
+  }, [hydrate]);
 
   useEffect(() => {
     void loadState();
