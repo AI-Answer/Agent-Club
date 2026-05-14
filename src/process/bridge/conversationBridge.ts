@@ -28,6 +28,7 @@ import { AcpSkillManager } from '../task/AcpSkillManager';
 import { refreshTrayMenu } from '@process/utils/tray';
 import { copyFilesToDirectory, readDirectoryRecursive } from '@process/utils';
 import { computeOpenClawIdentityHash } from '@process/utils/openclawUtils';
+import { agentManagerService } from '@process/services/agentManager';
 import fs from 'fs';
 import path from 'path';
 import { migrateConversationToDatabase } from './migrationUtils';
@@ -581,11 +582,19 @@ export function initConversationBridge(
         `[Skills Directory]\nBuiltin skills: ${builtinSkillsCopyDir}\nUser skills: ${skillsDir}\nWhen skill instructions reference relative paths like "skills/{name}/scripts/...", resolve them under the appropriate directory.\n\n[User Request]`
       );
     }
+    try {
+      const goalContextReminder = await agentManagerService.buildChatGoalContextReminder(conversation_id);
+      if (goalContextReminder) {
+        agentContent = `${goalContextReminder}\n\n${agentContent}`;
+      }
+    } catch (error) {
+      console.warn('[conversationBridge] Failed to build Local Agent Manager goal context:', error);
+    }
 
     try {
       // Pass unified data — each agent reads the fields it needs from the unknown payload.
       // `content` aliases `input` for ACP/Codex/NanoBot/OpenClaw agents.
-      // `agentContent` carries the skill-injected text for OpenClaw (equals `input` when no skills).
+      // `agentContent` carries hidden context and skill-injected text while visible chat stays clean.
       await task.sendMessage({
         ...other,
         content: other.input,

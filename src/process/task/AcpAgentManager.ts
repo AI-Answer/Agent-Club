@@ -949,6 +949,7 @@ ${collectedResponses.join('\n')}`;
 
   async sendMessage(data: {
     content: string;
+    agentContent?: string;
     files?: string[];
     msg_id?: string;
     cronMeta?: CronMessageMeta;
@@ -1008,7 +1009,7 @@ ${collectedResponses.join('\n')}`;
       await this.initAgent(this.options);
 
       if (data.msg_id && data.content) {
-        let contentToSend = data.content;
+        let contentToSend = data.agentContent || data.content;
         if (contentToSend.includes(AIONUI_FILES_MARKER)) {
           contentToSend = contentToSend.split(AIONUI_FILES_MARKER)[0].trimEnd();
         }
@@ -1075,7 +1076,10 @@ ${collectedResponses.join('\n')}`;
         return result;
       }
       const agentSendStart = Date.now();
-      const result = await this.sendAgentMessageWithFinishFallback(data);
+      const result = await this.sendAgentMessageWithFinishFallback({
+        ...data,
+        content: data.agentContent || data.content,
+      });
       console.log(
         `[ACP-PERF] manager: agent.sendMessage completed ${Date.now() - agentSendStart}ms (total manager.sendMessage: ${
           Date.now() - managerSendStart

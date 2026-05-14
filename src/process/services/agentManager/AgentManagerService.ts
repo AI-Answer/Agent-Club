@@ -53,8 +53,29 @@ type AgentManagerProjectSummary = {
   status?: string;
 };
 
+type AgentManagerIssueSummary = {
+  id: string;
+  number?: number;
+  identifier?: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority?: string;
+  project_id?: string | null;
+  goal_id?: string | null;
+  updated_at?: string;
+};
+
 type AgentManagerProjectListResponse = {
   projects?: AgentManagerProjectSummary[];
+};
+
+type AgentManagerGoalListResponse = {
+  goals?: Array<AgentManagerGoalSummary & { updated_at?: string }>;
+};
+
+type AgentManagerIssueListResponse = {
+  issues?: AgentManagerIssueSummary[];
 };
 
 type AgentManagerExpandGoalResponse = {
@@ -185,6 +206,57 @@ export class AgentManagerService {
     };
   }
 
+  async buildChatGoalContextReminder(conversationId: string): Promise<string | undefined> {
+    if (!conversationId || this.status.state !== 'ready') {
+      return undefined;
+    }
+
+    const backendUrl = this.status.backendUrl || this.getBackendUrl();
+    const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
+    const goalContext = await this.findLatestChatGoalContext(backendUrl, token, conversationId);
+    if (!goalContext) {
+      return undefined;
+    }
+
+    const issueLines = goalContext.issues.length
+      ? goalContext.issues.slice(0, 8).map((issue) => {
+          const label = issue.identifier || `Issue ${issue.number || issue.id}`;
+          const priority = issue.priority && issue.priority !== 'none' ? ` priority=${issue.priority}` : '';
+          return `- ${label}: ${issue.title} [${issue.status}${priority}]`;
+        })
+      : ['- No goal-linked issues are visible yet. If the user asks for work to begin, create or expand a goal-linked issue first.'];
+
+    const activeIssue = this.pickActiveIssue(goalContext.issues);
+    const activeIssueLine = activeIssue
+      ? `Active task hint: ${activeIssue.identifier || activeIssue.id} (${activeIssue.status}) - ${activeIssue.title}`
+      : 'Active task hint: no open task is visible yet; inspect or create a goal-linked issue before saying there is no task.';
+
+    const parts = [
+      '<system-reminder>',
+      'Active Local Agent Manager context for this Agent Club chat thread:',
+      `Project: ${goalContext.project.title} (${goalContext.project.id})`,
+      `Project board: ${goalContext.projectUrl}`,
+      `Goal: ${goalContext.goal.title} (${goalContext.goal.id})`,
+      `Goal status: ${goalContext.goal.status}`,
+      `Goal detail: ${goalContext.goalUrl}`,
+      activeIssueLine,
+      'Goal-linked issues:',
+      ...issueLines,
+    ];
+
+    if (goalContext.markdownPath) {
+      parts.push(`Goal markdown: ${goalContext.markdownPath}`);
+    }
+
+    parts.push(
+      'When the user says "this goal", "the project", "the board", "the task", "mark it done", or similar, resolve that wording against this context first.',
+      'Prefer updating the matching Local Agent Manager issue/goal/project with available tools, CLI, or API before asking what task they mean. If more than one open issue could match, ask one short clarifying question.',
+      '</system-reminder>'
+    );
+
+    return parts.join('\n');
+  }
+
   async stop(): Promise<void> {
     if (this.processes.size === 0) {
       if (this.status.state !== 'idle') {
@@ -311,6 +383,82 @@ export class AgentManagerService {
       id: projectId,
       title: 'Local Agent Manager Project',
     };
+  }
+
+  private async findLatestChatGoalContext(
+    backendUrl: string,
+    token: string,
+    conversationId: string
+  ): Promise<
+    | {
+        goal: AgentManagerGoalSummary & { updated_at?: string };
+        project: AgentManagerProjectSummary;
+        issues: AgentManagerIssueSummary[];
+        goalUrl: string;
+        projectUrl: string;
+        markdownPath?: string;
+      }
+    | undefined
+  > {
+    const response = await this.agentManagerApi<AgentManagerGoalListResponse>(backendUrl, '/api/goals?limit=100', token);
+    const goals = (response.goals || [])
+      .filter((goal) => goal.description?.includes(`Conversation: ${conversationId}`))
+      .toSorted((a, b) => {
+        const bTime = Date.parse(b.updated_at || '') || 0;
+        const aTime = Date.parse(a.updated_at || '') || 0;
+        return bTime - aTime;
+      });
+
+    const goal =
+      goals.find((candidate) => candidate.status === 'in_progress') ||
+      goals.find((candidate) => candidate.status === 'planned') ||
+      goals[0];
+
+    if (!goal) {
+      return undefined;
+    }
+
+    const project = await this.resolveGoalProjectById(backendUrl, token, goal.project_id);
+    const issues = await this.fetchGoalIssues(backendUrl, token, goal.id);
+    const goalPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/goals/${encodeURIComponent(goal.id)}`;
+    const projectPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/projects/${encodeURIComponent(project.id)}`;
+
+    return {
+      goal,
+      project,
+      issues,
+      goalUrl: this.buildAgentManagerAppLink(goalPath),
+      projectUrl: this.buildAgentManagerAppLink(projectPath),
+      markdownPath: this.extractMarkdownPath(goal.description),
+    };
+  }
+
+  private async fetchGoalIssues(
+    backendUrl: string,
+    token: string,
+    goalId: string
+  ): Promise<AgentManagerIssueSummary[]> {
+    const apiPath = `/api/issues?goal_id=${encodeURIComponent(goalId)}&open_only=true&limit=50`;
+    const response = await this.agentManagerApi<AgentManagerIssueListResponse>(backendUrl, apiPath, token);
+    return (response.issues || []).toSorted((a, b) => {
+      const statusDelta = this.issueStatusRank(a.status) - this.issueStatusRank(b.status);
+      if (statusDelta !== 0) {
+        return statusDelta;
+      }
+      const bTime = Date.parse(b.updated_at || '') || 0;
+      const aTime = Date.parse(a.updated_at || '') || 0;
+      return bTime - aTime;
+    });
+  }
+
+  private pickActiveIssue(issues: AgentManagerIssueSummary[]): AgentManagerIssueSummary | undefined {
+    return issues.find((issue) => !['done', 'cancelled'].includes(issue.status));
+  }
+
+  private issueStatusRank(status: string): number {
+    const order = ['in_progress', 'in_review', 'todo', 'blocked', 'backlog', 'done', 'cancelled'];
+    const index = order.indexOf(status);
+    return index === -1 ? order.length : index;
   }
 
   private async getChatGoal(
