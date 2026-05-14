@@ -8,7 +8,7 @@ goal:
   slug: "journeykits-skills-discovery"
   kind: specific
   tranche: "Discover JourneyKits, existing Agent Club skills surfaces, and local agent skill wiring, then implement verified discovery, install, supported-agent skill availability, and post/publish slices until the full integration works or is explicitly owner/API-gated."
-  status: active
+  status: done
   intake:
     original_request: "Make sure the whole Agent Club application, with all supported agents, is integrated well with JourneyKits and the skills. After it is integrated, push it to GitHub and run the goal after planning."
     interpreted_outcome: "Agent Club should support JourneyKits as a skills source with discovery, install, supported-agent skill availability, and publish/post workflows, then push the finished work to GitHub."
@@ -66,7 +66,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T998
+active_task: null
 
 tasks:
   - id: T001
@@ -346,7 +346,7 @@ tasks:
   - id: T998
     type: pm
     assignee: PM
-    status: active
+    status: done
     reasoning_hint: high
     objective: "Publish the finished JourneyKits integration to GitHub after implementation and verification are complete."
     inputs:
@@ -365,11 +365,21 @@ tasks:
       - "Remote branch"
       - "PR link or clear push receipt"
       - "Any files intentionally left unstaged"
-    receipt: null
+    receipt:
+      result: done
+      decision: done
+      summary: "Committed and pushed the verified Composio MCP and JourneyKits skills integration to GitHub on an intentional feature branch, then opened a draft pull request."
+      staged_scope:
+        - "Composio MCP setup, proxy, built-in server manifest, settings UI, i18n, and goal receipts."
+        - "JourneyKits discovery/install/config/list/upload/delete flows, Agent Manager URL import and origin display, docs, i18n, and goal receipts."
+      commit_hash: "85ad9d61"
+      remote_branch: "origin/feat/journeykits-composio-integration"
+      pull_request: "https://github.com/Samin12/Agent-Club/pull/1"
+      intentionally_left_unstaged: []
   - id: T999
     type: judge
     assignee: Judge
-    status: queued
+    status: done
     reasoning_hint: high
     objective: "Final audit: prove whether the JourneyKits skills discovery, install, and post/publish outcome is complete."
     inputs:
@@ -390,13 +400,47 @@ tasks:
       - "pushed commit and remote branch evidence"
       - "missing evidence"
       - "next task if not complete"
-    receipt: null
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Final audit passed. JourneyKits is integrated as a first-class skills source in Agent Club and Agent Manager, supported agent skill availability uses the existing custom/workspace skill propagation paths, publishing is implemented through the JourneyKits owner-key API path with a documented owner-gated fallback, Composio MCP is integrated through settings and the local stdio proxy, verification passed, and the work is pushed to GitHub."
+      evidence:
+        - "JourneyKits discovery/install: Skills Hub renders public JourneyKits results from the live API and installs skill.zip archives into the existing user skills directory."
+        - "JourneyKits management/publishing: Skills Hub can save a local JourneyKits API key/owner/visibility, list owned kits, upload local skills, delete owned kits, and links to the JourneyKits Console/publishing guide."
+        - "Agent Manager integration: JourneyKits URLs import as workspace skills with supporting files and JourneyKits origin metadata; list/detail UI labels show the source."
+        - "Supported agents: installed/imported skills become normal custom/workspace skills consumed by the existing assistant, ACP, OpenClaw, Gemini, and Agent Manager runtime skill wiring mapped in T001."
+        - "Composio MCP: MCP settings render Composio API-key entry and create a Tool Router stdio MCP server through the built-in proxy."
+        - "GitHub: branch feat/journeykits-composio-integration pushed and draft PR opened at https://github.com/Samin12/Agent-Club/pull/1."
+      commands:
+        - command: "bun run i18n:types"
+          status: pass
+        - command: "node scripts/check-i18n.js"
+          status: pass
+        - command: "node scripts/build-mcp-servers.js"
+          status: pass
+        - command: "bunx tsc --noEmit"
+          status: pass
+        - command: "bunx oxlint --quiet"
+          status: pass
+          note: "Existing warnings only; 0 errors."
+        - command: "go test ./internal/handler"
+          status: pass
+        - command: "pnpm -C apps/agent-manager typecheck"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+        - command: "Live Electron Playwright/CDP smoke checks for JourneyKits and Composio"
+          status: pass
+      residual_risk:
+        - "Actual JourneyKits publish success still requires a real JourneyKits API key with kits:write owner access; no secret was entered or committed during verification."
+        - "GoalBuddy dedicated Scout/Worker/Judge agents were bundled_not_installed, so PM fallback executed the board."
 
 checks:
-  dirty_fingerprint: "JourneyKits and Composio integration implemented locally; awaiting GitHub publish receipt."
+  dirty_fingerprint: "JourneyKits and Composio integration committed and pushed to feat/journeykits-composio-integration with draft PR #1."
   last_verification:
     result: pass
-    task: T005
+    task: T999
     commands:
       - "bun run i18n:types"
       - "node scripts/check-i18n.js"
