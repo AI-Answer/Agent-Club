@@ -15,6 +15,7 @@ import FileAttachButton from '@/renderer/components/media/FileAttachButton';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
+import { useChatGoalCommand } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { getSendBoxDraftHook, type FileOrFolderItem } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { createSetUploadFile } from '@/renderer/hooks/chat/useSendBoxFiles';
 import { useSlashCommands } from '@/renderer/hooks/chat/useSlashCommands';
@@ -117,6 +118,11 @@ const OpenClawSendBox: React.FC<{ conversation_id: string }> = ({ conversation_i
   const [workspacePath, setWorkspacePath] = useState('');
   const { t } = useTranslation();
   const { checkAndUpdateTitle } = useAutoTitle();
+  const handleChatGoalCommand = useChatGoalCommand({
+    conversationId: conversation_id,
+    conversationType: 'openclaw-gateway',
+    workspacePath,
+  });
   const slashCommands = useSlashCommands(conversation_id);
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const removeMessageByMsgId = useRemoveMessageByMsgId();
@@ -476,6 +482,10 @@ const OpenClawSendBox: React.FC<{ conversation_id: string }> = ({ conversation_i
   });
 
   const onSendHandler = async (message: string) => {
+    if (await handleChatGoalCommand(message)) {
+      return;
+    }
+
     emitter.emit('openclaw-gateway.selected.file.clear');
     const filePaths = [...uploadFile, ...atPath.map((item) => (typeof item === 'string' ? item : item.path))];
     setAtPath([]);

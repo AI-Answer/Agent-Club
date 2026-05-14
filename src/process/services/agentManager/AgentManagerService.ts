@@ -7,12 +7,19 @@ import * as os from 'os';
 import * as path from 'path';
 import { ipcBridge } from '@/common';
 import {
+  AGENT_MANAGER_BOOT_PATH,
   AGENT_MANAGER_LOCAL_CODE,
   AGENT_MANAGER_LOCAL_EMAIL,
   AGENT_MANAGER_NAME,
   AGENT_MANAGER_WORKSPACE_SLUG,
 } from '@/common/config/appBrand';
-import type { AgentManagerStatus } from '@/common/types/agentManager';
+import type {
+  AgentManagerChatGoalCommandRequest,
+  AgentManagerGoalCommandResult,
+  AgentManagerGoalStatus,
+  AgentManagerGoalSummary,
+  AgentManagerStatus,
+} from '@/common/types/agentManager';
 
 const DEFAULT_FRONTEND_PORT = '3330';
 const DEFAULT_BACKEND_PORT = '18330';
@@ -24,6 +31,7 @@ const AGENT_MANAGER_DAEMON_DEVICE_NAME = 'Agent Club';
 const AGENT_MANAGER_DAEMON_HEALTH_PORT = 20509;
 const AGENT_MANAGER_CLI_VERSION = '0.2.20';
 const AGENT_MANAGER_CLI_COMMIT = 'agent-club';
+const AGENT_MANAGER_DEFAULT_PROJECT_TITLE = 'Agent Club Operating Board';
 
 const HOMEBREW_BIN_PATHS = [
   '/opt/homebrew/bin',
@@ -37,6 +45,24 @@ const HOMEBREW_BIN_PATHS = [
 type CommandResult = {
   stdout: string;
   stderr: string;
+};
+
+type AgentManagerProjectSummary = {
+  id: string;
+  title: string;
+  description?: string | null;
+  status?: string;
+};
+
+type AgentManagerProjectListResponse = {
+  projects?: AgentManagerProjectSummary[];
+};
+
+type AgentManagerExpandGoalResponse = {
+  task_id?: string;
+  readiness?: {
+    ready?: boolean;
+  };
 };
 
 export class AgentManagerService {
@@ -72,6 +98,56 @@ export class AgentManagerService {
   async restart(): Promise<AgentManagerStatus> {
     await this.stop();
     return this.start();
+  }
+
+  async handleChatGoalCommand(request: AgentManagerChatGoalCommandRequest): Promise<AgentManagerGoalCommandResult> {
+    const readyStatus = await this.ensureReadyForApi();
+    const backendUrl = readyStatus.backendUrl || this.getBackendUrl();
+    const frontendUrl = readyStatus.url || this.getFrontendUrl();
+    const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
+    const project = await this.resolveGoalProject(backendUrl, token, request.projectHint);
+    const goal = await this.createChatGoal(backendUrl, token, request, project.id);
+
+    let expanded = false;
+    let taskId: string | undefined;
+    let readinessReady: boolean | undefined;
+    let warning: string | undefined;
+
+    if (request.action === 'run') {
+      try {
+        const expandResult = await this.agentManagerApi<AgentManagerExpandGoalResponse>(
+          backendUrl,
+          `/api/goals/${encodeURIComponent(goal.id)}/expand`,
+          token,
+          {
+            method: 'POST',
+            body: JSON.stringify({ prompt: request.body }),
+          }
+        );
+        expanded = true;
+        taskId = expandResult.task_id;
+        readinessReady = expandResult.readiness?.ready;
+      } catch (error) {
+        warning = `Goal was created, but native expansion did not start: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+      }
+    }
+
+    const goalPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/goals/${encodeURIComponent(goal.id)}`;
+    const managerUrl = this.buildFrontendBootUrl(frontendUrl, goalPath);
+
+    return {
+      action: request.action,
+      goal,
+      projectTitle: project.title,
+      goalUrl: `${frontendUrl.replace(/\/$/, '')}${goalPath}`,
+      managerUrl,
+      expanded,
+      taskId,
+      readinessReady,
+      warning,
+    };
   }
 
   async stop(): Promise<void> {
@@ -116,6 +192,158 @@ export class AgentManagerService {
     );
 
     this.updateStatus('idle', `${AGENT_MANAGER_NAME} is stopped`);
+  }
+
+  private async ensureReadyForApi(): Promise<AgentManagerStatus> {
+    if (this.status.state === 'ready') {
+      return this.status;
+    }
+
+    const status = await this.start();
+    if (status.state !== 'ready') {
+      throw new Error(status.detail || status.message || `${AGENT_MANAGER_NAME} is not ready`);
+    }
+    return status;
+  }
+
+  private buildFrontendBootUrl(frontendUrl: string, nextPath: string): string {
+    const params = new URLSearchParams({ next: nextPath });
+    return `${frontendUrl.replace(/\/$/, '')}${AGENT_MANAGER_BOOT_PATH}?${params.toString()}`;
+  }
+
+  private async resolveGoalProject(
+    backendUrl: string,
+    token: string,
+    projectHint?: string
+  ): Promise<AgentManagerProjectSummary> {
+    const response = await this.agentManagerApi<AgentManagerProjectListResponse>(backendUrl, '/api/projects', token);
+    const projects = response.projects || [];
+    const normalizedHint = this.normalizeName(projectHint);
+
+    if (normalizedHint) {
+      const exact = projects.find((project) => this.normalizeName(project.title) === normalizedHint);
+      if (exact) {
+        return exact;
+      }
+      const partial = projects.find((project) => this.normalizeName(project.title).includes(normalizedHint));
+      if (partial) {
+        return partial;
+      }
+    }
+
+    const defaultProject = projects.find(
+      (project) => this.normalizeName(project.title) === this.normalizeName(AGENT_MANAGER_DEFAULT_PROJECT_TITLE)
+    );
+    if (defaultProject) {
+      return defaultProject;
+    }
+
+    if (projects[0]) {
+      return projects[0];
+    }
+
+    return this.agentManagerApi<AgentManagerProjectSummary>(backendUrl, '/api/projects', token, {
+      method: 'POST',
+      body: JSON.stringify({
+        title: AGENT_MANAGER_DEFAULT_PROJECT_TITLE,
+        description: 'Default task board for Agent Club apps, agents, and bundled workflows.',
+        status: 'in_progress',
+        priority: 'high',
+      }),
+    });
+  }
+
+  private async createChatGoal(
+    backendUrl: string,
+    token: string,
+    request: AgentManagerChatGoalCommandRequest,
+    projectId: string
+  ): Promise<AgentManagerGoalSummary> {
+    const status: AgentManagerGoalStatus = request.action === 'run' ? 'in_progress' : 'planned';
+    return this.agentManagerApi<AgentManagerGoalSummary>(backendUrl, '/api/goals', token, {
+      method: 'POST',
+      body: JSON.stringify({
+        project_id: projectId,
+        title: request.title,
+        description: this.buildChatGoalDescription(request),
+        status,
+      }),
+    });
+  }
+
+  private buildChatGoalDescription(request: AgentManagerChatGoalCommandRequest): string {
+    const parts = [request.body.trim()];
+    const metadata = [
+      'Source: Agent Club chat slash command',
+      `Action: ${request.action === 'prep' ? 'prep' : 'run'}`,
+      `Conversation: ${request.sourceConversationId}`,
+    ];
+
+    if (request.sourceConversationType) {
+      metadata.push(`Runtime: ${request.sourceConversationType}`);
+    }
+    if (request.sourceWorkspacePath) {
+      metadata.push(`Workspace path: ${request.sourceWorkspacePath}`);
+    }
+    if (request.projectHint) {
+      metadata.push(`Project hint: ${request.projectHint}`);
+    }
+    if (request.tags?.length) {
+      metadata.push(`Tags: ${request.tags.map((tag) => `#${tag}`).join(' ')}`);
+    }
+
+    metadata.push(`Original command: ${request.rawInput}`);
+    parts.push('', '---', ...metadata);
+    return parts.join('\n');
+  }
+
+  private normalizeName(value?: string): string {
+    return (value || '').trim().toLowerCase();
+  }
+
+  private async agentManagerApi<T>(
+    backendUrl: string,
+    apiPath: string,
+    token: string,
+    init: RequestInit = {}
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      'X-Workspace-Slug': AGENT_MANAGER_WORKSPACE_SLUG,
+      'X-Client-Platform': 'desktop',
+      'X-Client-Version': AGENT_MANAGER_CLI_VERSION,
+      'X-Client-OS': process.platform,
+      ...(init.headers as Record<string, string> | undefined),
+    };
+
+    if (init.body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const response = await fetch(`${backendUrl.replace(/\/$/, '')}${apiPath}`, {
+      ...init,
+      headers,
+    });
+    const text = await response.text();
+    const payload = text ? this.parseJsonResponse(text) : undefined;
+
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
+          ? payload.error
+          : `${apiPath} returned ${response.status}`;
+      throw new Error(message);
+    }
+
+    return payload as T;
+  }
+
+  private parseJsonResponse(text: string): unknown {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
   }
 
   private async startInternal(): Promise<AgentManagerStatus> {

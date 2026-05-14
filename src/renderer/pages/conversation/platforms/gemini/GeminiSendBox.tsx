@@ -10,6 +10,7 @@ import FileAttachButton from '@/renderer/components/media/FileAttachButton';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { useAgentReadinessCheck } from '@/renderer/hooks/agent/useAgentReadinessCheck';
+import { useChatGoalCommand } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
 import { getSendBoxDraftHook, type FileOrFolderItem } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { createSetUploadFile, useSendBoxFiles } from '@/renderer/hooks/chat/useSendBoxFiles';
@@ -144,6 +145,11 @@ const GeminiSendBox: React.FC<{
   } = useGeminiMessage(conversation_id, handleGeminiError);
 
   const { atPath, uploadFile, setAtPath, setUploadFile, content, setContent } = useSendBoxDraft(conversation_id);
+  const handleChatGoalCommand = useChatGoalCommand({
+    conversationId: conversation_id,
+    conversationType: 'gemini',
+    workspacePath,
+  });
 
   useGeminiInitialMessage({
     conversationId: conversation_id,
@@ -333,6 +339,10 @@ const GeminiSendBox: React.FC<{
   });
 
   const onSendHandler = async (message: string) => {
+    if (await handleChatGoalCommand(message)) {
+      return;
+    }
+
     const filesToSend = collectSelectedFiles(uploadFile, atPath);
     clearFiles();
     emitter.emit('gemini.selected.file.clear');

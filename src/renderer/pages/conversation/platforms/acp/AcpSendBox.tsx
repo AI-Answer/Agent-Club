@@ -12,6 +12,7 @@ import FileAttachButton from '@/renderer/components/media/FileAttachButton';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
+import { useChatGoalCommand } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { getSendBoxDraftHook, type FileOrFolderItem } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { createSetUploadFile, useSendBoxFiles } from '@/renderer/hooks/chat/useSendBoxFiles';
 import { useSlashCommands } from '@/renderer/hooks/chat/useSlashCommands';
@@ -127,6 +128,11 @@ const AcpSendBox: React.FC<{
   const { checkAndUpdateTitle } = useAutoTitle();
   const slashCommands = useSlashCommands(conversation_id, { agentStatus: acpStatus });
   const { atPath, uploadFile, setAtPath, setUploadFile, content, setContent } = useSendBoxDraft(conversation_id);
+  const handleChatGoalCommand = useChatGoalCommand({
+    conversationId: conversation_id,
+    conversationType: backend,
+    workspacePath,
+  });
   const { setSendBoxHandler } = usePreviewContext();
 
   // Use useLatestRef to keep latest setters to avoid re-registering handler
@@ -266,6 +272,10 @@ Please check your local CLI tool authentication status`,
   });
 
   const onSendHandler = async (message: string) => {
+    if (await handleChatGoalCommand(message)) {
+      return;
+    }
+
     const atPathFiles = atPath.map((item) => (typeof item === 'string' ? item : item.path));
     const allFiles = [...uploadFile, ...atPathFiles];
 

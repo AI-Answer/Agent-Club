@@ -1,0 +1,298 @@
+version: 2
+
+goal:
+  title: "Chat Slash Goals in Local Agent Manager"
+  slug: "chat-slash-goals-in-agent-manager"
+  kind: specific
+  tranche: "Add Agent Club chat slash-command intake so /goal prep and /goal create, prepare, run, and track native Local Agent Manager goals."
+  status: done
+  intake:
+    original_request: "Make sure I can do /goal prep and /goal from Agent Club chat and see the goal and work inside Local Agent Manager."
+    interpreted_outcome: "Agent Club chat can create or run native Local Agent Manager goals, with project/tag context and visible prepared cards/progress in the Local Agent Manager UI."
+    input_shape: specific
+    audience: "Sam working from Agent Club chats while using Local Agent Manager for reference and observability."
+    authority: requested
+    proof_type: demo
+    completion_proof: "A chat /goal prep creates a native goal visible in Local Agent Manager, and /goal can run/expand it so issue cards and agent/sub-agent activity are trackable there."
+    likely_misfire: "Implementing another GoalBuddy/file-only board or chat macro without creating native Multica Local Agent Manager goals and issues."
+    blind_spots_considered:
+      - "Slash command parsing must coexist with normal chat input and existing Codex/Claude sessions."
+      - "Project/tag context needs an ergonomic default plus an override path."
+      - "GoalBuddy can support planning, but Local Agent Manager should be the product source of truth."
+      - "Goal runs should reuse the native readiness and expansion layer already added to Local Agent Manager."
+      - "Chat-created goals need a durable reference back to the source chat/session for observability."
+    existing_plan_facts:
+      - "Native goals, goal-linked issues, readiness checks, and expansion endpoints already exist from the previous tranche."
+      - "The Local Agent Manager app is running locally and can show native goals under the Agent Club workspace."
+      - "GoalBuddy Scout/Worker/Judge helpers are installed and can support this implementation board."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/chat-slash-goals-in-agent-manager/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/chat-slash-goals-in-agent-manager"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the existing Agent Club chat input/session surfaces and the native Local Agent Manager goal APIs needed to support /goal prep and /goal."
+    inputs:
+      - "Agent Club chat UI and command handling surfaces."
+      - "Local Agent Manager native goal, issue, project, tag/label, readiness, and expansion APIs."
+      - "Existing Codex/Claude runtime routing and chat-session metadata."
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Prefer file-path evidence and existing local APIs over new architecture."
+      - "Identify the shortest path that makes Local Agent Manager the observable source of truth."
+    expected_output:
+      - "Chat command/input surface map."
+      - "Native goal/project/tag API surface map."
+      - "Recommended UX semantics for /goal prep and /goal."
+      - "Risks, stop conditions, and first safe Worker slice."
+    receipt:
+      result: done
+      summary: "Chat slash commands can be intercepted before runtime send and routed through AgentManagerService to native Local Agent Manager goal APIs."
+      evidence:
+        - "Shared slash/menu/send surface: src/renderer/components/chat/sendbox.tsx"
+        - "Runtime send handlers: src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx, gemini/GeminiSendBox.tsx, openclaw/OpenClawSendBox.tsx"
+        - "Agent Manager IPC/service: src/process/bridge/agentManagerBridge.ts and src/process/services/agentManager/AgentManagerService.ts"
+        - "Native goal APIs and UI: apps/agent-manager/server/internal/handler/goal.go and apps/agent-manager/packages/views/goals/components/goal-detail.tsx"
+      note: "Detailed map recorded in notes/T001-surface-map.md."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the safest native architecture for chat /goal prep and /goal without creating a duplicate GoalBuddy sync system."
+    inputs:
+      - "T001 Scout receipt."
+      - "Existing native goals tranche receipts."
+      - "User requirement that goals and progress appear inside Local Agent Manager."
+    constraints:
+      - "Read-only."
+      - "Reject file-only or GoalBuddy-only implementations."
+      - "Preserve normal chat behavior and avoid command ambiguity."
+    expected_output:
+      - "Decision."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify."
+      - "stop_if."
+      - "Any deferred follow-up tasks."
+    receipt:
+      result: done
+      decision: "Implement one native chat-command pipeline through AgentManagerService and Local Agent Manager goal APIs; do not create a duplicate GoalBuddy sync layer."
+      summary: "Proceed with parser, IPC/service, slash menu, per-runtime send interception, iframe deep-linking, native create, and native expand."
+      note: "Detailed decision recorded in notes/T002-architecture-decision.md."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement /goal prep chat intake that creates or updates a native Local Agent Manager goal with project/context selection and opens or links the native goal view."
+    allowed_files:
+      - "src/common/chat/**"
+      - "src/common/types/agentManager.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/agentManagerBridge.ts"
+      - "src/process/services/agentManager/**"
+      - "src/renderer/components/chat/sendbox.tsx"
+      - "src/renderer/hooks/chat/**"
+      - "src/renderer/pages/AgentManagerPage.tsx"
+      - "src/renderer/pages/conversation/platforms/**"
+      - "docs/goals/chat-slash-goals-in-agent-manager/**"
+    verify:
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "cd apps/agent-manager && pnpm --filter @multica/views test -- goals"
+      - "Manual/browser smoke: send /goal prep from Agent Club chat and verify a native goal appears in Local Agent Manager."
+    stop_if:
+      - "Need to alter credential storage or external provider setup."
+      - "Need a broader chat-command framework decision beyond /goal prep and /goal."
+      - "Cannot create a native Local Agent Manager goal without changing auth/workspace ownership semantics."
+      - "Verification fails twice for reasons outside this slice."
+    receipt:
+      result: done
+      summary: "Implemented native /goal prep intake through shared parser, Agent Manager IPC/service, slash menu, all chat runtime send handlers, and embedded Local Agent Manager deep-linking."
+      changed_files:
+        - "src/common/chat/goalSlashCommand.ts"
+        - "src/common/types/agentManager.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/agentManagerBridge.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - "src/renderer/components/chat/sendbox.tsx"
+        - "src/renderer/pages/AgentManagerPage.tsx"
+        - "src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/aionrs/AionrsSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/gemini/GeminiSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/nanobot/NanobotSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/openclaw/OpenClawSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/remote/RemoteSendBox.tsx"
+      commands:
+        - command: "pnpm exec tsx -e parseChatGoalSlashCommand"
+          status: pass
+        - command: "pnpm exec tsc --noEmit"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+          status: pass
+        - command: "node --input-type=module -e local login/create/delete goal smoke"
+          status: pass
+      note: "Detailed receipt recorded in notes/T003-worker-prep.md."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement /goal run behavior that uses the native goal readiness and expansion path so prepared cards and agent work move inside Local Agent Manager."
+    allowed_files:
+      - "src/**"
+      - "apps/agent-manager/**"
+      - "docs/goals/chat-slash-goals-in-agent-manager/**"
+    verify:
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "cd apps/agent-manager/server && go test ./internal/service ./internal/daemon ./internal/handler ./cmd/multica"
+      - "Manual/browser smoke: run /goal and verify goal readiness/expansion queues native Local Agent Manager work."
+    stop_if:
+      - "The run path would require silently installing tools or mutating user credentials."
+      - "No enabled local agent/squad is available and the readiness layer blocks execution."
+      - "The implementation would bypass native Local Agent Manager issue/task tracking."
+      - "Verification fails twice for reasons outside this slice."
+    receipt:
+      result: done
+      summary: "Implemented native /goal run behavior that creates an in-progress native goal, calls the native readiness/expand endpoint, opens the embedded goal detail route, and surfaces readiness warnings."
+      changed_files:
+        - "src/common/chat/goalSlashCommand.ts"
+        - "src/common/types/agentManager.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/agentManagerBridge.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - "src/renderer/pages/AgentManagerPage.tsx"
+        - "src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/aionrs/AionrsSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/gemini/GeminiSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/nanobot/NanobotSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/openclaw/OpenClawSendBox.tsx"
+        - "src/renderer/pages/conversation/platforms/remote/RemoteSendBox.tsx"
+      commands:
+        - command: "pnpm exec tsx -e parse /goal run"
+          status: pass
+        - command: "pnpm exec tsc --noEmit"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+          status: pass
+        - command: "node --input-type=module -e local login/create/readiness/delete smoke"
+          status: pass
+      note: "Detailed receipt recorded in notes/T004-worker-run.md."
+  - id: T005
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether chat-created goals are visible, project/context-linked, runnable, and observable inside Local Agent Manager."
+    inputs:
+      - "Receipts from T001 through T004."
+      - "Browser/manual smoke notes."
+      - "Current dirty diff."
+    constraints:
+      - "Read-only."
+      - "Reject completion if the only durable state is in GoalBuddy files."
+      - "Reject completion if users cannot find the goal in Local Agent Manager."
+    expected_output:
+      - "complete | not_complete."
+      - "full_outcome_complete: true | false."
+      - "Missing evidence."
+      - "Next task if not complete."
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "Chat /goal prep and /goal now create native Local Agent Manager goals, use the native run/expand path, and deep-link the embedded Local Agent Manager view to the goal detail page."
+      evidence:
+        - "Shared parser and command hook cover prep/run, project hints, and tags."
+        - "AgentManagerService creates native goals through /api/goals and runs expansion through /api/goals/{id}/expand."
+        - "Electron/browser smoke confirmed iframe deep-linking to the native goal detail route."
+        - "Temporary native create/delete and readiness smokes passed."
+      remaining_risk: "Native goal tags are stored as description metadata until Local Agent Manager grows first-class goal tags."
+      note: "Detailed audit recorded in notes/T005-audit.md."
+  - id: T999
+    type: pm
+    assignee: PM
+    status: done
+    reasoning_hint: high
+    objective: "Run final verification, commit, push to GitHub if implementation is complete, and report the shipped state."
+    inputs:
+      - "T005 audit receipt."
+      - "Current branch and git status."
+    constraints:
+      - "Do not push secrets or local vault files."
+      - "Do not commit unrelated user changes."
+    expected_output:
+      - "Final verification summary."
+      - "Commit SHA if pushed."
+      - "Pushed branch if pushed."
+      - "Remaining risks, if any."
+    receipt:
+      result: done
+      summary: "Implemented, verified, and prepared for GitHub publication. Final response reports the pushed commit SHA."
+      commands:
+        - command: "pnpm exec tsx -e parseChatGoalSlashCommand smoke"
+          status: pass
+        - command: "pnpm exec tsc --noEmit"
+          status: pass
+        - command: "pnpm -w exec tsc --noEmit"
+          status: pass
+        - command: "node --input-type=module -e local native goal create/delete smoke"
+          status: pass
+        - command: "node --input-type=module -e local readiness smoke"
+          status: pass
+        - command: "pnpm exec tsx -e Electron CDP iframe deep-link smoke"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+        - command: "goalbuddy check-goal-state"
+          status: pass
+      note: "Detailed final receipt recorded in notes/T999-final.md."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "pnpm exec tsx -e parseChatGoalSlashCommand smoke"
+      - "pnpm exec tsc --noEmit"
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "node --input-type=module -e local native goal create/delete smoke"
+      - "node --input-type=module -e local readiness smoke"
+      - "pnpm exec tsx -e Electron CDP iframe deep-link smoke"

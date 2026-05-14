@@ -15,6 +15,7 @@ import FileAttachButton from '@/renderer/components/media/FileAttachButton';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
+import { useChatGoalCommand } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { getSendBoxDraftHook, type FileOrFolderItem } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { createSetUploadFile } from '@/renderer/hooks/chat/useSendBoxFiles';
 import { useSlashCommands } from '@/renderer/hooks/chat/useSlashCommands';
@@ -57,6 +58,11 @@ const NanobotSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id
   const [workspacePath, setWorkspacePath] = useState('');
   const { t } = useTranslation();
   const { checkAndUpdateTitle } = useAutoTitle();
+  const handleChatGoalCommand = useChatGoalCommand({
+    conversationId: conversation_id,
+    conversationType: 'nanobot',
+    workspacePath,
+  });
   const slashCommands = useSlashCommands(conversation_id);
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const removeMessageByMsgId = useRemoveMessageByMsgId();
@@ -291,6 +297,10 @@ const NanobotSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id
   });
 
   const onSendHandler = async (message: string) => {
+    if (await handleChatGoalCommand(message)) {
+      return;
+    }
+
     emitter.emit('nanobot.selected.file.clear');
     const filePaths = [...uploadFile, ...atPath.map((item) => (typeof item === 'string' ? item : item.path))];
     setAtPath([]);

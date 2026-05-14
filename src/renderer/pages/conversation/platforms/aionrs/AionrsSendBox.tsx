@@ -15,6 +15,7 @@ import FileAttachButton from '@/renderer/components/media/FileAttachButton';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
+import { useChatGoalCommand } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { getSendBoxDraftHook, type FileOrFolderItem } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { createSetUploadFile, useSendBoxFiles } from '@/renderer/hooks/chat/useSendBoxFiles';
 import { useSlashCommands } from '@/renderer/hooks/chat/useSlashCommands';
@@ -109,6 +110,11 @@ const AionrsSendBox: React.FC<{
     });
 
   const { atPath, uploadFile, setAtPath, setUploadFile, content, setContent } = useSendBoxDraft(conversation_id);
+  const handleChatGoalCommand = useChatGoalCommand({
+    conversationId: conversation_id,
+    conversationType: 'aionrs',
+    workspacePath,
+  });
 
   useEffect(() => {
     void ipcBridge.conversation.get.invoke({ id: conversation_id }).then((res) => {
@@ -284,6 +290,10 @@ const AionrsSendBox: React.FC<{
   }, [conversation_id, executeCommand]);
 
   const onSendHandler = async (message: string) => {
+    if (await handleChatGoalCommand(message)) {
+      return;
+    }
+
     if (!teamId && isBusy) {
       Message.warning(t('messages.conversationInProgress'));
       return;

@@ -15,8 +15,10 @@ import FileAttachButton from '@/renderer/components/media/FileAttachButton';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
+import { useChatGoalCommand } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { getSendBoxDraftHook, type FileOrFolderItem } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { createSetUploadFile } from '@/renderer/hooks/chat/useSendBoxFiles';
+import { useSlashCommands } from '@/renderer/hooks/chat/useSlashCommands';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { useLatestRef } from '@/renderer/hooks/ui/useLatestRef';
 import { useAddOrUpdateMessage, useRemoveMessageByMsgId } from '@/renderer/pages/conversation/Messages/hooks';
@@ -54,9 +56,15 @@ const RemoteSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id 
   const [workspacePath, setWorkspacePath] = useState('');
   const { t } = useTranslation();
   const { checkAndUpdateTitle } = useAutoTitle();
+  const handleChatGoalCommand = useChatGoalCommand({
+    conversationId: conversation_id,
+    conversationType: 'remote',
+    workspacePath,
+  });
   const addOrUpdateMessage = useAddOrUpdateMessage();
   const removeMessageByMsgId = useRemoveMessageByMsgId();
   const { setSendBoxHandler } = usePreviewContext();
+  const slashCommands = useSlashCommands(conversation_id);
 
   const [agentName, setAgentName] = useState('Remote Agent');
   const [aiProcessing, setAiProcessing] = useState(false);
@@ -367,6 +375,10 @@ const RemoteSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id 
 
   const onSendHandler = useCallback(
     async (message: string) => {
+      if (await handleChatGoalCommand(message)) {
+        return;
+      }
+
       emitter.emit('remote.selected.file.clear');
       const currentAtPath = [...atPath];
       const currentUploadFile = [...uploadFile];
@@ -390,7 +402,17 @@ const RemoteSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id 
 
       await executeCommand({ input: message, files: filePaths });
     },
-    [aiProcessing, atPath, enqueue, executeCommand, hasPendingCommands, setAtPath, setUploadFile, uploadFile]
+    [
+      aiProcessing,
+      atPath,
+      enqueue,
+      executeCommand,
+      handleChatGoalCommand,
+      hasPendingCommands,
+      setAtPath,
+      setUploadFile,
+      uploadFile,
+    ]
   );
 
   const handleEditQueuedCommand = useCallback(
@@ -410,7 +432,7 @@ const RemoteSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id 
     },
     [setUploadFile]
   );
-  const { openFileSelector } = useOpenFileSelector({
+  const { openFileSelector, onSlashBuiltinCommand } = useOpenFileSelector({
     onFilesSelected: appendSelectedFiles,
   });
 
@@ -479,6 +501,8 @@ const RemoteSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id 
           ) : undefined
         }
         onSend={onSendHandler}
+        slashCommands={slashCommands}
+        onSlashBuiltinCommand={onSlashBuiltinCommand}
         allowSendWhileLoading
       />
     </div>

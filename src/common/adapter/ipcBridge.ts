@@ -22,7 +22,11 @@ import type {
 } from '../update/updateTypes';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
-import type { AgentManagerStatus } from '../types/agentManager';
+import type {
+  AgentManagerChatGoalCommandRequest,
+  AgentManagerGoalCommandResult,
+  AgentManagerStatus,
+} from '../types/agentManager';
 import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from '../types/memory';
 import type { ComposioToolRouterSetupRequest, ComposioToolRouterSetupResult } from '../types/composio';
 import type {
@@ -205,6 +209,10 @@ export const application = {
 export const agentManager = {
   getStatus: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.get-status'),
   restart: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.restart'),
+  handleChatGoalCommand: bridge.buildProvider<
+    IBridgeResponse<AgentManagerGoalCommandResult>,
+    AgentManagerChatGoalCommandRequest
+  >('agent-manager.chat-goal-command'),
   statusChanged: bridge.buildEmitter<AgentManagerStatus>('agent-manager.status-changed'),
 };
 

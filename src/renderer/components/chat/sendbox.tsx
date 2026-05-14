@@ -424,6 +424,13 @@ const SendBox: React.FC<{
     }
     if (conversationContext?.conversationId) {
       commands.push({
+        name: 'goal',
+        description: 'Create or run a Local Agent Manager goal',
+        kind: 'builtin',
+        source: 'builtin',
+        selectionBehavior: 'insert',
+      });
+      commands.push({
         name: 'copy',
         description: t('messages.copy', { defaultValue: 'Copy' }),
         kind: 'builtin',
