@@ -49,7 +49,23 @@ export interface OnePasswordSecuritySaveRequest {
 export interface OnePasswordCliStatus {
   installed: boolean;
   version?: string;
+  path?: string;
   error?: string;
+}
+
+export interface OnePasswordCliInstallResult extends OnePasswordCliStatus {
+  docsUrl: string;
+  installStarted: boolean;
+  method: 'already-installed' | 'homebrew' | 'manual';
+  command?: string;
+  output?: string;
+}
+
+export interface OnePasswordConnectionStatus extends OnePasswordCliStatus {
+  connected: boolean;
+  vaultCount?: number;
+  accountCount?: number;
+  details?: string;
 }
 
 export interface SecuritySettingsState {

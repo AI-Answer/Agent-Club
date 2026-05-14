@@ -3,7 +3,9 @@ import type {
   AgentVaultConfig,
   AgentVaultSaveRequest,
   AgentVaultState,
+  OnePasswordCliInstallResult,
   OnePasswordCliStatus,
+  OnePasswordConnectionStatus,
   OnePasswordSecurityConfig,
   OnePasswordSecurityPublicConfig,
   OnePasswordSecuritySaveRequest,
@@ -24,10 +26,62 @@ import {
 } from './agentVaultRuntime';
 
 const execFileAsync = promisify(execFile);
+const ONE_PASSWORD_CLI_DOCS_URL = 'https://www.1password.dev/cli/get-started';
+const ONE_PASSWORD_INSTALL_COMMAND = 'brew install 1password-cli';
 
 const DEFAULT_ONE_PASSWORD_CONFIG: OnePasswordSecurityConfig = {
   enabled: false,
   resolveReferences: true,
+};
+
+const trimCommandOutput = (value: string, maxLength = 4000): string => {
+  const trimmed = value.trim();
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}...` : trimmed;
+};
+
+const commandErrorMessage = (error: unknown): string => {
+  const commandError = error as { message?: string; stderr?: string; stdout?: string };
+  return trimCommandOutput(
+    [commandError.stderr, commandError.stdout, commandError.message].filter(Boolean).join('\n')
+  );
+};
+
+const parseJsonArrayLength = (value: string): number | undefined => {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.length : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const withOnePasswordEnv = (
+  env: NodeJS.ProcessEnv,
+  config: OnePasswordSecurityConfig
+): NodeJS.ProcessEnv => ({
+  ...env,
+  ...(config.enabled && config.serviceAccountToken?.trim()
+    ? { OP_SERVICE_ACCOUNT_TOKEN: config.serviceAccountToken.trim() }
+    : {}),
+  ...(config.enabled && config.account?.trim() ? { OP_ACCOUNT: config.account.trim() } : {}),
+});
+
+const findCommandPath = async (command: string): Promise<string | undefined> => {
+  const lookupCommand = process.platform === 'win32' ? 'where' : 'which';
+
+  try {
+    const { stdout } = await execFileAsync(lookupCommand, [command], {
+      env: getEnhancedEnv(),
+      timeout: 10_000,
+    });
+
+    return stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+  } catch {
+    return undefined;
+  }
 };
 
 const getBuiltinMcpBaseDir = (): string => {
@@ -185,12 +239,131 @@ class SecuritySettingsService {
       return {
         installed: true,
         version: stdout.trim(),
+        path: await findCommandPath('op'),
       };
     } catch (error) {
       return {
         installed: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: commandErrorMessage(error),
       };
+    }
+  }
+
+  async installOnePasswordCli(): Promise<OnePasswordCliInstallResult> {
+    const existing = await this.testOnePasswordCli();
+    if (existing.installed) {
+      return {
+        ...existing,
+        docsUrl: ONE_PASSWORD_CLI_DOCS_URL,
+        installStarted: false,
+        method: 'already-installed',
+      };
+    }
+
+    if (process.platform !== 'darwin') {
+      return {
+        installed: false,
+        docsUrl: ONE_PASSWORD_CLI_DOCS_URL,
+        installStarted: false,
+        method: 'manual',
+        error: 'Automatic 1Password CLI install is currently available on macOS. Open the setup guide for this platform.',
+      };
+    }
+
+    const brewPath = await findCommandPath('brew');
+    if (!brewPath) {
+      return {
+        installed: false,
+        docsUrl: ONE_PASSWORD_CLI_DOCS_URL,
+        installStarted: false,
+        method: 'manual',
+        error: 'Homebrew was not found. Install Homebrew or use the 1Password setup guide.',
+      };
+    }
+
+    try {
+      const { stdout, stderr } = await execFileAsync('brew', ['install', '1password-cli'], {
+        env: getEnhancedEnv(),
+        maxBuffer: 5 * 1024 * 1024,
+        timeout: 5 * 60_000,
+      });
+      const installed = await this.testOnePasswordCli();
+
+      return {
+        ...installed,
+        docsUrl: ONE_PASSWORD_CLI_DOCS_URL,
+        installStarted: true,
+        method: 'homebrew',
+        command: ONE_PASSWORD_INSTALL_COMMAND,
+        output: trimCommandOutput([stdout, stderr].filter(Boolean).join('\n')),
+      };
+    } catch (error) {
+      const installed = await this.testOnePasswordCli();
+      return {
+        ...installed,
+        docsUrl: ONE_PASSWORD_CLI_DOCS_URL,
+        installStarted: true,
+        method: 'homebrew',
+        command: ONE_PASSWORD_INSTALL_COMMAND,
+        error: commandErrorMessage(error),
+      };
+    }
+  }
+
+  async testOnePasswordConnection(): Promise<OnePasswordConnectionStatus> {
+    const cli = await this.testOnePasswordCli();
+    if (!cli.installed) {
+      return {
+        ...cli,
+        connected: false,
+      };
+    }
+
+    const onePassword = await this.getOnePasswordConfig();
+    const env = withOnePasswordEnv(getEnhancedEnv(), onePassword);
+
+    try {
+      const { stdout } = await execFileAsync('op', ['vault', 'list', '--format=json'], {
+        env,
+        maxBuffer: 1024 * 1024,
+        timeout: 30_000,
+      });
+      const vaultCount = parseJsonArrayLength(stdout);
+
+      return {
+        ...cli,
+        connected: true,
+        vaultCount,
+        details:
+          vaultCount === undefined
+            ? '1Password CLI connected.'
+            : `1Password CLI can reach ${vaultCount} vault${vaultCount === 1 ? '' : 's'}.`,
+      };
+    } catch (vaultError) {
+      try {
+        const { stdout } = await execFileAsync('op', ['account', 'list', '--format=json'], {
+          env,
+          maxBuffer: 1024 * 1024,
+          timeout: 30_000,
+        });
+        const accountCount = parseJsonArrayLength(stdout);
+
+        return {
+          ...cli,
+          connected: accountCount !== undefined && accountCount > 0,
+          accountCount,
+          details:
+            accountCount === undefined
+              ? '1Password account command responded.'
+              : `1Password CLI can see ${accountCount} account${accountCount === 1 ? '' : 's'}.`,
+        };
+      } catch {
+        return {
+          ...cli,
+          connected: false,
+          error: commandErrorMessage(vaultError),
+        };
+      }
     }
   }
 

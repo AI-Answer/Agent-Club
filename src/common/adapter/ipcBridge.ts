@@ -27,7 +27,9 @@ import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from
 import type { ComposioToolRouterSetupRequest, ComposioToolRouterSetupResult } from '../types/composio';
 import type {
   AgentVaultSaveRequest,
+  OnePasswordCliInstallResult,
   OnePasswordCliStatus,
+  OnePasswordConnectionStatus,
   OnePasswordSecuritySaveRequest,
   SecuritySettingsState,
 } from '../types/security';
@@ -224,8 +226,14 @@ export const security = {
   saveOnePassword: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, OnePasswordSecuritySaveRequest>(
     'security.one-password.save'
   ),
+  installOnePasswordCli: bridge.buildProvider<IBridgeResponse<OnePasswordCliInstallResult>, void>(
+    'security.one-password.install-cli'
+  ),
   testOnePasswordCli: bridge.buildProvider<IBridgeResponse<OnePasswordCliStatus>, void>(
     'security.one-password.test-cli'
+  ),
+  testOnePasswordConnection: bridge.buildProvider<IBridgeResponse<OnePasswordConnectionStatus>, void>(
+    'security.one-password.test-connection'
   ),
 };
 

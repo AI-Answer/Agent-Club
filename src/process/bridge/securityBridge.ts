@@ -65,9 +65,25 @@ export function initSecurityBridge(): void {
     }
   });
 
+  ipcBridge.security.installOnePasswordCli.provider(async () => {
+    try {
+      return { success: true, data: await securitySettingsService.installOnePasswordCli() };
+    } catch (error) {
+      return { success: false, msg: errorMessage(error) };
+    }
+  });
+
   ipcBridge.security.testOnePasswordCli.provider(async () => {
     try {
       return { success: true, data: await securitySettingsService.testOnePasswordCli() };
+    } catch (error) {
+      return { success: false, msg: errorMessage(error) };
+    }
+  });
+
+  ipcBridge.security.testOnePasswordConnection.provider(async () => {
+    try {
+      return { success: true, data: await securitySettingsService.testOnePasswordConnection() };
     } catch (error) {
       return { success: false, msg: errorMessage(error) };
     }

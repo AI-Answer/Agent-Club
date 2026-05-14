@@ -2,14 +2,17 @@ import { ipcBridge } from '@/common';
 import type {
   AgentVaultState,
   OnePasswordCliStatus,
+  OnePasswordConnectionStatus,
   OnePasswordSecurityPublicConfig,
   SecuritySettingsState,
 } from '@/common/types/security';
 import { Alert, Button, Input, Message, Switch } from '@arco-design/web-react';
-import { CheckOne, FileCode, FolderOpen, Refresh, Shield } from '@icon-park/react';
+import { CheckOne, Connection, FileCode, FolderOpen, Install, LinkOne, Refresh, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
+
+const ONE_PASSWORD_CLI_DOCS_URL = 'https://www.1password.dev/cli/get-started';
 
 const EMPTY_VAULT: AgentVaultState = {
   enabled: false,
@@ -34,7 +37,9 @@ const SecuritySettings: React.FC = () => {
   const [openingVaultFile, setOpeningVaultFile] = useState(false);
   const [revealingVaultFile, setRevealingVaultFile] = useState(false);
   const [savingOnePassword, setSavingOnePassword] = useState(false);
+  const [installingOnePassword, setInstallingOnePassword] = useState(false);
   const [testingOnePassword, setTestingOnePassword] = useState(false);
+  const [testingOnePasswordConnection, setTestingOnePasswordConnection] = useState(false);
   const [agentVault, setAgentVault] = useState<AgentVaultState>(EMPTY_VAULT);
   const [onePassword, setOnePassword] = useState<OnePasswordSecurityPublicConfig>(EMPTY_ONE_PASSWORD);
   const [vaultEnabled, setVaultEnabled] = useState(false);
@@ -44,6 +49,8 @@ const SecuritySettings: React.FC = () => {
   const [onePasswordAccount, setOnePasswordAccount] = useState('');
   const [onePasswordToken, setOnePasswordToken] = useState('');
   const [onePasswordCliStatus, setOnePasswordCliStatus] = useState<OnePasswordCliStatus | null>(null);
+  const [onePasswordConnectionStatus, setOnePasswordConnectionStatus] =
+    useState<OnePasswordConnectionStatus | null>(null);
 
   const vaultSummary = useMemo(() => {
     if (!agentVault.keyCount) return t('settings.securityPage.noKeys');
@@ -161,6 +168,31 @@ const SecuritySettings: React.FC = () => {
     t,
   ]);
 
+  const handleInstallOnePassword = useCallback(async () => {
+    setInstallingOnePassword(true);
+    try {
+      const result = await ipcBridge.security.installOnePasswordCli.invoke();
+      if (!result.success || !result.data) {
+        message.error(result.msg || t('settings.securityPage.onePasswordInstallFailed'));
+        return;
+      }
+
+      setOnePasswordCliStatus(result.data);
+      if (result.data.installed) {
+        message.success(t('settings.securityPage.onePasswordInstallReady'));
+      } else {
+        message.warning(result.data.error || t('settings.securityPage.onePasswordInstallManual'));
+        void ipcBridge.shell.openExternal.invoke(result.data.docsUrl);
+      }
+    } finally {
+      setInstallingOnePassword(false);
+    }
+  }, [message, t]);
+
+  const handleOpenOnePasswordGuide = useCallback(() => {
+    void ipcBridge.shell.openExternal.invoke(ONE_PASSWORD_CLI_DOCS_URL);
+  }, []);
+
   const handleTestOnePassword = useCallback(async () => {
     setTestingOnePassword(true);
     try {
@@ -177,6 +209,27 @@ const SecuritySettings: React.FC = () => {
       }
     } finally {
       setTestingOnePassword(false);
+    }
+  }, [message, t]);
+
+  const handleTestOnePasswordConnection = useCallback(async () => {
+    setTestingOnePasswordConnection(true);
+    try {
+      const result = await ipcBridge.security.testOnePasswordConnection.invoke();
+      if (!result.success || !result.data) {
+        message.error(result.msg || t('settings.securityPage.onePasswordConnectionTestFailed'));
+        return;
+      }
+
+      setOnePasswordCliStatus(result.data);
+      setOnePasswordConnectionStatus(result.data);
+      if (result.data.connected) {
+        message.success(result.data.details || t('settings.securityPage.onePasswordConnectionReady'));
+      } else {
+        message.warning(result.data.error || t('settings.securityPage.onePasswordConnectionMissing'));
+      }
+    } finally {
+      setTestingOnePasswordConnection(false);
     }
   }, [message, t]);
 
@@ -297,16 +350,37 @@ const SecuritySettings: React.FC = () => {
                 <Switch checked={resolveReferences} onChange={setResolveReferences} disabled={loading} size='small' />
                 <span>{t('settings.securityPage.resolveReferences')}</span>
               </label>
-              <div className='flex items-center gap-8px'>
+              <div className='flex flex-wrap items-center justify-end gap-8px'>
                 {onePasswordCliStatus && (
                   <span className='text-12px text-t-tertiary'>
-                    {onePasswordCliStatus.installed
-                      ? t('settings.securityPage.onePasswordCliVersion', { version: onePasswordCliStatus.version })
-                      : t('settings.securityPage.onePasswordCliNotFound')}
+                    {onePasswordConnectionStatus
+                      ? onePasswordConnectionStatus.connected
+                        ? onePasswordConnectionStatus.vaultCount === undefined
+                          ? t('settings.securityPage.onePasswordConnectionReady')
+                          : t('settings.securityPage.onePasswordConnectionVaults', {
+                              count: onePasswordConnectionStatus.vaultCount,
+                            })
+                        : t('settings.securityPage.onePasswordConnectionNotReady')
+                      : onePasswordCliStatus.installed
+                        ? t('settings.securityPage.onePasswordCliVersion', { version: onePasswordCliStatus.version })
+                        : t('settings.securityPage.onePasswordCliNotFound')}
                   </span>
                 )}
+                <Button icon={<Install size='14' />} loading={installingOnePassword} onClick={handleInstallOnePassword}>
+                  {t('settings.securityPage.installOnePassword')}
+                </Button>
+                <Button icon={<LinkOne size='14' />} onClick={handleOpenOnePasswordGuide}>
+                  {t('settings.securityPage.onePasswordSetupGuide')}
+                </Button>
                 <Button icon={<Refresh size='14' />} loading={testingOnePassword} onClick={handleTestOnePassword}>
                   {t('settings.securityPage.testOnePassword')}
+                </Button>
+                <Button
+                  icon={<Connection size='14' />}
+                  loading={testingOnePasswordConnection}
+                  onClick={handleTestOnePasswordConnection}
+                >
+                  {t('settings.securityPage.testOnePasswordConnection')}
                 </Button>
                 <Button
                   type='primary'
