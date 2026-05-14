@@ -855,10 +855,7 @@ runtime_seed AS (
       WHEN 'gemini' THEN 'Gather context, compare options, and summarize findings for Agent Club tasks.'
       ELSE 'Use the local runtime to complete Agent Club tasks and keep task state current.'
     END AS instructions,
-    CASE r.provider
-      WHEN 'codex' THEN 'gpt-5-codex'
-      ELSE NULL
-    END AS model
+    NULL::text AS model
   FROM agent_runtime r
   JOIN workspace_selected w ON w.id = r.workspace_id
   WHERE r.daemon_id = '${AGENT_MANAGER_DAEMON_ID}'
@@ -1287,9 +1284,9 @@ runtime_upsert AS (
 ),
 seed_agents(name, description, instructions, model, max_tasks) AS (
   VALUES
-    ('Coordinator', 'Plans work and routes tasks across Agent Club.', 'Keep Agent Club work organized, break goals into clear tasks, and route execution to the right agent.', 'gpt-5-codex', 4),
-    ('Builder', 'Implements application and automation changes.', 'Focus on concrete implementation work, test changes, and keep edits scoped to the active Agent Club workspace.', 'gpt-5-codex', 3),
-    ('Researcher', 'Collects context for tools, integrations, and workflows.', 'Gather precise context, summarize tradeoffs, and attach useful references to tasks before execution begins.', 'gpt-5', 2)
+    ('Coordinator', 'Plans work and routes tasks across Agent Club.', 'Keep Agent Club work organized, break goals into clear tasks, and route execution to the right agent.', NULL::text, 4),
+    ('Builder', 'Implements application and automation changes.', 'Focus on concrete implementation work, test changes, and keep edits scoped to the active Agent Club workspace.', NULL::text, 3),
+    ('Researcher', 'Collects context for tools, integrations, and workflows.', 'Gather precise context, summarize tradeoffs, and attach useful references to tasks before execution begins.', NULL::text, 2)
 ),
 agent_upsert AS (
   INSERT INTO agent (
