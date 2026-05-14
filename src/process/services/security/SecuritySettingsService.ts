@@ -70,6 +70,7 @@ const execNonInteractiveCommand = (
     const child = spawn(file, [...args], {
       ...spawnOptions,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
     });
     let stdout = '';
     let stderr = '';
