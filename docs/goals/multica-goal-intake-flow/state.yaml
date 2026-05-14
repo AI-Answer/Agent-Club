@@ -1,0 +1,289 @@
+version: 2
+
+goal:
+  title: "Multica Goal Intake Flow"
+  slug: "multica-goal-intake-flow"
+  kind: specific
+  tranche: "Implement a guided two-step Agent Club chat goal flow where /goal prep prepares a markdown-backed native goal and /goal or approval language starts native Multica/Local Agent Manager actioning with clickable links."
+  status: done
+  intake:
+    original_request: "Make changes to the GoalBuddy flow for Multica so /goal prep plans first, /goal starts actioning later, and chat returns project, board, goal, and task links."
+    interpreted_outcome: "Agent Club chat supports a clear prep-then-run goal workflow backed by Local Agent Manager/Multica project, goal, board/task state, and clickable chat links."
+    input_shape: specific
+    audience: "Sam using Agent Club chat for goal thinking and Local Agent Manager/Multica for observability."
+    authority: requested
+    proof_type: demo
+    completion_proof: "A local chat smoke demo shows /goal prep producing a prepared markdown-backed native goal with project/goal/board links, and /goal or approval language starts actioning that prepared goal without losing context."
+    likely_misfire: "Leaving /goal prep and /goal as immediate deep-link shortcuts, or tracking only GoalBuddy files instead of native Multica/Local Agent Manager surfaces."
+    blind_spots_considered:
+      - "Need to decide whether /cool is a typo, a desired alias, or ignored."
+      - "Need to identify where prepared-goal context should be persisted so later approval language can find it."
+      - "Need to keep the native Local Agent Manager project/goal/board links authoritative."
+      - "Need to avoid accidental execution when the user only asked for prep."
+      - "Need to keep existing /goal behavior compatible enough for quick tests."
+    existing_plan_facts:
+      - "/goal prep should guide planning and prep the goal first."
+      - "Prep should create a goal markdown document as the first objective/artifact."
+      - "go ahead, start actioning the goal, or /goal should start actioning the prepared goal."
+      - "Chat response should include which project the goal is in."
+      - "Chat response should include clickable board, goal, and project links."
+      - "The user wants a board/body showing scheduled tasks."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/multica-goal-intake-flow/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/multica-goal-intake-flow"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the current Agent Club chat slash-goal pipeline, native Local Agent Manager goal APIs, and existing markdown/board surfaces needed for a two-step prep/run flow."
+    inputs:
+      - "Current /goal prep and /goal parser/hook/service implementation."
+      - "Local Agent Manager project, goal, issue/board, readiness, and expansion APIs."
+      - "Existing chat response/toast/link patterns."
+      - "Existing docs/goals and GoalBuddy board artifact patterns."
+    constraints:
+      - "Read-only."
+      - "Do not implement."
+      - "Do not assume /cool is required without evidence; flag it for PM/Judge decision."
+      - "Prefer native Local Agent Manager/Multica surfaces over new duplicate stores."
+    expected_output:
+      - "Current flow map."
+      - "Persistence point for prepared goal context."
+      - "Native link targets for project, goal, board/tasks, and markdown artifact."
+      - "Recommended first Worker vertical slice."
+    receipt:
+      result: done
+      summary: "Mapped the current slash-goal pipeline: parser -> renderer hook -> AgentManagerService -> native Local Agent Manager goal APIs. The current issue is the hook auto-navigates and only toasts; native project/goal paths and goal-board issue surfaces already exist."
+      evidence:
+        - "src/common/chat/goalSlashCommand.ts"
+        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "apps/agent-manager/packages/core/paths/paths.ts"
+        - "apps/agent-manager/packages/views/goals/components/goal-detail.tsx"
+      facts:
+        - "Prepared-goal context can be stored per conversation in renderer localStorage."
+        - "Markdown artifacts can be created from AgentManagerService using sourceWorkspacePath."
+        - "Goal detail is the native board/task surface because it renders goal-linked issues."
+      ambiguity_requiring_judge:
+        - "/cool appears to be a typo; do not add it as an alias without explicit confirmation."
+      note: "Detailed Scout map recorded in notes/T001-scout-map.md."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the safest architecture for the two-step /goal prep -> approval or /goal run flow."
+    inputs:
+      - "T001 Scout receipt."
+      - "User flow requirements from the goal intake."
+      - "Current app verification commands."
+    constraints:
+      - "Read-only."
+      - "Reject designs that make /goal prep execute immediately."
+      - "Reject designs that create only GoalBuddy file state without native Local Agent Manager visibility."
+      - "Pick the largest safe useful Worker slice."
+    expected_output:
+      - "Decision."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify commands."
+      - "stop_if conditions."
+      - "Deferred follow-up tasks, if needed."
+    receipt:
+      result: done
+      decision: "approved"
+      summary: "Implement a two-step native pipeline: /goal prep creates planned native goal plus markdown doc and chat links; empty /goal or approval phrases run the latest prepared goal; /goal <text> remains direct run."
+      allowed_files:
+        - "src/common/chat/goalSlashCommand.ts"
+        - "src/common/types/agentManager.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - "src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts"
+        - "docs/goals/multica-goal-intake-flow/**"
+      verify:
+        - "pnpm exec tsx -e parser smoke"
+        - "pnpm exec tsc --noEmit"
+        - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+        - "Local API smoke for prep markdown creation and run-prepared expansion/readiness."
+      stop_if:
+        - "Need to change every runtime sendbox instead of the shared hook."
+        - "Cannot update or expand an existing prepared native goal."
+        - "Markdown creation would write outside a safe workspace/fallback."
+        - "Verification fails twice for reasons outside this slice."
+      note: "Detailed decision recorded in notes/T002-architecture-decision.md."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the first validated vertical slice of the guided prep/run chat-goal flow selected by Judge."
+    allowed_files:
+      - "src/common/chat/goalSlashCommand.ts"
+      - "src/common/chat/goalResultMessage.ts"
+      - "src/common/types/agentManager.ts"
+      - "src/process/bridge/agentManagerBridge.ts"
+      - "src/process/services/agentManager/AgentManagerService.ts"
+      - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+      - "src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts"
+      - "docs/goals/multica-goal-intake-flow/**"
+    verify:
+      - "pnpm exec tsx -e parser smoke"
+      - "pnpm exec tsc --noEmit"
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "Local API smoke for prep markdown creation and run-prepared expansion/readiness."
+    stop_if:
+      - "Need files outside Judge-approved allowed_files."
+      - "Need credentials, destructive operations, or external production access."
+      - "Native Local Agent Manager link targets are unavailable and no safe fallback is approved."
+      - "Verification fails twice for reasons outside this slice."
+    receipt:
+      result: done
+      summary: "Implemented the guided prep/run chat-goal flow: prep creates a planned native goal plus markdown artifact; empty /goal and approval phrases run the prepared goal; direct /goal still starts a new goal; chat results persist durable links."
+      changed_files:
+        - "src/common/chat/goalSlashCommand.ts"
+        - "src/common/chat/goalResultMessage.ts"
+        - "src/common/types/agentManager.ts"
+        - "src/process/bridge/agentManagerBridge.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - "src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts"
+      commands:
+        - command: "pnpm exec tsc --noEmit"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+          status: pass
+        - command: "Parser smoke for /goal prep, direct /goal, empty /goal, and approval phrases"
+          status: pass
+      evidence:
+        - "src/common/chat/goalSlashCommand.ts"
+        - "src/common/chat/goalResultMessage.ts"
+        - "src/common/types/agentManager.ts"
+        - "src/process/bridge/agentManagerBridge.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - "src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts"
+      verification:
+        - "pnpm exec tsc --noEmit"
+        - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+        - "Parser smoke passed for prep, direct run, run-prepared, and approval phrases."
+      note: "Detailed Worker receipt recorded in notes/T003-worker-vertical-slice.md."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Polish the chat response and Local Agent Manager visibility so project, goal, board/tasks, and markdown links are easy to click and test."
+    allowed_files:
+      - "src/common/chat/goalResultMessage.ts"
+      - "src/process/services/agentManager/AgentManagerService.ts"
+      - "src/renderer/components/Markdown/index.tsx"
+      - "docs/goals/multica-goal-intake-flow/**"
+    verify: []
+    stop_if:
+      - "Need files outside Judge-approved allowed_files."
+      - "Need a broader design-system decision."
+      - "The native board/task surface needs backend features outside this tranche."
+      - "Verification fails twice for reasons outside this slice."
+    receipt:
+      result: done
+      summary: "Polished chat links so Project board opens the native project Kanban inside Agent Club, Goal opens goal detail, and old localhost boot links are intercepted as compatibility fallbacks."
+      changed_files:
+        - "src/common/chat/goalResultMessage.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/components/Markdown/index.tsx"
+      commands:
+        - command: "pnpm exec tsc --noEmit"
+          status: pass
+        - command: "Electron/CDP smoke for in-app project-board link routing"
+          status: pass
+      evidence:
+        - "src/common/chat/goalResultMessage.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/components/Markdown/index.tsx"
+      verification:
+        - "Electron/CDP smoke confirmed board href is an internal /agent-manager route with next=/agent-club/projects/<projectId>."
+        - "Frame text confirmed the Agent Club Operating Board Kanban loaded inside the app window."
+        - "Throwaway Slash smoke goals were deleted from Local Agent Manager after verification."
+      note: "Detailed polish receipt recorded in notes/T004-link-polish.md."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the implemented flow satisfies the original prep/run/linking outcome."
+    inputs:
+      - "All done task receipts."
+      - "Last verification."
+      - "Current dirty diff."
+      - "Manual/browser smoke notes."
+    constraints:
+      - "Do not implement."
+      - "Reject completion if /goal prep still jumps straight to actioning."
+      - "Reject completion if chat does not show usable project/goal/board links."
+      - "Reject completion if required Worker tasks remain queued or active."
+    expected_output:
+      - "complete | not_complete."
+      - "full_outcome_complete: true | false."
+      - "missing evidence."
+      - "next task if not complete."
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "The requested /goal prep -> actioning flow is implemented and verified: chat planning creates native project-scoped goals, actioning can run later, and links take the user to project, goal, and board surfaces inside Agent Club."
+      evidence:
+        - "notes/T003-worker-vertical-slice.md"
+        - "notes/T004-link-polish.md"
+        - "Electron/CDP smoke: project board loaded at #/agent-manager?next=/agent-club/projects/<projectId>."
+      residual_risk:
+        - "Existing no-await-in-loop lint warnings remain in AgentManagerService startup loops."
+      note: "Final audit recorded in notes/T999-final-audit.md."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "pnpm exec tsc --noEmit"
+      - "cd apps/agent-manager && pnpm -w exec tsc --noEmit"
+      - "pnpm exec oxlint src/common/chat/goalSlashCommand.ts src/common/chat/goalResultMessage.ts src/common/types/agentManager.ts src/process/bridge/agentManagerBridge.ts src/process/services/agentManager/AgentManagerService.ts src/renderer/components/Markdown/index.tsx src/renderer/hooks/chat/useChatGoalCommand.ts src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts"
+      - "Parser smoke for /goal prep, direct /goal, empty /goal, and approval phrases"
+      - "Electron/CDP smoke for in-app project-board link routing"

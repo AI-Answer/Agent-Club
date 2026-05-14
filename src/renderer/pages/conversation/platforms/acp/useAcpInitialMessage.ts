@@ -5,8 +5,11 @@
  */
 
 import { ipcBridge } from '@/common';
+import { buildGoalResultMessage } from '@/common/chat/goalResultMessage';
 import type { TMessage } from '@/common/chat/chatLib';
+import { parseChatGoalSlashCommand } from '@/common/chat/goalSlashCommand';
 import { uuid } from '@/common/utils';
+import { loadPreparedGoal, savePreparedGoal } from '@/renderer/hooks/chat/useChatGoalCommand';
 import { emitter } from '@/renderer/utils/emitter';
 import { buildDisplayMessage } from '@/renderer/utils/file/messageFiles';
 import { useEffect } from 'react';
@@ -46,6 +49,92 @@ export const useAcpInitialMessage = ({
         const initialMessage = JSON.parse(storedMessage);
         const input = typeof initialMessage.input === 'string' ? initialMessage.input : '';
         const files = Array.isArray(initialMessage.files) ? initialMessage.files : [];
+        const parseResult = parseChatGoalSlashCommand(input);
+
+        if (parseResult.command) {
+          const preparedGoal = loadPreparedGoal(conversationId);
+          if (parseResult.command.action === 'run_prepared' && !preparedGoal) {
+            addOrUpdateMessage(
+              {
+                id: uuid(),
+                msg_id: uuid(),
+                conversation_id: conversationId,
+                type: 'tips',
+                position: 'center',
+                content: {
+                  content: 'Prep a goal first, or add goal details after /goal.',
+                  type: 'warning',
+                },
+                createdAt: Date.now(),
+              },
+              true
+            );
+            return;
+          }
+
+          const response = await ipcBridge.agentManager.handleChatGoalCommand.invoke({
+            action: parseResult.command.action,
+            title:
+              parseResult.command.action === 'run_prepared' && preparedGoal
+                ? preparedGoal.title
+                : parseResult.command.title,
+            body:
+              parseResult.command.action === 'run_prepared' && preparedGoal
+                ? preparedGoal.body
+                : parseResult.command.body,
+            goalId: parseResult.command.action === 'run_prepared' ? preparedGoal?.goalId : undefined,
+            projectHint: parseResult.command.projectHint,
+            tags: parseResult.command.tags,
+            sourceConversationId: conversationId,
+            sourceConversationType: backend,
+            sourceWorkspacePath: workspacePath,
+            rawInput: input,
+          });
+
+          if (!response.success || !response.data) {
+            throw new Error(response.msg || 'Failed to create goal in Local Agent Manager');
+          }
+
+          if (response.data.action === 'prep') {
+            savePreparedGoal(conversationId, response.data);
+          }
+
+          addOrUpdateMessage(
+            {
+              id: uuid(),
+              msg_id: `agent-manager-goal-${response.data.goal.id}-${Date.now()}`,
+              conversation_id: conversationId,
+              type: 'text',
+              position: 'left',
+              status: 'finish',
+              content: {
+                content: buildGoalResultMessage(response.data),
+              },
+              createdAt: Date.now(),
+            },
+            true
+          );
+          return;
+        }
+        if (parseResult.error) {
+          addOrUpdateMessage(
+            {
+              id: uuid(),
+              msg_id: uuid(),
+              conversation_id: conversationId,
+              type: 'tips',
+              position: 'center',
+              content: {
+                content: parseResult.error,
+                type: 'warning',
+              },
+              createdAt: Date.now(),
+            },
+            true
+          );
+          return;
+        }
+
         const displayMessage = buildDisplayMessage(input, files, workspacePath || '');
         const msg_id = uuid();
 

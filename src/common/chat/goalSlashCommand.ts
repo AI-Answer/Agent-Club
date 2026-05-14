@@ -1,4 +1,4 @@
-export type ChatGoalCommandAction = 'prep' | 'run';
+export type ChatGoalCommandAction = 'prep' | 'run' | 'run_prepared';
 
 export interface ParsedChatGoalCommand {
   action: ChatGoalCommandAction;
@@ -16,6 +16,8 @@ export interface ChatGoalCommandParseResult {
 const GOAL_COMMAND_RE = /^\/goal(?:\s+([\s\S]*))?$/i;
 const PROJECT_HINT_RE = /(?:^|\s)(?:project|proj):(?:"([^"]+)"|'([^']+)'|([^\s#]+))/i;
 const TAG_RE = /(?:^|\s)#([a-zA-Z0-9_-]+)/g;
+const GOAL_APPROVAL_RE =
+  /^(?:go ahead|start actioning(?: the goal)?|start(?: the)? goal|run(?: the)? goal|action(?: the)? goal)$/i;
 const MAX_TITLE_LENGTH = 96;
 
 function trimTitle(value: string): string {
@@ -63,8 +65,12 @@ export function parseChatGoalSlashCommand(input: string): ChatGoalCommandParseRe
   const rest = (match[1] || '').trim();
   if (!rest) {
     return {
-      command: null,
-      error: 'Add a goal after /goal or /goal prep.',
+      command: {
+        action: 'run_prepared',
+        title: 'Run prepared goal',
+        body: '',
+        tags: [],
+      },
     };
   }
 
@@ -107,4 +113,8 @@ export function parseChatGoalSlashCommand(input: string): ChatGoalCommandParseRe
 
 export function isChatGoalSlashCommand(input: string): boolean {
   return GOAL_COMMAND_RE.test(input.trim());
+}
+
+export function isChatGoalApprovalCommand(input: string): boolean {
+  return GOAL_APPROVAL_RE.test(input.trim());
 }

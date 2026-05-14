@@ -9,7 +9,7 @@ export type AgentManagerStatus = {
   updatedAt: number;
 };
 
-export type AgentManagerChatGoalAction = 'prep' | 'run';
+export type AgentManagerChatGoalAction = 'prep' | 'run' | 'run_prepared';
 
 export type AgentManagerGoalStatus = 'planned' | 'in_progress' | 'paused' | 'completed' | 'cancelled';
 
@@ -17,6 +17,7 @@ export interface AgentManagerChatGoalCommandRequest {
   action: AgentManagerChatGoalAction;
   title: string;
   body: string;
+  goalId?: string;
   projectHint?: string;
   tags?: string[];
   sourceConversationId: string;
@@ -35,10 +36,14 @@ export interface AgentManagerGoalSummary {
 
 export interface AgentManagerGoalCommandResult {
   goal: AgentManagerGoalSummary;
+  projectId?: string;
   projectTitle?: string;
   action: AgentManagerChatGoalAction;
   goalUrl: string;
   managerUrl: string;
+  boardUrl: string;
+  projectUrl?: string;
+  markdownPath?: string;
   expanded: boolean;
   taskId?: string;
   readinessReady?: boolean;

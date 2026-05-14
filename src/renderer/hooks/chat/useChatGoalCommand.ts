@@ -1,10 +1,11 @@
 import { ipcBridge } from '@/common';
-import { AGENT_MANAGER_WORKSPACE_SLUG } from '@/common/config/appBrand';
-import { parseChatGoalSlashCommand } from '@/common/chat/goalSlashCommand';
-import type { AgentManagerChatGoalCommandRequest } from '@/common/types/agentManager';
+import { buildGoalResultMessage } from '@/common/chat/goalResultMessage';
+import { isChatGoalApprovalCommand, parseChatGoalSlashCommand } from '@/common/chat/goalSlashCommand';
+import type { AgentManagerChatGoalCommandRequest, AgentManagerGoalCommandResult } from '@/common/types/agentManager';
+import { uuid } from '@/common/utils';
+import { useAddOrUpdateMessage } from '@/renderer/pages/conversation/Messages/hooks';
 import { Message } from '@arco-design/web-react';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface UseChatGoalCommandOptions {
   conversationId: string;
@@ -12,14 +13,77 @@ interface UseChatGoalCommandOptions {
   workspacePath?: string;
 }
 
+interface PreparedGoalRef {
+  goalId: string;
+  title: string;
+  body: string;
+  projectTitle?: string;
+  projectId?: string;
+  goalUrl: string;
+  boardUrl: string;
+  projectUrl?: string;
+  markdownPath?: string;
+  updatedAt: number;
+}
+
+function preparedGoalKey(conversationId: string): string {
+  return `agent-club.prepared-goal.${conversationId}`;
+}
+
+export function loadPreparedGoal(conversationId: string): PreparedGoalRef | null {
+  try {
+    const raw = window.localStorage.getItem(preparedGoalKey(conversationId));
+    return raw ? (JSON.parse(raw) as PreparedGoalRef) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePreparedGoal(conversationId: string, result: AgentManagerGoalCommandResult): void {
+  try {
+    window.localStorage.setItem(
+      preparedGoalKey(conversationId),
+      JSON.stringify({
+        goalId: result.goal.id,
+        title: result.goal.title,
+        body: result.goal.description || result.goal.title,
+        projectTitle: result.projectTitle,
+        projectId: result.projectId,
+        goalUrl: result.goalUrl,
+        boardUrl: result.boardUrl,
+        projectUrl: result.projectUrl,
+        markdownPath: result.markdownPath,
+        updatedAt: Date.now(),
+      } satisfies PreparedGoalRef)
+    );
+  } catch {
+    // Best-effort convenience cache; native Local Agent Manager remains source of truth.
+  }
+}
+
 export function useChatGoalCommand(options: UseChatGoalCommandOptions) {
   const { conversationId, conversationType, workspacePath } = options;
-  const navigate = useNavigate();
+  const addOrUpdateMessage = useAddOrUpdateMessage();
 
   return useCallback(
     async (input: string): Promise<boolean> => {
       const parseResult = parseChatGoalSlashCommand(input);
-      if (!parseResult.command) {
+      let command = parseResult.command;
+      let preparedGoal = loadPreparedGoal(conversationId);
+
+      if (!command && !parseResult.error && isChatGoalApprovalCommand(input)) {
+        if (!preparedGoal) {
+          return false;
+        }
+        command = {
+          action: 'run_prepared',
+          title: preparedGoal.title,
+          body: preparedGoal.body,
+          tags: [],
+        };
+      }
+
+      if (!command) {
         if (parseResult.error) {
           Message.warning(parseResult.error);
           return true;
@@ -27,12 +91,18 @@ export function useChatGoalCommand(options: UseChatGoalCommandOptions) {
         return false;
       }
 
+      if (command.action === 'run_prepared' && !preparedGoal) {
+        Message.warning('Prep a goal first, or add goal details after /goal.');
+        return true;
+      }
+
       const request: AgentManagerChatGoalCommandRequest = {
-        action: parseResult.command.action,
-        title: parseResult.command.title,
-        body: parseResult.command.body,
-        projectHint: parseResult.command.projectHint,
-        tags: parseResult.command.tags,
+        action: command.action,
+        title: command.action === 'run_prepared' && preparedGoal ? preparedGoal.title : command.title,
+        body: command.action === 'run_prepared' && preparedGoal ? preparedGoal.body : command.body,
+        goalId: command.action === 'run_prepared' ? preparedGoal?.goalId : undefined,
+        projectHint: command.projectHint,
+        tags: command.tags,
         sourceConversationId: conversationId,
         sourceConversationType: conversationType,
         sourceWorkspacePath: workspacePath,
@@ -53,18 +123,36 @@ export function useChatGoalCommand(options: UseChatGoalCommandOptions) {
       }
 
       const result = response.data;
-      const next = `/${AGENT_MANAGER_WORKSPACE_SLUG}/goals/${encodeURIComponent(result.goal.id)}`;
-      await navigate(`/agent-manager?next=${encodeURIComponent(next)}`);
+      if (result.action === 'prep') {
+        savePreparedGoal(conversationId, result);
+      }
+
+      addOrUpdateMessage(
+        {
+          id: uuid(),
+          msg_id: `agent-manager-goal-${result.goal.id}-${Date.now()}`,
+          conversation_id: conversationId,
+          type: 'text',
+          position: 'left',
+          status: 'finish',
+          content: {
+            content: buildGoalResultMessage(result),
+          },
+        },
+        true
+      );
 
       if (result.warning) {
         Message.warning(result.warning);
       } else if (result.action === 'prep') {
         Message.success(`Goal prepped in Local Agent Manager: ${result.goal.title}`);
+      } else if (result.action === 'run_prepared') {
+        Message.success(`Prepared goal is actioning in Local Agent Manager: ${result.goal.title}`);
       } else {
         Message.success(`Goal running in Local Agent Manager: ${result.goal.title}`);
       }
       return true;
     },
-    [conversationId, conversationType, navigate, workspacePath]
+    [addOrUpdateMessage, conversationId, conversationType, workspacePath]
   );
 }

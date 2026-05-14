@@ -15,10 +15,16 @@ import remarkMath from 'remark-math';
 // Import KaTeX CSS to make it available in the document
 import 'katex/dist/katex.min.css';
 
+import {
+  AGENT_MANAGER_BOOT_PATH,
+  AGENT_MANAGER_DEFAULT_WORKSPACE_PATH,
+  AGENT_MANAGER_WORKSPACE_SLUG,
+} from '@/common/config/appBrand';
 import { openExternalUrl } from '@/renderer/utils/platform';
 import classNames from 'classnames';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { convertLatexDelimiters } from '@renderer/utils/chat/latexDelimiters';
 import LocalImageView from '@renderer/components/media/LocalImageView';
 import CodeBlock from './CodeBlock';
@@ -30,6 +36,45 @@ const isLocalFilePath = (src: string): boolean => {
   if (src.startsWith('http://') || src.startsWith('https://')) return false;
   if (src.startsWith('data:')) return false;
   return true;
+};
+
+const normalizeAgentManagerNextPath = (value: string | null): string => {
+  if (!value || !value.startsWith(`/${AGENT_MANAGER_WORKSPACE_SLUG}/`)) {
+    return AGENT_MANAGER_DEFAULT_WORKSPACE_PATH;
+  }
+  return value;
+};
+
+const buildAgentManagerRoute = (nextPath: string): string => {
+  const params = new URLSearchParams({ next: normalizeAgentManagerNextPath(nextPath) });
+  return `/agent-manager?${params.toString()}`;
+};
+
+const getInternalAgentManagerRoute = (rawHref: string | null, resolvedHref: string): string | null => {
+  const value = rawHref || resolvedHref;
+
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'agent-club:' && url.hostname === 'agent-manager') {
+      return buildAgentManagerRoute(url.searchParams.get('next') || AGENT_MANAGER_DEFAULT_WORKSPACE_PATH);
+    }
+
+    const isLocalAgentManager =
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1') &&
+      url.port === '3330' &&
+      url.pathname === AGENT_MANAGER_BOOT_PATH;
+    if (isLocalAgentManager) {
+      return buildAgentManagerRoute(url.searchParams.get('next') || AGENT_MANAGER_DEFAULT_WORKSPACE_PATH);
+    }
+  } catch {
+    // Fall through to relative-route handling.
+  }
+
+  if (value.startsWith('/agent-manager')) {
+    return value;
+  }
+
+  return null;
 };
 
 type MarkdownViewProps = {
@@ -45,6 +90,7 @@ type MarkdownViewProps = {
 const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
   ({ hiddenCodeCopyButton, codeStyle, className, onRef, allowHtml, children: childrenProp }) => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
 
     const normalizedChildren = useMemo(() => {
       if (typeof childrenProp === 'string') {
@@ -59,13 +105,19 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
       (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        const href = (e.currentTarget as HTMLAnchorElement).href;
+        const link = e.currentTarget as HTMLAnchorElement;
+        const href = link.href;
         if (!href) return;
+        const internalRoute = getInternalAgentManagerRoute(link.getAttribute('href'), href);
+        if (internalRoute) {
+          void navigate(internalRoute);
+          return;
+        }
         openExternalUrl(href).catch((error: unknown) => {
           console.error(t('messages.openLinkFailed'), error);
         });
       },
-      [t]
+      [navigate, t]
     );
 
     // Memoize components so React preserves component identity across re-renders.

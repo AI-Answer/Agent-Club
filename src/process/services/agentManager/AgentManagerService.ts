@@ -7,7 +7,6 @@ import * as os from 'os';
 import * as path from 'path';
 import { ipcBridge } from '@/common';
 import {
-  AGENT_MANAGER_BOOT_PATH,
   AGENT_MANAGER_LOCAL_CODE,
   AGENT_MANAGER_LOCAL_EMAIL,
   AGENT_MANAGER_NAME,
@@ -103,25 +102,60 @@ export class AgentManagerService {
   async handleChatGoalCommand(request: AgentManagerChatGoalCommandRequest): Promise<AgentManagerGoalCommandResult> {
     const readyStatus = await this.ensureReadyForApi();
     const backendUrl = readyStatus.backendUrl || this.getBackendUrl();
-    const frontendUrl = readyStatus.url || this.getFrontendUrl();
     const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
-    const project = await this.resolveGoalProject(backendUrl, token, request.projectHint);
-    const goal = await this.createChatGoal(backendUrl, token, request, project.id);
+
+    let project: AgentManagerProjectSummary;
+    let goal: AgentManagerGoalSummary;
+
+    if (request.action === 'run_prepared') {
+      if (!request.goalId) {
+        throw new Error('No prepared goal is available to run yet');
+      }
+      goal = await this.getChatGoal(backendUrl, token, request.goalId);
+      project = await this.resolveGoalProjectById(backendUrl, token, goal.project_id);
+      if (goal.status !== 'in_progress') {
+        goal = await this.updateChatGoal(backendUrl, token, goal.id, { status: 'in_progress' });
+      }
+    } else {
+      project = await this.resolveGoalProject(backendUrl, token, request.projectHint);
+      goal = await this.createChatGoal(backendUrl, token, request, project.id);
+    }
 
     let expanded = false;
     let taskId: string | undefined;
     let readinessReady: boolean | undefined;
     let warning: string | undefined;
+    let markdownPath = this.extractMarkdownPath(goal.description);
 
-    if (request.action === 'run') {
+    const goalPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/goals/${encodeURIComponent(goal.id)}`;
+    const projectPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/projects/${encodeURIComponent(project.id)}`;
+    const goalUrl = this.buildAgentManagerAppLink(goalPath);
+    const projectUrl = this.buildAgentManagerAppLink(projectPath);
+    const boardUrl = projectUrl;
+
+    if (request.action !== 'run_prepared') {
+      markdownPath = this.writeChatGoalMarkdown(request, project, goal, {
+        goalUrl,
+        projectUrl,
+        boardUrl,
+      });
+      if (markdownPath) {
+        goal = await this.updateChatGoal(backendUrl, token, goal.id, {
+          description: this.buildChatGoalDescription(request, markdownPath),
+        });
+      }
+    }
+
+    if (request.action === 'run' || request.action === 'run_prepared') {
       try {
+        const prompt = request.body.trim() || goal.description || goal.title;
         const expandResult = await this.agentManagerApi<AgentManagerExpandGoalResponse>(
           backendUrl,
           `/api/goals/${encodeURIComponent(goal.id)}/expand`,
           token,
           {
             method: 'POST',
-            body: JSON.stringify({ prompt: request.body }),
+            body: JSON.stringify({ prompt }),
           }
         );
         expanded = true;
@@ -134,15 +168,16 @@ export class AgentManagerService {
       }
     }
 
-    const goalPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/goals/${encodeURIComponent(goal.id)}`;
-    const managerUrl = this.buildFrontendBootUrl(frontendUrl, goalPath);
-
     return {
       action: request.action,
       goal,
+      projectId: project.id,
       projectTitle: project.title,
-      goalUrl: `${frontendUrl.replace(/\/$/, '')}${goalPath}`,
-      managerUrl,
+      goalUrl,
+      managerUrl: goalUrl,
+      boardUrl,
+      projectUrl,
+      markdownPath,
       expanded,
       taskId,
       readinessReady,
@@ -206,9 +241,9 @@ export class AgentManagerService {
     return status;
   }
 
-  private buildFrontendBootUrl(frontendUrl: string, nextPath: string): string {
+  private buildAgentManagerAppLink(nextPath: string): string {
     const params = new URLSearchParams({ next: nextPath });
-    return `${frontendUrl.replace(/\/$/, '')}${AGENT_MANAGER_BOOT_PATH}?${params.toString()}`;
+    return `/agent-manager?${params.toString()}`;
   }
 
   private async resolveGoalProject(
@@ -253,6 +288,34 @@ export class AgentManagerService {
     });
   }
 
+  private async resolveGoalProjectById(
+    backendUrl: string,
+    token: string,
+    projectId: string
+  ): Promise<AgentManagerProjectSummary> {
+    const response = await this.agentManagerApi<AgentManagerProjectListResponse>(backendUrl, '/api/projects', token);
+    const project = (response.projects || []).find((candidate) => candidate.id === projectId);
+    if (project) {
+      return project;
+    }
+    return {
+      id: projectId,
+      title: 'Local Agent Manager Project',
+    };
+  }
+
+  private async getChatGoal(
+    backendUrl: string,
+    token: string,
+    goalId: string
+  ): Promise<AgentManagerGoalSummary> {
+    return this.agentManagerApi<AgentManagerGoalSummary>(
+      backendUrl,
+      `/api/goals/${encodeURIComponent(goalId)}`,
+      token
+    );
+  }
+
   private async createChatGoal(
     backendUrl: string,
     token: string,
@@ -271,11 +334,23 @@ export class AgentManagerService {
     });
   }
 
-  private buildChatGoalDescription(request: AgentManagerChatGoalCommandRequest): string {
+  private async updateChatGoal(
+    backendUrl: string,
+    token: string,
+    goalId: string,
+    updates: Partial<Pick<AgentManagerGoalSummary, 'title' | 'description' | 'status'>>
+  ): Promise<AgentManagerGoalSummary> {
+    return this.agentManagerApi<AgentManagerGoalSummary>(backendUrl, `/api/goals/${encodeURIComponent(goalId)}`, token, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  private buildChatGoalDescription(request: AgentManagerChatGoalCommandRequest, markdownPath?: string): string {
     const parts = [request.body.trim()];
     const metadata = [
       'Source: Agent Club chat slash command',
-      `Action: ${request.action === 'prep' ? 'prep' : 'run'}`,
+      `Action: ${request.action}`,
       `Conversation: ${request.sourceConversationId}`,
     ];
 
@@ -291,10 +366,107 @@ export class AgentManagerService {
     if (request.tags?.length) {
       metadata.push(`Tags: ${request.tags.map((tag) => `#${tag}`).join(' ')}`);
     }
+    if (markdownPath) {
+      metadata.push(`Markdown file: ${markdownPath}`);
+    }
 
     metadata.push(`Original command: ${request.rawInput}`);
     parts.push('', '---', ...metadata);
     return parts.join('\n');
+  }
+
+  private writeChatGoalMarkdown(
+    request: AgentManagerChatGoalCommandRequest,
+    project: AgentManagerProjectSummary,
+    goal: AgentManagerGoalSummary,
+    links: { goalUrl: string; projectUrl: string; boardUrl: string }
+  ): string | undefined {
+    try {
+      const workspaceRoot = this.resolveGoalMarkdownRoot(request.sourceWorkspacePath);
+      const goalRoot = this.nextAvailableGoalDirectory(
+        path.join(workspaceRoot, 'docs', 'goals', this.slugifyGoalTitle(goal.title))
+      );
+      fs.mkdirSync(goalRoot, { recursive: true });
+      const markdownPath = path.join(goalRoot, 'goal.md');
+      fs.writeFileSync(markdownPath, this.buildGoalMarkdown(request, project, goal, links), 'utf8');
+      return markdownPath;
+    } catch (error) {
+      console.warn('[AgentManager] Failed to write chat goal markdown:', error);
+      return undefined;
+    }
+  }
+
+  private resolveGoalMarkdownRoot(workspacePath?: string): string {
+    if (workspacePath?.trim()) {
+      return path.resolve(workspacePath);
+    }
+    return path.join(os.homedir(), 'Agent Club Goals');
+  }
+
+  private nextAvailableGoalDirectory(baseDir: string): string {
+    if (!fs.existsSync(baseDir)) {
+      return baseDir;
+    }
+
+    const suffix = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
+    return `${baseDir}-${suffix}`;
+  }
+
+  private slugifyGoalTitle(title: string): string {
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 72);
+    return slug || `goal-${Date.now()}`;
+  }
+
+  private buildGoalMarkdown(
+    request: AgentManagerChatGoalCommandRequest,
+    project: AgentManagerProjectSummary,
+    goal: AgentManagerGoalSummary,
+    links: { goalUrl: string; projectUrl: string; boardUrl: string }
+  ): string {
+    const body = request.body.trim() || goal.title;
+    const tags = request.tags?.length ? request.tags.map((tag) => `#${tag}`).join(' ') : 'None';
+
+    return [
+      `# ${goal.title}`,
+      '',
+      '## Objective',
+      '',
+      body,
+      '',
+      '## First Objective',
+      '',
+      'Clarify the plan, confirm the first safe action slice, and then start actioning this goal from Agent Club chat when approved.',
+      '',
+      '## Local Agent Manager',
+      '',
+      `- Project: [${project.title}](${links.projectUrl})`,
+      `- Goal: [${goal.title}](${links.goalUrl})`,
+      `- Board / tasks: [Open goal board](${links.boardUrl})`,
+      '',
+      '## Chat Source',
+      '',
+      `- Conversation: ${request.sourceConversationId}`,
+      request.sourceConversationType ? `- Runtime: ${request.sourceConversationType}` : null,
+      request.sourceWorkspacePath ? `- Workspace path: ${request.sourceWorkspacePath}` : null,
+      `- Tags: ${tags}`,
+      `- Original command: ${request.rawInput}`,
+      '',
+      '## Start Actioning',
+      '',
+      'From the same Agent Club chat, send `/goal`, `go ahead`, or `start actioning the goal` to run this prepared goal.',
+      '',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n');
+  }
+
+  private extractMarkdownPath(description?: string | null): string | undefined {
+    const match = description?.match(/^Markdown file:\s*(.+)$/m);
+    return match?.[1]?.trim() || undefined;
   }
 
   private normalizeName(value?: string): string {
