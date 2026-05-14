@@ -2,6 +2,9 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+const AGENT_CLUB_MULTICA_VERSION = '0.2.20';
+const AGENT_CLUB_MULTICA_COMMIT = 'agent-club';
+
 function normalizeGoOS(platform = process.platform) {
   if (platform === 'win32') return 'windows';
   if (platform === 'darwin') return 'darwin';
@@ -36,9 +39,9 @@ function prepareMulticaCli(options = {}) {
 
   const ldflags = [
     '-X',
-    'main.version=agent-club',
+    'main.version=' + AGENT_CLUB_MULTICA_VERSION,
     '-X',
-    'main.commit=vendored',
+    'main.commit=' + AGENT_CLUB_MULTICA_COMMIT,
     '-X',
     'main.date=' + new Date().toISOString(),
   ];

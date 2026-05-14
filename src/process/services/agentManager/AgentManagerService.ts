@@ -22,6 +22,8 @@ const AGENT_MANAGER_DAEMON_PROFILE = 'agent-club';
 const AGENT_MANAGER_DAEMON_ID = 'agent-club-local-runtime';
 const AGENT_MANAGER_DAEMON_DEVICE_NAME = 'Agent Club';
 const AGENT_MANAGER_DAEMON_HEALTH_PORT = 20509;
+const AGENT_MANAGER_CLI_VERSION = '0.2.20';
+const AGENT_MANAGER_CLI_COMMIT = 'agent-club';
 
 const HOMEBREW_BIN_PATHS = [
   '/opt/homebrew/bin',
@@ -603,7 +605,11 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   }
 
   private getMulticaCliLdflags(): string {
-    return ['-X main.version=agent-club', '-X main.commit=vendored', '-X main.date=' + new Date().toISOString()].join(' ');
+    return [
+      '-X main.version=' + AGENT_MANAGER_CLI_VERSION,
+      '-X main.commit=' + AGENT_MANAGER_CLI_COMMIT,
+      '-X main.date=' + new Date().toISOString(),
+    ].join(' ');
   }
 
   private ensureExecutable(filePath: string): void {
