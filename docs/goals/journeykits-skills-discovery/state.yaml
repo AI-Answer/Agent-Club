@@ -342,7 +342,7 @@ tasks:
       owner_gated_publish_path:
         - "Open JourneyKits Console from a skill detail page."
         - "Open the JourneyKits publishing guide from a skill detail page."
-        - "Use JourneyKits owner credentials/API key on the JourneyKits side; Agent Club does not store or fake publisher credentials."
+        - "Save a JourneyKits owner API key locally in Skills Hub; Agent Club hides the saved key and never commits it to the repo."
   - id: T998
     type: pm
     assignee: PM
