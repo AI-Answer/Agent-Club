@@ -16,6 +16,7 @@ import { RuntimeDetailPage } from "./pages/runtime-detail-page";
 import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { GoalsPage } from "@multica/views/goals/components";
+import { PlannerPage } from "@multica/views/planner";
 import { DashboardPage } from "@multica/views/dashboard";
 import { AutopilotsPage } from "@multica/views/autopilots/components";
 import { MyIssuesPage } from "@multica/views/my-issues";
@@ -101,6 +102,11 @@ export const appRoutes: RouteObject[] = [
             path: "issues/:id",
             element: <IssueDetailPage />,
             handle: { title: "Issue" },
+          },
+          {
+            path: "planner",
+            element: <PlannerPage />,
+            handle: { title: "Month Map" },
           },
           {
             path: "projects",

@@ -741,6 +741,22 @@ func (s *TaskService) CaptureCancelledTasks(ctx context.Context, cancelled []db.
 	}
 }
 
+func (s *TaskService) markPlannerEntriesForTask(ctx context.Context, task db.AgentTaskQueue, status string) {
+	if !task.IssueID.Valid {
+		return
+	}
+	if _, err := s.Queries.MarkPlannerEntriesForIssueStatus(ctx, db.MarkPlannerEntriesForIssueStatusParams{
+		IssueID: task.IssueID,
+		Status:  status,
+	}); err != nil {
+		slog.Warn("planner entry status sync failed",
+			"issue_id", util.UUIDToString(task.IssueID),
+			"planner_status", status,
+			"error", err,
+		)
+	}
+}
+
 // CancelTask cancels a single task by ID. It broadcasts a task:cancelled event
 // so frontends can update immediately.
 func (s *TaskService) CancelTask(ctx context.Context, taskID pgtype.UUID) (*db.AgentTaskQueue, error) {
@@ -758,6 +774,7 @@ func (s *TaskService) CancelTask(ctx context.Context, taskID pgtype.UUID) (*db.A
 
 	slog.Info("task cancelled", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID))
 	s.captureTaskCancelled(ctx, task)
+	s.markPlannerEntriesForTask(ctx, task, "skipped")
 
 	// Reconcile agent status
 	s.ReconcileAgentStatus(ctx, task.AgentID)
@@ -959,6 +976,7 @@ func (s *TaskService) StartTask(ctx context.Context, taskID pgtype.UUID) (*db.Ag
 
 	slog.Info("task started", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID))
 	s.captureTaskStarted(ctx, task)
+	s.markPlannerEntriesForTask(ctx, task, "working")
 	return &task, nil
 }
 
@@ -1038,6 +1056,7 @@ func (s *TaskService) CompleteTask(ctx context.Context, taskID pgtype.UUID, resu
 
 	slog.Info("task completed", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID))
 	s.captureTaskCompleted(ctx, task)
+	s.markPlannerEntriesForTask(ctx, task, "done")
 
 	// Invariant: every completed issue task must have at least one agent
 	// comment on the issue, so the user always sees something when a run
@@ -1194,6 +1213,7 @@ func (s *TaskService) FailTask(ctx context.Context, taskID pgtype.UUID, errMsg, 
 
 	slog.Warn("task failed", "task_id", util.UUIDToString(task.ID), "issue_id", util.UUIDToString(task.IssueID), "error", errMsg, "failure_reason", failureReason)
 	s.captureTaskFailed(ctx, task)
+	s.markPlannerEntriesForTask(ctx, task, "blocked")
 
 	// Auto-retry eligible failures (orphan, timeout, runtime_offline,
 	// runtime_recovery). The helper itself enforces attempt < max_attempts

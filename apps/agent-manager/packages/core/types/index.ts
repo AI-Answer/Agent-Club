@@ -90,6 +90,19 @@ export type {
   ExpandGoalRequest,
   ExpandGoalResponse,
 } from "./goal";
+export type {
+  PlannerMonth,
+  PlannerEntry,
+  PlannerDayMark,
+  PlannerEntryStatus,
+  PlannerMonthDetailResponse,
+  ListPlannerMonthsResponse,
+  UpdatePlannerMonthRequest,
+  CreatePlannerEntryRequest,
+  UpdatePlannerEntryRequest,
+  UpdatePlannerDayMarkRequest,
+  PlannerContextResponse,
+} from "./planner";
 export type { PinnedItem, PinnedItemType, CreatePinRequest, ReorderPinsRequest } from "./pin";
 export type {
   GitHubInstallation,

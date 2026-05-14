@@ -19,6 +19,7 @@ import type inbox from "../locales/en/inbox.json";
 import type workspace from "../locales/en/workspace.json";
 import type projects from "../locales/en/projects.json";
 import type goals from "../locales/en/goals.json";
+import type planner from "../locales/en/planner.json";
 import type autopilots from "../locales/en/autopilots.json";
 import type skills from "../locales/en/skills.json";
 import type chat from "../locales/en/chat.json";
@@ -60,6 +61,7 @@ declare global {
     workspace: typeof workspace;
     projects: typeof projects;
     goals: typeof goals;
+    planner: typeof planner;
     autopilots: typeof autopilots;
     skills: typeof skills;
     chat: typeof chat;

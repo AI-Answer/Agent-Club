@@ -128,6 +128,8 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 	b.WriteString("- `multica autopilot list [--status X] [--full-id] [--output json]` — List autopilots (scheduled/triggered agent automations) in the workspace; copied short IDs are accepted by autopilot subcommands when unique\n")
 	b.WriteString("- `multica autopilot get <id> --output json` — Get autopilot details including triggers\n")
 	b.WriteString("- `multica autopilot runs <id> [--limit N] --output json` — List execution history for an autopilot\n")
+	b.WriteString("- `multica planner context [today|tomorrow|yesterday|YYYY-MM-DD] --output json` — Read the Month Map planner for a day, including priorities, objectives, notes, day highlight, and tasks. Use this when the user mentions today's priorities, asks what to focus on, or asks you to update their planner.\n")
+	b.WriteString("- `multica planner month [year] [month] --output json` — Read the Month Map for a month, including all visible tasks and highlighted days.\n")
 	b.WriteString("- `multica project get <id> --output json` — Get project details. Includes `resource_count`; the resources themselves live at the sub-collection below.\n")
 	b.WriteString("- `multica project resource list <project-id> --output json` — List resources (e.g. github_repo) attached to a project. Use this when `resource_count > 0` and you need the actual refs.\n\n")
 
@@ -168,6 +170,9 @@ func buildMetaSkillContent(provider string, ctx TaskContextForEnv) string {
 	b.WriteString("- `multica autopilot update <id> [--title X] [--description X] [--status active|paused] [--mode create_issue|run_only]` — Update an autopilot\n")
 	b.WriteString("- `multica autopilot trigger <id>` — Manually trigger an autopilot to run once\n")
 	b.WriteString("- `multica autopilot delete <id>` — Delete an autopilot\n\n")
+	b.WriteString("- `multica planner top3 --task \"...\" --task \"...\" --task \"...\" [--date today|YYYY-MM-DD] [--replace] --output json` — Set the user's top tasks on the Month Map. Without `--replace`, matching titles are updated and new titles are added.\n")
+	b.WriteString("- `multica planner add --title \"...\" [--body \"prompt/context\"] [--date today|YYYY-MM-DD] [--priority high] [--status planned] --output json` — Add one task to the Month Map.\n")
+	b.WriteString("- `multica planner mark --date YYYY-MM-DD --color \"#fde68a\" [--label \"Out\"] --output json` / `multica planner unmark YYYY-MM-DD --output json` — Highlight or clear visible days on the Month Map.\n\n")
 
 	if provider == "codex" {
 		b.WriteString("## Codex-Specific Comment Formatting\n\n")

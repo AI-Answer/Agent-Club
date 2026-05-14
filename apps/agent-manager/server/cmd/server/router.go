@@ -406,6 +406,23 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Month Map planner
+			r.Route("/api/planner", func(r chi.Router) {
+				r.Get("/months", h.ListPlannerMonths)
+				r.Get("/months/{year}/{month}", h.GetPlannerMonth)
+				r.Put("/months/{id}", h.UpdatePlannerMonth)
+				r.Get("/context", h.GetPlannerContext)
+				r.Post("/entries", h.CreatePlannerEntry)
+				r.Route("/entries/{id}", func(r chi.Router) {
+					r.Put("/", h.UpdatePlannerEntry)
+					r.Delete("/", h.DeletePlannerEntry)
+				})
+				r.Route("/day-marks/{date}", func(r chi.Router) {
+					r.Put("/", h.UpdatePlannerDayMark)
+					r.Delete("/", h.DeletePlannerDayMark)
+				})
+			})
+
 			// Squads
 			r.Route("/api/squads", func(r chi.Router) {
 				r.Get("/", h.ListSquads)

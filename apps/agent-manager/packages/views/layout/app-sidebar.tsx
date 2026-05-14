@@ -31,6 +31,7 @@ import {
   CircleUser,
   FolderKanban,
   BarChart3,
+  CalendarDays,
   X,
   Zap,
   Users,
@@ -107,6 +108,7 @@ type NavKey =
   | "inbox"
   | "myIssues"
   | "issues"
+  | "planner"
   | "projects"
   | "goals"
   | "autopilots"
@@ -122,6 +124,7 @@ type NavLabelKey =
   | "inbox"
   | "my_issues"
   | "issues"
+  | "planner"
   | "projects"
   | "goals"
   | "autopilots"
@@ -139,6 +142,7 @@ const personalNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] 
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[] = [
   { key: "issues", labelKey: "issues", icon: ListTodo },
+  { key: "planner", labelKey: "planner", icon: CalendarDays },
   { key: "projects", labelKey: "projects", icon: FolderKanban },
   { key: "goals", labelKey: "goals", icon: Target },
   { key: "autopilots", labelKey: "autopilots", icon: Zap },

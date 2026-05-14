@@ -1,5 +1,6 @@
 import {
   Inbox,
+  CalendarDays,
   CircleUser,
   ListTodo,
   Bot,
@@ -36,6 +37,7 @@ import { paths } from "@multica/core/paths";
 
 const TAB_ICONS: Record<string, LucideIcon> = {
   Inbox,
+  CalendarDays,
   CircleUser,
   ListTodo,
   FolderKanban,

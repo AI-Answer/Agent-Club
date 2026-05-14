@@ -33,6 +33,24 @@ function persistChatGoalResult(
 export function initAgentManagerBridge(): void {
   ipcBridge.agentManager.getStatus.provider(async () => agentManagerService.getStatus());
   ipcBridge.agentManager.restart.provider(async () => agentManagerService.restart());
+  ipcBridge.agentManager.getPlannerMonths.provider(async ({ year }) => agentManagerService.getPlannerMonths(year));
+  ipcBridge.agentManager.getPlannerMonth.provider(async ({ year, month }) =>
+    agentManagerService.getPlannerMonth(year, month)
+  );
+  ipcBridge.agentManager.updatePlannerMonth.provider(async ({ id, data }) =>
+    agentManagerService.updatePlannerMonth(id, data)
+  );
+  ipcBridge.agentManager.createPlannerEntry.provider(async (request) =>
+    agentManagerService.createPlannerEntry(request)
+  );
+  ipcBridge.agentManager.updatePlannerEntry.provider(async ({ id, data }) =>
+    agentManagerService.updatePlannerEntry(id, data)
+  );
+  ipcBridge.agentManager.deletePlannerEntry.provider(async ({ id }) => agentManagerService.deletePlannerEntry(id));
+  ipcBridge.agentManager.updatePlannerDayMark.provider(async ({ date, data }) =>
+    agentManagerService.updatePlannerDayMark(date, data)
+  );
+  ipcBridge.agentManager.deletePlannerDayMark.provider(async ({ date }) => agentManagerService.deletePlannerDayMark(date));
   ipcBridge.agentManager.handleChatGoalCommand.provider(async (request) => {
     try {
       const result = await agentManagerService.handleChatGoalCommand(request);

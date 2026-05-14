@@ -19,6 +19,18 @@ import type {
   AgentManagerGoalSummary,
   AgentManagerStatus,
 } from '@/common/types/agentManager';
+import type { DashboardAgentManagerSummary, DashboardWorkItem } from '@/common/types/dashboard';
+import type {
+  CreatePlannerEntryRequest,
+  ListPlannerMonthsResponse,
+  PlannerDayMark,
+  PlannerEntry,
+  PlannerMonth,
+  PlannerMonthDetailResponse,
+  UpdatePlannerDayMarkRequest,
+  UpdatePlannerEntryRequest,
+  UpdatePlannerMonthRequest,
+} from '@/common/types/planner';
 
 const DEFAULT_FRONTEND_PORT = '3330';
 const DEFAULT_BACKEND_PORT = '18330';
@@ -257,6 +269,111 @@ export class AgentManagerService {
     return parts.join('\n');
   }
 
+  async getDashboardSummary(): Promise<DashboardAgentManagerSummary> {
+    const status = this.getStatus();
+    const emptySummary: DashboardAgentManagerSummary = {
+      status,
+      goalsTotal: 0,
+      activeGoals: 0,
+      completedGoals: 0,
+      issuesTotal: 0,
+      activeIssues: 0,
+      completedIssues: 0,
+      activeGoalPreview: [],
+      activeIssuePreview: [],
+    };
+
+    if (status.state !== 'ready') {
+      return emptySummary;
+    }
+
+    const backendUrl = status.backendUrl || this.getBackendUrl();
+    const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
+    const [goalsResult, issuesResult] = await Promise.allSettled([
+      this.agentManagerApi<AgentManagerGoalListResponse>(backendUrl, '/api/goals?limit=100', token),
+      this.agentManagerApi<AgentManagerIssueListResponse>(backendUrl, '/api/issues?limit=100', token),
+    ]);
+
+    const goals = goalsResult.status === 'fulfilled' ? goalsResult.value.goals || [] : [];
+    const issues = issuesResult.status === 'fulfilled' ? issuesResult.value.issues || [] : [];
+    const activeGoals = goals.filter((goal) => !['completed', 'cancelled'].includes(goal.status));
+    const activeIssues = issues.filter((issue) => !['done', 'cancelled'].includes(issue.status));
+
+    return {
+      status,
+      goalsTotal: goals.length,
+      activeGoals: activeGoals.length,
+      completedGoals: goals.filter((goal) => goal.status === 'completed').length,
+      issuesTotal: issues.length,
+      activeIssues: activeIssues.length,
+      completedIssues: issues.filter((issue) => issue.status === 'done').length,
+      activeGoalPreview: activeGoals.slice(0, 3).map((goal) => this.goalToDashboardWorkItem(goal)),
+      activeIssuePreview: activeIssues.slice(0, 4).map((issue) => this.issueToDashboardWorkItem(issue)),
+    };
+  }
+
+  async getPlannerMonths(year: number): Promise<ListPlannerMonthsResponse> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    const search = new URLSearchParams({ year: String(year) });
+    return this.agentManagerApi<ListPlannerMonthsResponse>(backendUrl, `/api/planner/months?${search}`, token);
+  }
+
+  async getPlannerMonth(year: number, month: number): Promise<PlannerMonthDetailResponse> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    return this.agentManagerApi<PlannerMonthDetailResponse>(backendUrl, `/api/planner/months/${year}/${month}`, token);
+  }
+
+  async updatePlannerMonth(id: string, data: UpdatePlannerMonthRequest): Promise<PlannerMonth> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    return this.agentManagerApi<PlannerMonth>(backendUrl, `/api/planner/months/${encodeURIComponent(id)}`, token, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createPlannerEntry(data: CreatePlannerEntryRequest): Promise<PlannerEntry> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    return this.agentManagerApi<PlannerEntry>(backendUrl, '/api/planner/entries', token, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePlannerEntry(id: string, data: UpdatePlannerEntryRequest): Promise<PlannerEntry> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    return this.agentManagerApi<PlannerEntry>(backendUrl, `/api/planner/entries/${encodeURIComponent(id)}`, token, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePlannerEntry(id: string): Promise<void> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    await this.agentManagerApi<unknown>(backendUrl, `/api/planner/entries/${encodeURIComponent(id)}`, token, {
+      method: 'DELETE',
+    });
+  }
+
+  async updatePlannerDayMark(date: string, data: UpdatePlannerDayMarkRequest): Promise<PlannerDayMark> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    return this.agentManagerApi<PlannerDayMark>(
+      backendUrl,
+      `/api/planner/day-marks/${encodeURIComponent(date)}`,
+      token,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  async deletePlannerDayMark(date: string): Promise<void> {
+    const { backendUrl, token } = await this.getReadyApiContext();
+    await this.agentManagerApi<unknown>(backendUrl, `/api/planner/day-marks/${encodeURIComponent(date)}`, token, {
+      method: 'DELETE',
+    });
+  }
+
   async stop(): Promise<void> {
     if (this.processes.size === 0) {
       if (this.status.state !== 'idle') {
@@ -311,6 +428,13 @@ export class AgentManagerService {
       throw new Error(status.detail || status.message || `${AGENT_MANAGER_NAME} is not ready`);
     }
     return status;
+  }
+
+  private async getReadyApiContext(): Promise<{ backendUrl: string; token: string }> {
+    const readyStatus = await this.ensureReadyForApi();
+    const backendUrl = readyStatus.backendUrl || this.getBackendUrl();
+    const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
+    return { backendUrl, token };
   }
 
   private buildAgentManagerAppLink(nextPath: string): string {
@@ -453,6 +577,50 @@ export class AgentManagerService {
 
   private pickActiveIssue(issues: AgentManagerIssueSummary[]): AgentManagerIssueSummary | undefined {
     return issues.find((issue) => !['done', 'cancelled'].includes(issue.status));
+  }
+
+  private goalToDashboardWorkItem(goal: AgentManagerGoalSummary & { updated_at?: string }): DashboardWorkItem {
+    const goalPath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/goals/${encodeURIComponent(goal.id)}`;
+    return {
+      id: `agent-manager-goal-${goal.id}`,
+      title: goal.title,
+      description: this.compactDashboardText(goal.description) || 'Long-running goal in Local Agent Manager.',
+      status: goal.status,
+      sourceId: 'agent_manager',
+      sourceLabel: AGENT_MANAGER_NAME,
+      route: this.buildAgentManagerAppLink(goalPath),
+      updatedAt: this.parseDashboardTime(goal.updated_at),
+    };
+  }
+
+  private issueToDashboardWorkItem(issue: AgentManagerIssueSummary): DashboardWorkItem {
+    const issuePath = `/${AGENT_MANAGER_WORKSPACE_SLUG}/issues/${encodeURIComponent(issue.id)}`;
+    return {
+      id: `agent-manager-issue-${issue.id}`,
+      title: issue.identifier ? `${issue.identifier}: ${issue.title}` : issue.title,
+      description: this.compactDashboardText(issue.description) || 'Open Local Agent Manager ticket.',
+      status: issue.status,
+      sourceId: 'agent_manager',
+      sourceLabel: AGENT_MANAGER_NAME,
+      route: this.buildAgentManagerAppLink(issuePath),
+      updatedAt: this.parseDashboardTime(issue.updated_at),
+    };
+  }
+
+  private compactDashboardText(value?: string | null, max = 160): string {
+    const cleaned = (value || '').replace(/\s+/g, ' ').trim();
+    if (cleaned.length <= max) {
+      return cleaned;
+    }
+    return `${cleaned.slice(0, max - 1).trim()}...`;
+  }
+
+  private parseDashboardTime(value?: string): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   private issueStatusRank(status: string): number {

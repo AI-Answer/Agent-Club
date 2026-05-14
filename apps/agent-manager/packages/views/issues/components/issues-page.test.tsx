@@ -272,6 +272,7 @@ vi.mock("@base-ui/react/accordion", () => ({
 const issueDefaults = {
   parent_issue_id: null,
   project_id: null,
+  goal_id: null,
   position: 0,
 };
 

@@ -27,6 +27,22 @@ func TestLegacyCompatibilityCommandsRemainAvailable(t *testing.T) {
 			t.Fatalf("expected config set command to exist: %v", err)
 		}
 	})
+
+	t.Run("planner agent commands are available", func(t *testing.T) {
+		for _, args := range [][]string{
+			{"context"},
+			{"today"},
+			{"top3"},
+			{"add"},
+			{"mark"},
+			{"unmark"},
+			{"delete"},
+		} {
+			if _, _, err := plannerCmd.Find(args); err != nil {
+				t.Fatalf("expected planner %s command to exist: %v", args[0], err)
+			}
+		}
+	})
 }
 
 func TestRunConfigSetPersistsValues(t *testing.T) {

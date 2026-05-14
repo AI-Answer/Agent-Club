@@ -73,6 +73,16 @@ import type {
   GoalReadinessResponse,
   ExpandGoalRequest,
   ExpandGoalResponse,
+  PlannerContextResponse,
+  PlannerEntry,
+  PlannerDayMark,
+  PlannerMonth,
+  PlannerMonthDetailResponse,
+  ListPlannerMonthsResponse,
+  CreatePlannerEntryRequest,
+  UpdatePlannerEntryRequest,
+  UpdatePlannerMonthRequest,
+  UpdatePlannerDayMarkRequest,
   Label,
   CreateLabelRequest,
   UpdateLabelRequest,
@@ -1404,6 +1414,57 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  // Month Map planner
+  async listPlannerMonths(year: number): Promise<ListPlannerMonthsResponse> {
+    const search = new URLSearchParams({ year: String(year) });
+    return this.fetch(`/api/planner/months?${search}`);
+  }
+
+  async getPlannerMonth(year: number, month: number): Promise<PlannerMonthDetailResponse> {
+    return this.fetch(`/api/planner/months/${year}/${month}`);
+  }
+
+  async updatePlannerMonth(id: string, data: UpdatePlannerMonthRequest): Promise<PlannerMonth> {
+    return this.fetch(`/api/planner/months/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPlannerContext(date: string): Promise<PlannerContextResponse> {
+    const search = new URLSearchParams({ date });
+    return this.fetch(`/api/planner/context?${search}`);
+  }
+
+  async createPlannerEntry(data: CreatePlannerEntryRequest): Promise<PlannerEntry> {
+    return this.fetch("/api/planner/entries", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePlannerEntry(id: string, data: UpdatePlannerEntryRequest): Promise<PlannerEntry> {
+    return this.fetch(`/api/planner/entries/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePlannerEntry(id: string): Promise<void> {
+    await this.fetch(`/api/planner/entries/${id}`, { method: "DELETE" });
+  }
+
+  async updatePlannerDayMark(date: string, data: UpdatePlannerDayMarkRequest): Promise<PlannerDayMark> {
+    return this.fetch(`/api/planner/day-marks/${date}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePlannerDayMark(date: string): Promise<void> {
+    await this.fetch(`/api/planner/day-marks/${date}`, { method: "DELETE" });
   }
 
   // Project resources

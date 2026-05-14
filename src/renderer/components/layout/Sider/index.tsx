@@ -8,7 +8,14 @@ import { useLayoutContext } from '@renderer/hooks/context/LayoutContext';
 import { blurActiveElement } from '@renderer/utils/ui/focus';
 import { useThemeContext } from '@renderer/hooks/context/ThemeContext';
 import { useAllCronJobs } from '@renderer/pages/cron/useCronJobs';
-import { SiderAgentManagerEntry, SiderToolbar, SiderSearchEntry, SiderScheduledEntry } from './SiderNav';
+import {
+  SiderAgentManagerEntry,
+  SiderDashboardEntry,
+  SiderMonthMapEntry,
+  SiderToolbar,
+  SiderSearchEntry,
+  SiderScheduledEntry,
+} from './SiderNav';
 import SiderFooter from './SiderFooter';
 import CronJobSiderSection from './CronJobSiderSection';
 import TeamSiderSection from './TeamSiderSection';
@@ -89,6 +96,32 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
     closePreview();
     setIsBatchMode(false);
     Promise.resolve(navigate('/scheduled')).catch((error) => {
+      console.error('Navigation failed:', error);
+    });
+    if (onSessionClick) {
+      onSessionClick();
+    }
+  };
+
+  const handleDashboardClick = () => {
+    cleanupSiderTooltips();
+    blurActiveElement();
+    closePreview();
+    setIsBatchMode(false);
+    Promise.resolve(navigate('/dashboard')).catch((error) => {
+      console.error('Navigation failed:', error);
+    });
+    if (onSessionClick) {
+      onSessionClick();
+    }
+  };
+
+  const handleMonthMapClick = () => {
+    cleanupSiderTooltips();
+    blurActiveElement();
+    closePreview();
+    setIsBatchMode(false);
+    Promise.resolve(navigate('/dashboard/month-map')).catch((error) => {
       console.error('Navigation failed:', error);
     });
     if (onSessionClick) {
@@ -188,6 +221,21 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
               siderTooltipProps={siderTooltipProps}
               onConversationSelect={handleConversationSelect}
               onSessionClick={onSessionClick}
+            />
+            {/* Dashboard nav entry - fixed above scheduled tasks */}
+            <SiderDashboardEntry
+              isMobile={isMobile}
+              isActive={pathname === '/dashboard'}
+              collapsed={collapsed}
+              siderTooltipProps={siderTooltipProps}
+              onClick={handleDashboardClick}
+            />
+            <SiderMonthMapEntry
+              isMobile={isMobile}
+              isActive={pathname === '/dashboard/month-map'}
+              collapsed={collapsed}
+              siderTooltipProps={siderTooltipProps}
+              onClick={handleMonthMapClick}
             />
             {/* Scheduled tasks nav entry - fixed above scroll */}
             <SiderScheduledEntry

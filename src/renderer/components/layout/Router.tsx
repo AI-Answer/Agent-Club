@@ -25,6 +25,8 @@ const ScheduledTasksPage = React.lazy(() => import('@renderer/pages/cron/Schedul
 const TaskDetailPage = React.lazy(() => import('@renderer/pages/cron/ScheduledTasksPage/TaskDetailPage'));
 const TeamIndex = React.lazy(() => import('@renderer/pages/team'));
 const AgentManagerPage = React.lazy(() => import('@renderer/pages/AgentManagerPage'));
+const DashboardPage = React.lazy(() => import('@renderer/pages/dashboard/DashboardPage'));
+const MonthMapPage = React.lazy(() => import('@renderer/pages/dashboard/MonthMapPage'));
 
 const withRouteFallback = (Component: React.LazyExoticComponent<React.ComponentType>) => (
   <Suspense fallback={<AppLoader />}>
@@ -84,6 +86,8 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />
           <Route path='/settings' element={<Navigate to='/settings/gemini' replace />} />
           <Route path='/test/components' element={withRouteFallback(ComponentsShowcase)} />
+          <Route path='/dashboard' element={withRouteFallback(DashboardPage)} />
+          <Route path='/dashboard/month-map' element={withRouteFallback(MonthMapPage)} />
           <Route path='/scheduled' element={withRouteFallback(ScheduledTasksPage)} />
           <Route path='/agent-manager' element={withRouteFallback(AgentManagerPage)} />
           <Route path='/scheduled/:jobId' element={withRouteFallback(TaskDetailPage)} />

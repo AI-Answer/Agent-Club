@@ -30,6 +30,7 @@ export interface HonchoMemorySnapshot {
   userPeerId: string;
   representation: string | null;
   peerCard: string[];
+  chiefOfStaffBrief?: string | null;
   queueStatus?: unknown;
   updatedAt: number;
 }

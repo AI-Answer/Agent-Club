@@ -29,6 +29,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     creator_id: "u-1",
     parent_issue_id: null,
     project_id: null,
+    goal_id: null,
     position: 0,
     due_date: null,
     created_at: "2025-01-01T00:00:00Z",

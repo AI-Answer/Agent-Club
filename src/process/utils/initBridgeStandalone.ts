@@ -23,6 +23,7 @@ import { initBedrockBridge } from '@process/bridge/bedrockBridge';
 import { initChannelBridge } from '@process/bridge/channelBridge';
 import { initConversationBridge } from '@process/bridge/conversationBridge';
 import { initDatabaseBridge } from '@process/bridge/databaseBridge';
+import { initDashboardBridge } from '@process/bridge/dashboardBridge';
 import { initDocumentBridge } from '@process/bridge/documentBridge';
 import { initExtensionsBridge } from '@process/bridge/extensionsBridge';
 import { initFileWatchBridge } from '@process/bridge/fileWatchBridge';
@@ -59,6 +60,7 @@ export async function initBridgeStandalone(): Promise<void> {
   initFileWatchBridge();
   initFsBridge();
   initConversationBridge(conversationService, workerTaskManager);
+  initDashboardBridge(workerTaskManager);
   initGeminiConversationBridge(workerTaskManager);
   initGeminiBridge();
   initBedrockBridge();

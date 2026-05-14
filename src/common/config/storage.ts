@@ -5,6 +5,7 @@
  */
 
 import type { AcpBackend, AcpBackendAll, AcpBackendConfig } from '@/common/types/acpTypes';
+import type { DashboardConfig, DashboardSnapshot } from '@/common/types/dashboard';
 import type { JourneyKitsVisibility } from '@/common/types/journeyKits';
 import type { HonchoMemoryConfig } from '@/common/types/memory';
 import type { AgentVaultConfig, OnePasswordSecurityConfig } from '@/common/types/security';
@@ -80,6 +81,8 @@ export interface IConfigStorageRefer {
   'mcp.config': IMcpServer[];
   'mcp.agentInstallStatus': Record<string, string[]>;
   'memory.honcho'?: HonchoMemoryConfig;
+  'dashboard.config'?: DashboardConfig;
+  'dashboard.snapshots'?: DashboardSnapshot[];
   'security.agentVault'?: AgentVaultConfig;
   'security.onePassword'?: OnePasswordSecurityConfig;
   'journeyKits.config'?: {

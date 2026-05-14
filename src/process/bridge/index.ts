@@ -17,6 +17,7 @@ import { initBedrockBridge } from './bedrockBridge';
 import { initChannelBridge } from './channelBridge';
 import { initConversationBridge } from './conversationBridge';
 import { initCronBridge } from './cronBridge';
+import { initDashboardBridge } from './dashboardBridge';
 import { initDatabaseBridge } from './databaseBridge';
 import { initDialogBridge } from './dialogBridge';
 import { initDocumentBridge } from './documentBridge';
@@ -67,6 +68,7 @@ export function initAllBridges(deps: BridgeDependencies): void {
   initFsBridge();
   initFileWatchBridge();
   initConversationBridge(deps.conversationService, deps.workerTaskManager, deps.teamSessionService);
+  initDashboardBridge(deps.workerTaskManager);
   initApplicationBridge(deps.workerTaskManager);
   initGeminiConversationBridge(deps.workerTaskManager);
   // 额外的 Gemini 辅助桥（订阅检测等）需要在对话桥初始化后可用 / extra helpers after core bridges
@@ -124,6 +126,7 @@ export {
   initChannelBridge,
   initConversationBridge,
   initCronBridge,
+  initDashboardBridge,
   initDatabaseBridge,
   initDialogBridge,
   initDocumentBridge,

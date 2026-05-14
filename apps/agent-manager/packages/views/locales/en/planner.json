@@ -1,0 +1,50 @@
+{
+  "page": {
+    "title": "Month Map"
+  },
+  "tabs": {
+    "color": "Tab color",
+    "no_color": "No color"
+  },
+  "day": {
+    "add_placeholder": "Add task"
+  },
+  "actions": {
+    "today": "Today",
+    "previous_month": "Previous month",
+    "next_month": "Next month",
+    "cancel": "Cancel",
+    "start_agent": "Start with agent",
+    "delete": "Delete",
+    "mark_done": "Mark done"
+  },
+  "dispatch": {
+    "title": "Start with agent",
+    "agent": "Agent",
+    "no_agents": "No agents available",
+    "project": "Project",
+    "new_month_project": "Create Month Map project",
+    "goal_title": "Goal title",
+    "prompt": "Prompt",
+    "starting": "Starting..."
+  },
+  "status": {
+    "planned": "Planned",
+    "queued": "Queued",
+    "working": "Working",
+    "done": "Done",
+    "blocked": "Blocked",
+    "skipped": "Skipped"
+  },
+  "bottom": {
+    "objectives": "Main Objectives",
+    "objectives_placeholder": "One objective per line",
+    "notes": "Notes",
+    "notes_placeholder": "One note per line"
+  },
+  "toast": {
+    "create_failed": "Could not create planner entry",
+    "agent_started": "Agent work started",
+    "agent_start_failed": "Could not start agent work"
+  }
+}

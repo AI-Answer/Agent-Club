@@ -417,6 +417,55 @@ type PinnedItem struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type PlannerDayMark struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	PlannerMonthID pgtype.UUID        `json:"planner_month_id"`
+	MarkDate       pgtype.Date        `json:"mark_date"`
+	Color          string             `json:"color"`
+	Label          pgtype.Text        `json:"label"`
+	CreatedByType  string             `json:"created_by_type"`
+	CreatedByID    pgtype.UUID        `json:"created_by_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PlannerEntry struct {
+	ID             pgtype.UUID        `json:"id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	PlannerMonthID pgtype.UUID        `json:"planner_month_id"`
+	EntryDate      pgtype.Date        `json:"entry_date"`
+	Title          string             `json:"title"`
+	Body           pgtype.Text        `json:"body"`
+	Color          pgtype.Text        `json:"color"`
+	Status         string             `json:"status"`
+	Priority       string             `json:"priority"`
+	Position       float64            `json:"position"`
+	ProjectID      pgtype.UUID        `json:"project_id"`
+	GoalID         pgtype.UUID        `json:"goal_id"`
+	IssueID        pgtype.UUID        `json:"issue_id"`
+	AssigneeType   pgtype.Text        `json:"assignee_type"`
+	AssigneeID     pgtype.UUID        `json:"assignee_id"`
+	CreatedByType  string             `json:"created_by_type"`
+	CreatedByID    pgtype.UUID        `json:"created_by_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PlannerMonth struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Year        int32              `json:"year"`
+	Month       int32              `json:"month"`
+	Title       string             `json:"title"`
+	TabColor    pgtype.Text        `json:"tab_color"`
+	Objectives  []byte             `json:"objectives"`
+	Notes       []byte             `json:"notes"`
+	Settings    []byte             `json:"settings"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Project struct {
 	ID          pgtype.UUID        `json:"id"`
 	WorkspaceID pgtype.UUID        `json:"workspace_id"`

@@ -1,0 +1,50 @@
+{
+  "page": {
+    "title": "月度地图"
+  },
+  "tabs": {
+    "color": "标签颜色",
+    "no_color": "无颜色"
+  },
+  "day": {
+    "add_placeholder": "添加任务"
+  },
+  "actions": {
+    "today": "今天",
+    "previous_month": "上个月",
+    "next_month": "下个月",
+    "cancel": "取消",
+    "start_agent": "交给智能体",
+    "delete": "删除",
+    "mark_done": "标记完成"
+  },
+  "dispatch": {
+    "title": "交给智能体",
+    "agent": "智能体",
+    "no_agents": "暂无可用智能体",
+    "project": "项目",
+    "new_month_project": "创建月度地图项目",
+    "goal_title": "目标标题",
+    "prompt": "提示词",
+    "starting": "正在启动..."
+  },
+  "status": {
+    "planned": "计划中",
+    "queued": "已排队",
+    "working": "进行中",
+    "done": "已完成",
+    "blocked": "受阻",
+    "skipped": "跳过"
+  },
+  "bottom": {
+    "objectives": "主要目标",
+    "objectives_placeholder": "每行一个目标",
+    "notes": "备注",
+    "notes_placeholder": "每行一条备注"
+  },
+  "toast": {
+    "create_failed": "无法创建规划项",
+    "agent_started": "智能体任务已启动",
+    "agent_start_failed": "无法启动智能体任务"
+  }
+}

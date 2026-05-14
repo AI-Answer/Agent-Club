@@ -59,6 +59,7 @@ const baseIssue: Issue = {
   creator_id: "member-1",
   parent_issue_id: PARENT_ISSUE_ID,
   project_id: null,
+  goal_id: null,
   position: 0,
   due_date: null,
   labels: [],

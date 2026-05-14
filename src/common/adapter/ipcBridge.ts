@@ -27,6 +27,28 @@ import type {
   AgentManagerGoalCommandResult,
   AgentManagerStatus,
 } from '../types/agentManager';
+import type {
+  CreatePlannerEntryRequest,
+  ListPlannerMonthsResponse,
+  PlannerDayMark,
+  PlannerEntry,
+  PlannerMonth,
+  PlannerMonthDetailResponse,
+  UpdatePlannerDayMarkRequest,
+  UpdatePlannerEntryRequest,
+  UpdatePlannerMonthRequest,
+} from '../types/planner';
+import type {
+  DashboardActionRequest,
+  DashboardActionResult,
+  DashboardContextRequest,
+  DashboardCustomWidgetRequest,
+  DashboardHardRefreshRequest,
+  DashboardLayoutUpdateRequest,
+  DashboardScheduleStatus,
+  DashboardSnapshot,
+  DashboardSnapshotRequest,
+} from '../types/dashboard';
 import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from '../types/memory';
 import type { ComposioToolRouterSetupRequest, ComposioToolRouterSetupResult } from '../types/composio';
 import type {
@@ -209,6 +231,24 @@ export const application = {
 export const agentManager = {
   getStatus: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.get-status'),
   restart: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.restart'),
+  getPlannerMonths: bridge.buildProvider<ListPlannerMonthsResponse, { year: number }>('agent-manager.planner.months'),
+  getPlannerMonth: bridge.buildProvider<PlannerMonthDetailResponse, { year: number; month: number }>(
+    'agent-manager.planner.month'
+  ),
+  updatePlannerMonth: bridge.buildProvider<PlannerMonth, { id: string; data: UpdatePlannerMonthRequest }>(
+    'agent-manager.planner.month.update'
+  ),
+  createPlannerEntry: bridge.buildProvider<PlannerEntry, CreatePlannerEntryRequest>(
+    'agent-manager.planner.entry.create'
+  ),
+  updatePlannerEntry: bridge.buildProvider<PlannerEntry, { id: string; data: UpdatePlannerEntryRequest }>(
+    'agent-manager.planner.entry.update'
+  ),
+  deletePlannerEntry: bridge.buildProvider<void, { id: string }>('agent-manager.planner.entry.delete'),
+  updatePlannerDayMark: bridge.buildProvider<PlannerDayMark, { date: string; data: UpdatePlannerDayMarkRequest }>(
+    'agent-manager.planner.day-mark.update'
+  ),
+  deletePlannerDayMark: bridge.buildProvider<void, { date: string }>('agent-manager.planner.day-mark.delete'),
   handleChatGoalCommand: bridge.buildProvider<
     IBridgeResponse<AgentManagerGoalCommandResult>,
     AgentManagerChatGoalCommandRequest
@@ -219,6 +259,24 @@ export const agentManager = {
 export const memory = {
   testHoncho: bridge.buildProvider<IBridgeResponse<HonchoSetupResult>, HonchoMemoryConfig>('memory.honcho.test'),
   getHonchoSnapshot: bridge.buildProvider<IBridgeResponse<HonchoMemorySnapshot>, void>('memory.honcho.snapshot'),
+};
+
+export const dashboard = {
+  getSnapshot: bridge.buildProvider<DashboardSnapshot, DashboardSnapshotRequest | undefined>('dashboard.get-snapshot'),
+  runHeartbeat: bridge.buildProvider<DashboardSnapshot, void>('dashboard.run-heartbeat'),
+  hardRefresh: bridge.buildProvider<DashboardSnapshot, DashboardHardRefreshRequest | undefined>(
+    'dashboard.hard-refresh'
+  ),
+  rebuildWithContext: bridge.buildProvider<DashboardSnapshot, DashboardContextRequest>(
+    'dashboard.rebuild-with-context'
+  ),
+  updateLayout: bridge.buildProvider<DashboardSnapshot, DashboardLayoutUpdateRequest>('dashboard.update-layout'),
+  createCustomWidget: bridge.buildProvider<DashboardSnapshot, DashboardCustomWidgetRequest>(
+    'dashboard.create-custom-widget'
+  ),
+  getSchedule: bridge.buildProvider<DashboardScheduleStatus, void>('dashboard.get-schedule'),
+  applyAction: bridge.buildProvider<DashboardActionResult, DashboardActionRequest>('dashboard.apply-action'),
+  snapshotUpdated: bridge.buildEmitter<DashboardSnapshot>('dashboard.snapshot-updated'),
 };
 
 export const security = {
