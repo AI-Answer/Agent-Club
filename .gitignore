@@ -189,6 +189,7 @@ kylindoc/
 .workspace/
 lint-results.txt
 .worktrees/
+.codex-checkpoints/
 
 # Superpowers brainstorm tool (runtime files, session data)
 .superpowers/
@@ -197,6 +198,7 @@ resources/bundled-bun
 resources/bundled-aionrs
 resources/bundled-multica
 resources/hub
+apps/agent-manager/.agent-club/
 
 # Server build output
 dist-server/

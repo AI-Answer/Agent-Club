@@ -50,6 +50,7 @@ _features/
 
 # runtime
 *.pid
+.agent-club/
 
 # platform specific
 *.dmg
