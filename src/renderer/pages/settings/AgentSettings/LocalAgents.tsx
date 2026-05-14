@@ -9,19 +9,33 @@ import { ConfigStorage } from '@/common/config/storage';
 import type { AcpBackendConfig } from '@/common/types/acpTypes';
 import AionModal from '@/renderer/components/base/AionModal';
 import { Button, Typography } from '@arco-design/web-react';
-import { Home, Plus } from '@icon-park/react';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import AgentCard from './AgentCard';
-import { AgentHubModal } from './AgentHubModal';
 import InlineAgentEditor from './InlineAgentEditor';
+
+type DetectedAgent = {
+  backend: string;
+  name: string;
+  customAgentId?: string;
+  isExtension?: boolean;
+  avatar?: string;
+};
+
+function agentPriority(agent: DetectedAgent): number {
+  const signature = `${agent.backend} ${agent.name} ${agent.customAgentId ?? ''}`.toLowerCase();
+  if (signature.includes('hermes')) return 0;
+  if (signature.includes('codex')) return 1;
+  if (signature.includes('claude')) return 2;
+  if (signature.includes('openclaw') || signature.includes('open-claw')) return 3;
+  return 10;
+}
 
 const LocalAgents: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [hubModalVisible, setHubModalVisible] = useState(false);
 
   // Detected agents (include built-in backends and extension-contributed agents, exclude user custom and remote)
   const { data: detectedAgents } = useSWR('acp.agents.available.settings', async () => {
@@ -77,10 +91,11 @@ const LocalAgents: React.FC = () => {
     [mutateCustomAgents]
   );
 
-  // Aion CLI and Gemini CLI first among detected agents
-  const aionrsAgent = detectedAgents?.find((a) => a.backend === 'aionrs');
-  const geminiAgent = detectedAgents?.find((a) => a.backend === 'gemini');
-  const otherDetected = detectedAgents?.filter((a) => a.backend !== 'gemini' && a.backend !== 'aionrs') ?? [];
+  const sortedDetectedAgents = [...(detectedAgents ?? [])].sort((a, b) => {
+    const priorityDelta = agentPriority(a) - agentPriority(b);
+    if (priorityDelta !== 0) return priorityDelta;
+    return a.name.localeCompare(b.name);
+  });
 
   const openCustomAgentEditor = useCallback(() => {
     setEditingAgent(null);
@@ -101,36 +116,6 @@ const LocalAgents: React.FC = () => {
         </Button>
       </div>
 
-      {process.env.NODE_ENV === 'development' && (
-        <div className='px-16px mt-8px'>
-          <div className='flex flex-col gap-14px rounded-16px border border-solid border-[rgba(var(--primary-6),0.18)] bg-[rgba(var(--primary-6),0.06)] p-16px md:flex-row md:items-center md:justify-between'>
-            <div className='flex items-center gap-12px'>
-              <div className='flex h-40px w-40px items-center justify-center leading-none rounded-12px border border-solid border-[rgba(var(--primary-6),0.12)] bg-[rgba(var(--primary-6),0.10)] text-primary-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]'>
-                <Home theme='outline' size='20' strokeWidth={2} className='block' />
-              </div>
-              <div className='min-w-0'>
-                <Typography.Text className='mb-4px block text-15px font-medium text-t-primary'>
-                  {t('settings.agentManagement.installFromMarket')}
-                </Typography.Text>
-                <Typography.Text className='block text-12px leading-18px text-t-secondary'>
-                  {t('settings.agentManagement.discoverMoreAgents')}
-                </Typography.Text>
-              </div>
-            </div>
-
-            <Button
-              type='primary'
-              size='small'
-              icon={<Plus size='14' />}
-              className='!rounded-10px md:!min-w-144px'
-              onClick={() => setHubModalVisible(true)}
-            >
-              {t('settings.agentManagement.installFromMarket')}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Detected Agents section */}
       <div className='px-16px mt-8px'>
         <Typography.Text className='text-12px font-medium text-t-secondary mb-4px block'>
@@ -138,27 +123,20 @@ const LocalAgents: React.FC = () => {
         </Typography.Text>
       </div>
       <div className='grid grid-cols-2 gap-10px px-16px md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'>
-        {aionrsAgent && (
-          <AgentCard
-            type='detected'
-            agent={aionrsAgent}
-            settingsDisabled={false}
-            onSettings={() => navigate('/settings/aionrs')}
-            variant='grid'
-          />
-        )}
-        {geminiAgent && (
-          <AgentCard
-            type='detected'
-            agent={geminiAgent}
-            settingsDisabled={false}
-            onSettings={() => navigate('/settings/gemini')}
-            variant='grid'
-          />
-        )}
-        {otherDetected.map((agent) => (
-          <AgentCard key={agent.backend} type='detected' agent={agent} variant='grid' />
-        ))}
+        {sortedDetectedAgents.map((agent) => {
+          const settingsRoute =
+            agent.backend === 'aionrs' ? '/settings/aionrs' : agent.backend === 'gemini' ? '/settings/gemini' : null;
+          return (
+            <AgentCard
+              key={agent.backend}
+              type='detected'
+              agent={agent}
+              settingsDisabled={!settingsRoute}
+              onSettings={settingsRoute ? () => navigate(settingsRoute) : undefined}
+              variant='grid'
+            />
+          );
+        })}
       </div>
       {(!detectedAgents || detectedAgents.length === 0) && (
         <Typography.Text type='secondary' className='block px-16px py-16px text-center text-12px'>
@@ -221,8 +199,6 @@ const LocalAgents: React.FC = () => {
           />
         ))}
       </div>
-
-      {hubModalVisible && <AgentHubModal visible={hubModalVisible} onCancel={() => setHubModalVisible(false)} />}
     </div>
   );
 };

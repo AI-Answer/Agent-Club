@@ -5,6 +5,7 @@
  */
 
 import type { AcpBackend, AcpBackendAll, AcpBackendConfig } from '@/common/types/acpTypes';
+import type { HonchoMemoryConfig } from '@/common/types/memory';
 import type { SpeechToTextConfig } from '@/common/types/speech';
 import { storage } from '@office-ai/platform';
 
@@ -76,6 +77,7 @@ export interface IConfigStorageRefer {
   'model.config': IProvider[];
   'mcp.config': IMcpServer[];
   'mcp.agentInstallStatus': Record<string, string[]>;
+  'memory.honcho'?: HonchoMemoryConfig;
   language: string;
   theme: string;
   colorScheme: string;

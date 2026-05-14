@@ -1,0 +1,404 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Agent Club Chief Of Staff"
+  slug: "agent-club-chief-of-staff"
+  kind: existing_plan
+  tranche: "Continuous execution: discover current surfaces, sequence safe slices, implement verified integrations, audit each slice, and keep going until the full Chief of Staff outcome is complete."
+  status: active
+  intake:
+    original_request: "Make Agent Club a coordinated agent team system with Agent Manager/Multica, Hermes Chief of Staff, memory hooks, GoalBuddy-style goals, dashboard, Google Workspace context, MCP visibility, and removal of the skills market modal."
+    interpreted_outcome: "Agent Club should become a cohesive Chief of Staff product where the main UI and Agent Manager share agent awareness, memory configuration, goals, MCPs, automations, and dashboard insights."
+    input_shape: existing_plan
+    audience: "Agent Club owner/operator and future users"
+    authority: approved
+    proof_type: demo
+    completion_proof: "Local demo shows whitelabeled Agent Club and Agent Manager working together with Hermes-first agent ordering, memory/MCP/settings surfaces, goals/kanban, dashboard entry, and no skills market modal, with relevant checks passing."
+    likely_misfire: "Create cosmetic UI labels or placeholder pages without real Agent Manager/Multica awareness, memory hook configuration, runtime evidence, or verified whitelabel preservation."
+    blind_spots_considered:
+      - "Google Workspace auth through gogcli.sh may require owner credentials or separate setup."
+      - "Honcho, Supermemory, Hermes/OpenClaw, and 1Password MCP capabilities must be discovered locally before promising full automation."
+      - "Agent Manager and the main UI need a shared product contract, not duplicated disconnected screens."
+      - "The previous whitelabel work must not regress while adding larger product surfaces."
+      - "Long-running goals need completion proof beyond a single UI slice."
+    existing_plan_facts:
+      - "Agent teams should be more coupled and aware of each other through Agent Manager/Multica."
+      - "Add a memory section for Honcho and Supermemory."
+      - "Users should pick one active memory provider, Honcho or Supermemory."
+      - "New users should be able to set up Honcho by entering an API key."
+      - "If memory is set, offer hooks for all agents so agent memory updates continuously."
+      - "The Memory tab should show the resulting selected-provider memories or representations."
+      - "Rebrand Teams as Goals and align the workflow with GoalBuddy."
+      - "Kanban should live in Agent Manager."
+      - "Hermes should be detected and positioned as the primary Chief of Staff agent."
+      - "Chief of Staff should include data layers for memory, context pulling, meetings, automations, scheduled tasks, and surfaced insights."
+      - "Support easy Google Workspace authentication in settings through gogcli.sh so the Chief of Staff can read email/context and surface useful insights."
+      - "Add Dashboard under search for key insights, automatable work, and long-running goals."
+      - "Dashboard likely uses OpenClaw or Hermes with memory."
+      - "Add an MCP section where configured MCPs such as 1Password are visible."
+      - "Agent order should be Hermes first, then Codex, then Claude Code, then plus/rest."
+      - "Remove the Agent Club skills market modal."
+      - "Agent Manager and the UI must work together."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  # installed | bundled_not_installed | missing | unknown
+  # Bundled templates were found in the GoalBuddy skill cache, but no installed user/project agent configs were verified.
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  # none | local | github_projects | both | unknown
+  selected: local
+  local:
+    status: live
+    url: "http://127.0.0.1:41737/agent-club-chief-of-staff/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/agent-club-chief-of-staff"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T007
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map current Agent Club, Agent Manager, Multica, Hermes/OpenClaw, settings, memory, MCP, dashboard/search, and modal surfaces without changing files."
+    inputs:
+      - "User product direction in goal.md"
+      - "Current repository"
+      - "Current local runtime and ports if available"
+      - "Existing Agent Manager/Multica integration"
+      - "Existing whitelabel work"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Preserve evidence with concrete paths, commands, routes, and runtime observations."
+      - "Distinguish implemented behavior from placeholder UI and product intent."
+    expected_output:
+      - "Current surface map for main UI and Agent Manager"
+      - "Runtime capability map for detected agents and memory/MCP integrations"
+      - "Verification commands and demo routes"
+      - "Risks to previous whitelabel work"
+      - "Candidate implementation slices with likely files and dependencies"
+    receipt:
+      result: done
+      path: docs/goals/agent-club-chief-of-staff/notes/T001-surface-map.md
+      note: T001 mapped the live main UI, Agent Manager, Multica runtime, settings, hooks, MCP, dashboard, local agents, and market-modal surfaces.
+      evidence:
+        - docs/goals/agent-club-chief-of-staff/notes/T001-surface-map.md
+      summary: Main app, Agent Manager, Multica runtime, settings, hooks, MCP, dashboard, local agents, and market-modal surfaces were mapped. First tranche recommended: remove market modal, prioritize Hermes/Codex/Claude/OpenClaw, and add Memory settings foundation.
+  - id: T002
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map settings/auth/documentation requirements for Honcho, Supermemory, gogcli.sh Google Workspace auth, 1Password MCP, and global agent memory hooks."
+    inputs:
+      - "T001 findings when available"
+      - "docs"
+      - "settings surfaces"
+      - "MCP and hook configuration locations"
+    constraints:
+      - "Read-only."
+      - "Do not browse or authenticate external accounts during discovery unless explicitly approved."
+      - "Call out owner-gated credential steps separately from local implementation work."
+    expected_output:
+      - "Memory/provider settings map"
+      - "Hook integration candidates"
+      - "Google Workspace auth constraints"
+      - "MCP visibility requirements"
+      - "Docs that need updating"
+    receipt:
+      result: done
+      path: docs/goals/agent-club-chief-of-staff/notes/T002-memory-auth-mcp-map.md
+      note: T002 mapped local Honcho, Supermemory, gogcli, 1Password, MCP, and memory-hook readiness.
+      evidence:
+        - docs/goals/agent-club-chief-of-staff/notes/T002-memory-auth-mcp-map.md
+      summary: Honcho MCP is present in Codex; Hermes, gogcli, and 1Password CLI are not currently on PATH; no existing app memory-hook settings exist, so the first slice should add a visible local Memory settings foundation without claiming live credentialed integrations.
+  - id: T003
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Turn Scout findings and the user plan into the first safe implementation tranche."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt if complete"
+      - "goal.md"
+    constraints:
+      - "Do not implement."
+      - "Prefer the smallest slice that visibly improves Agent Manager plus UI cohesion."
+      - "Require a verification path before activating Worker."
+      - "Do not choose a credentials-dependent slice as the first Worker unless a local fallback exists."
+    expected_output:
+      - "Decision"
+      - "Prioritized tranches"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+      - "Deferred or blocked credential tasks"
+    receipt:
+      result: done
+      decision: Proceed with a Honcho-first worker slice.
+      path: docs/goals/agent-club-chief-of-staff/notes/T003-first-tranche-decision.md
+      note: T003 selected a Honcho-first worker slice after the user clarified API-key setup, automatic hooks, and visible memories.
+      evidence:
+        - docs/goals/agent-club-chief-of-staff/notes/T003-first-tranche-decision.md
+      summary: First implementation tranche is Honcho API key setup, memory hook capture, memory viewer, Local Agents market-modal removal, and Hermes-first ordering.
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Execute the first Honcho memory setup slice selected by Judge: API-key setup, safe message hooks, memory viewer, Local Agents market-modal removal, and Hermes-first ordering."
+    allowed_files:
+      - package.json
+      - bun.lock
+      - src/common/adapter/ipcBridge.ts
+      - src/common/config/storage.ts
+      - src/common/types/memory.ts
+      - src/process/bridge/index.ts
+      - src/process/bridge/memoryBridge.ts
+      - src/process/services/memory/HonchoMemoryService.ts
+      - src/process/utils/message.ts
+      - src/renderer/components/layout/Router.tsx
+      - src/renderer/pages/settings/MemorySettings.tsx
+      - src/renderer/pages/settings/components/SettingsSider.tsx
+      - src/renderer/pages/settings/components/SettingsPageWrapper.tsx
+      - src/renderer/pages/settings/AgentSettings/LocalAgents.tsx
+      - src/renderer/services/i18n/locales/en-US/settings.json
+      - src/renderer/services/i18n/i18n-keys.d.ts
+    verify:
+      - bun run i18n:types
+      - node scripts/check-i18n.js
+      - bunx tsc --noEmit
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Behavior is ambiguous or contradicts the user product direction."
+      - "Credentials, external account access, or destructive operations are required."
+      - "Verification fails twice."
+      - "Whitelabel or Agent Manager integration regresses."
+    receipt:
+      result: done
+      path: docs/goals/agent-club-chief-of-staff/notes/T004-honcho-memory-slice.md
+      note: T004 implemented Honcho API-key setup, memory hooks, memory viewer, Local Agents market-modal removal, and Hermes-first ordering.
+      evidence:
+        - docs/goals/agent-club-chief-of-staff/notes/T004-honcho-memory-slice.md
+      changed_files:
+        - package.json
+        - bun.lock
+        - src/common/adapter/ipcBridge.ts
+        - src/common/config/storage.ts
+        - src/common/types/memory.ts
+        - src/process/bridge/index.ts
+        - src/process/bridge/memoryBridge.ts
+        - src/process/services/memory/HonchoMemoryService.ts
+        - src/process/utils/message.ts
+        - src/renderer/components/layout/Router.tsx
+        - src/renderer/pages/settings/MemorySettings.tsx
+        - src/renderer/pages/settings/components/SettingsSider.tsx
+        - src/renderer/pages/settings/components/SettingsPageWrapper.tsx
+        - src/renderer/pages/settings/AgentSettings/LocalAgents.tsx
+        - src/renderer/services/i18n/locales/en-US/settings.json
+        - src/renderer/services/i18n/i18n-keys.d.ts
+      commands:
+        - cmd: "bun add @honcho-ai/sdk@2.1.1"
+          status: pass
+        - cmd: "bun run i18n:types"
+          status: pass
+        - cmd: "node scripts/check-i18n.js"
+          status: pass
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      verify:
+        - "bun run i18n:types: passed"
+        - "node scripts/check-i18n.js: passed"
+        - "bunx tsc --noEmit: passed"
+        - "bunx oxlint --quiet: passed with existing warnings and no errors"
+        - "git diff --check: passed"
+        - "bun run start:multi: restarted app"
+      summary: Honcho memory setup is now first-class in the main app, hooks are attached to message persistence, memories can be loaded after API key setup, and Local Agents no longer exposes the market modal.
+  - id: T005
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit the implemented slice against the Chief of Staff direction, whitelabel constraints, Agent Manager/UI cohesion, and verification results."
+    inputs:
+      - "T004 receipt"
+      - "Last verification"
+      - "Current dirty diff"
+      - "User product direction in goal.md"
+    constraints:
+      - "Do not implement."
+      - "Reject completion for cosmetic-only changes when integration work remains."
+      - "If the slice is complete but the larger goal remains, identify the next safe Worker or Scout task."
+    expected_output:
+      - "slice_complete: true | false"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: Accept first slice; full outcome remains incomplete.
+      path: docs/goals/agent-club-chief-of-staff/notes/T005-first-slice-audit.md
+      note: T005 accepted the Honcho memory slice and identified the next Agent Manager cohesion task.
+      evidence:
+        - docs/goals/agent-club-chief-of-staff/notes/T005-first-slice-audit.md
+      slice_complete: true
+      full_outcome_complete: false
+      summary: Honcho setup/hooks and Local Agents cleanup are complete for this slice. Remaining work includes Agent Manager dashboard, Goals/kanban, Supermemory, gogcli, MCP visibility, Hermes installation/detection, and residual Multica whitelabeling.
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Correct the Memory settings model so users pick one active provider, Honcho or Supermemory, and hooks only run for the selected provider."
+    inputs:
+      - "T004 receipt"
+      - "T005 audit"
+      - "User clarification: memory is Honcho or Supermemory, pick one"
+      - "Current Honcho memory settings and hook implementation"
+    constraints:
+      - "Keep Honcho as the only currently operational backend."
+      - "Do not claim Supermemory hooks work yet."
+      - "Do not require credentials."
+      - "Keep the existing Honcho setup path working."
+    expected_output:
+      - "Provider selector in Memory settings"
+      - "Persisted selected provider"
+      - "Honcho hooks gated to selectedProvider === honcho"
+      - "Supermemory visible as alternate provider but not falsely active"
+      - "Verification results"
+    allowed_files:
+      - docs/goals/agent-club-chief-of-staff/goal.md
+      - docs/goals/agent-club-chief-of-staff/state.yaml
+      - docs/goals/agent-club-chief-of-staff/notes/T006-memory-provider-choice.md
+      - src/common/types/memory.ts
+      - src/process/services/memory/HonchoMemoryService.ts
+      - src/renderer/pages/settings/MemorySettings.tsx
+      - src/renderer/services/i18n/locales/en-US/settings.json
+      - src/renderer/services/i18n/i18n-keys.d.ts
+    verify:
+      - bun run i18n:types
+      - node scripts/check-i18n.js
+      - bunx tsc --noEmit
+    receipt:
+      result: done
+      path: docs/goals/agent-club-chief-of-staff/notes/T006-memory-provider-choice.md
+      note: T006 corrected Memory settings to one selected provider, Honcho or Supermemory, with Honcho hooks gated to the selected provider.
+      evidence:
+        - docs/goals/agent-club-chief-of-staff/notes/T006-memory-provider-choice.md
+      changed_files:
+        - docs/goals/agent-club-chief-of-staff/goal.md
+        - docs/goals/agent-club-chief-of-staff/state.yaml
+        - docs/goals/agent-club-chief-of-staff/notes/T006-memory-provider-choice.md
+        - src/common/types/memory.ts
+        - src/process/services/memory/HonchoMemoryService.ts
+        - src/renderer/pages/settings/MemorySettings.tsx
+        - src/renderer/services/i18n/locales/en-US/settings.json
+        - src/renderer/services/i18n/i18n-keys.d.ts
+      commands:
+        - cmd: "bun run i18n:types"
+          status: pass
+        - cmd: "node scripts/check-i18n.js"
+          status: pass
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      verify:
+        - "bun run i18n:types: passed"
+        - "node scripts/check-i18n.js: passed"
+        - "bunx tsc --noEmit: passed"
+        - "bunx oxlint --quiet: passed with existing warnings and no errors"
+        - "git diff --check: passed"
+      summary: Users now choose one memory provider. Honcho setup/hooks/memory display are active only when Honcho is selected, and Supermemory is visible without being falsely claimed as wired.
+  - id: T007
+    type: scout
+    assignee: Scout
+    status: active
+    reasoning_hint: default
+    objective: "Map the next Agent Manager cohesion slice for Dashboard, Goals/kanban, Hermes-first Chief of Staff status, and shared runtime awareness between the main UI and Agent Manager."
+    inputs:
+      - "T001 surface map"
+      - "T005 audit"
+      - "T006 provider-choice receipt"
+      - "Current Agent Manager/Multica runtime"
+      - "Main UI search/dashboard routes"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Distinguish local runtime facts from product intent."
+      - "Preserve whitelabel constraints."
+    expected_output:
+      - "Exact Agent Manager and main UI files for the next slice"
+      - "Dashboard and Goals/kanban route plan"
+      - "Runtime data contract candidates"
+      - "Hermes-first status/detection gaps"
+      - "Verification commands and demo route"
+    receipt: null
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Final audit: prove whether the full Agent Club Chief of Staff outcome is complete."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "goal.md"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if main UI and Agent Manager remain disconnected."
+      - "Reject completion if memory, MCP, dashboard, goal/kanban, Hermes ordering, Google Workspace setup, modal removal, or whitelabel constraints lack evidence."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "mapped evidence for every original request area"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: "T006 memory provider choice implemented; repo has code and goal-board changes pending commit."
+  last_verification:
+    result: passed
+    task: T006
+    commands:
+      - "bun run i18n:types"
+      - "node scripts/check-i18n.js"
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "git diff --check"

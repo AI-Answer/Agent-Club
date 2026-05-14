@@ -89,6 +89,7 @@
     "@floating-ui/react": "^0.27.16",
     "@google/genai": "^1.16.0",
     "@grammyjs/transformer-throttler": "^1.2.1",
+    "@honcho-ai/sdk": "2.1.1",
     "@icon-park/react": "^1.4.2",
     "@larksuiteoapi/node-sdk": "^1.58.0",
     "@modelcontextprotocol/sdk": "^1.20.0",

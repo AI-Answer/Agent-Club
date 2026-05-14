@@ -8,15 +8,17 @@ import type { TMessage } from '@/common/chat/chatLib';
 import { composeMessage } from '@/common/chat/chatLib';
 import type { AgentBackend } from '@/common/types/acpTypes';
 import { getDatabase } from '../services/database/export';
+import { honchoMemoryService } from '../services/memory/HonchoMemoryService';
 import { ProcessChat } from './initStorage';
 
 const Cache = new Map<string, ConversationManageWithDB>();
+type QueuedMessage = ['insert' | 'accumulate', TMessage, AgentBackend?];
 
 // Place all messages in a unified update queue based on the conversation
 // Ensure that the update mechanism for each message is consistent with the front end, meaning that the database and UI data are in sync
 // Aggregate multiple messages for synchronous updates, reducing database operations
 class ConversationManageWithDB {
-  private stack: Array<['insert' | 'accumulate', TMessage]> = [];
+  private stack: QueuedMessage[] = [];
   private dbPromise = getDatabase();
   private timer: NodeJS.Timeout;
   /** Whether a flush is currently in progress (replaces unbounded promise chain) */
@@ -46,8 +48,8 @@ class ConversationManageWithDB {
     clearTimeout(this.timer);
     this.stack = [];
   }
-  sync(type: 'insert' | 'accumulate', message: TMessage) {
-    this.stack.push([type, message]);
+  sync(type: 'insert' | 'accumulate', message: TMessage, backend?: AgentBackend) {
+    this.stack.push([type, message, backend]);
     clearTimeout(this.timer);
     if (type === 'insert') {
       this.flush();
@@ -64,20 +66,29 @@ class ConversationManageWithDB {
     try {
       const db = await this.dbPromise;
       const stack = this.stack.splice(0);
+      const memoryCandidates: Array<{ message: TMessage; backend?: AgentBackend }> = [];
       const messages = db.getConversationMessages(this.conversation_id, 0, 50, 'DESC');
       let messageList = messages.data.toReversed();
-      for (const [type, msg] of stack) {
+      for (const [type, msg, backend] of stack) {
         if (type === 'insert') {
           db.insertMessage(msg);
           messageList.push(msg);
+          memoryCandidates.push({ message: msg, backend });
         } else {
           messageList = composeMessage(msg, messageList, (opType, message) => {
-            if (opType === 'insert') db.insertMessage(message);
+            if (opType === 'insert') {
+              db.insertMessage(message);
+              memoryCandidates.push({ message, backend });
+            }
             if (opType === 'update') {
               db.updateMessage(message.id, message);
+              memoryCandidates.push({ message, backend });
             }
           });
         }
+      }
+      for (const candidate of memoryCandidates) {
+        honchoMemoryService.captureMessage(candidate);
       }
       executePendingCallbacks();
     } catch (err) {
@@ -158,7 +169,7 @@ export const addOrUpdateMessage = (conversation_id: string, message: TMessage, b
     return;
   }
 
-  ConversationManageWithDB.get(conversation_id).sync('accumulate', message);
+  ConversationManageWithDB.get(conversation_id).sync('accumulate', message, backend);
 };
 
 /**

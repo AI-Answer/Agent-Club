@@ -23,6 +23,7 @@ import type {
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
 import type { AgentManagerStatus } from '../types/agentManager';
+import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from '../types/memory';
 
 export const shell = {
   openFile: bridge.buildProvider<void, string>('open-file'), // 使用系统默认程序打开文件
@@ -182,6 +183,11 @@ export const agentManager = {
   getStatus: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.get-status'),
   restart: bridge.buildProvider<AgentManagerStatus, void>('agent-manager.restart'),
   statusChanged: bridge.buildEmitter<AgentManagerStatus>('agent-manager.status-changed'),
+};
+
+export const memory = {
+  testHoncho: bridge.buildProvider<IBridgeResponse<HonchoSetupResult>, HonchoMemoryConfig>('memory.honcho.test'),
+  getHonchoSnapshot: bridge.buildProvider<IBridgeResponse<HonchoMemorySnapshot>, void>('memory.honcho.snapshot'),
 };
 
 // Manual (opt-in) updates via GitHub Releases

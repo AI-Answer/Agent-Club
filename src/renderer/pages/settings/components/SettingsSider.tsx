@@ -11,6 +11,7 @@ import {
   Info,
   Lightning,
   LinkCloud,
+  MemoryOne,
   Puzzle,
   Robot,
   Speed,
@@ -30,6 +31,7 @@ export const BUILTIN_TAB_IDS = [
   'model',
   'assistants',
   'capabilities',
+  'memory',
   'hooks',
   'display',
   'webui',
@@ -157,6 +159,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         label: t('settings.capabilities', { defaultValue: 'Capabilities' }),
         icon: <Lightning />,
         path: 'capabilities',
+      },
+      memory: {
+        id: 'memory',
+        label: t('settings.memory', { defaultValue: 'Memory' }),
+        icon: <MemoryOne />,
+        path: 'memory',
       },
       hooks: {
         id: 'hooks',

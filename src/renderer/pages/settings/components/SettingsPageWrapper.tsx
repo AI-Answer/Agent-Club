@@ -13,6 +13,7 @@ import {
   Info,
   Lightning,
   LinkCloud,
+  MemoryOne,
   Puzzle,
   Robot,
   System,
@@ -54,6 +55,12 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       label: t('settings.capabilities', { defaultValue: 'Capabilities' }),
       icon: <Lightning theme='outline' size='16' />,
       path: 'capabilities',
+    },
+    memory: {
+      id: 'memory',
+      label: t('settings.memory', { defaultValue: 'Memory' }),
+      icon: <MemoryOne theme='outline' size='16' />,
+      path: 'memory',
     },
     hooks: {
       id: 'hooks',
