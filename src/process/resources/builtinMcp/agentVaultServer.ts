@@ -46,6 +46,7 @@ function resolveOnePasswordReference(reference: string): string {
   const result = spawnSync('op', ['read', reference], {
     encoding: 'utf8',
     env: process.env,
+    input: '',
     timeout: 30_000,
   });
 

@@ -13,7 +13,7 @@ import type {
   SecuritySettingsState,
 } from '@/common/types/security';
 import { getPlatformServices } from '@/common/platform';
-import { execFile } from 'child_process';
+import { execFile, type ExecFileOptions } from 'child_process';
 import path from 'path';
 import { promisify } from 'util';
 import { BUILTIN_AGENT_VAULT_ID, BUILTIN_AGENT_VAULT_NAME } from '@process/resources/builtinMcp/constants';
@@ -55,6 +55,34 @@ const parseJsonArrayLength = (value: string): number | undefined => {
     return undefined;
   }
 };
+
+const execFileWithClosedStdin = (
+  file: string,
+  args: readonly string[],
+  options: ExecFileOptions = {}
+): Promise<{ stdout: string; stderr: string }> =>
+  new Promise((resolve, reject) => {
+    const child = execFile(file, [...args], { ...options, encoding: 'utf8' }, (error, stdout, stderr) => {
+      if (error) {
+        Object.assign(error, { stdout, stderr });
+        reject(error);
+        return;
+      }
+
+      resolve({ stdout, stderr });
+    });
+
+    child.stdin?.end();
+  });
+
+const execOnePasswordCli = (
+  args: readonly string[],
+  options: ExecFileOptions = {}
+): Promise<{ stdout: string; stderr: string }> =>
+  execFileWithClosedStdin('op', args, {
+    env: getEnhancedEnv(),
+    ...options,
+  });
 
 const withOnePasswordEnv = (
   env: NodeJS.ProcessEnv,
@@ -251,8 +279,7 @@ class SecuritySettingsService {
 
   async testOnePasswordCli(): Promise<OnePasswordCliStatus> {
     try {
-      const { stdout } = await execFileAsync('op', ['--version'], {
-        env: getEnhancedEnv(),
+      const { stdout } = await execOnePasswordCli(['--version'], {
         timeout: 10_000,
       });
 
@@ -343,7 +370,7 @@ class SecuritySettingsService {
     const env = withOnePasswordEnv(getEnhancedEnv(), onePassword);
 
     try {
-      const { stdout } = await execFileAsync('op', ['vault', 'list', '--format=json'], {
+      const { stdout } = await execOnePasswordCli(['vault', 'list', '--format=json'], {
         env,
         maxBuffer: 1024 * 1024,
         timeout: 30_000,
@@ -361,7 +388,7 @@ class SecuritySettingsService {
       };
     } catch (vaultError) {
       try {
-        const { stdout } = await execFileAsync('op', ['account', 'list', '--format=json'], {
+        const { stdout } = await execOnePasswordCli(['account', 'list', '--format=json'], {
           env,
           maxBuffer: 1024 * 1024,
           timeout: 30_000,
