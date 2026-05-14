@@ -13,7 +13,7 @@ import type {
   SecuritySettingsState,
 } from '@/common/types/security';
 import { getPlatformServices } from '@/common/platform';
-import { execFile, type ExecFileOptions } from 'child_process';
+import { execFile, spawn, type SpawnOptionsWithoutStdio } from 'child_process';
 import path from 'path';
 import { promisify } from 'util';
 import { BUILTIN_AGENT_VAULT_ID, BUILTIN_AGENT_VAULT_NAME } from '@process/resources/builtinMcp/constants';
@@ -56,30 +56,83 @@ const parseJsonArrayLength = (value: string): number | undefined => {
   }
 };
 
-const execFileWithClosedStdin = (
+type NonInteractiveCommandOptions = Omit<SpawnOptionsWithoutStdio, 'stdio'> & {
+  maxBuffer?: number;
+};
+
+const execNonInteractiveCommand = (
   file: string,
   args: readonly string[],
-  options: ExecFileOptions = {}
+  options: NonInteractiveCommandOptions = {}
 ): Promise<{ stdout: string; stderr: string }> =>
   new Promise((resolve, reject) => {
-    const child = execFile(file, [...args], { ...options, encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) {
+    const { maxBuffer = 1024 * 1024, timeout, ...spawnOptions } = options;
+    const child = spawn(file, [...args], {
+      ...spawnOptions,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
+    const timer = timeout
+      ? setTimeout(() => {
+          timedOut = true;
+          child.kill('SIGTERM');
+        }, timeout)
+      : undefined;
+
+    const appendOutput = (stream: 'stdout' | 'stderr', chunk: Buffer): void => {
+      const next = (stream === 'stdout' ? stdout : stderr) + chunk.toString('utf8');
+      if (next.length > maxBuffer) {
+        child.kill('SIGTERM');
+        const error = new Error(`Command output exceeded maxBuffer: ${file} ${args.join(' ')}`);
         Object.assign(error, { stdout, stderr });
+        reject(error);
+        return;
+      }
+      if (stream === 'stdout') {
+        stdout = next;
+      } else {
+        stderr = next;
+      }
+    };
+
+    child.stdout.on('data', (chunk: Buffer) => appendOutput('stdout', chunk));
+    child.stderr.on('data', (chunk: Buffer) => appendOutput('stderr', chunk));
+
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      Object.assign(error, { stdout, stderr });
+      reject(error);
+    });
+
+    child.on('close', (code, signal) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        const error = new Error(`Command timed out: ${file} ${args.join(' ')}`);
+        Object.assign(error, { stdout, stderr, signal });
+        reject(error);
+        return;
+      }
+
+      if (code !== 0) {
+        const detail = trimCommandOutput([stderr, stdout].filter(Boolean).join('\n'));
+        const error = new Error(`Command failed: ${file} ${args.join(' ')}${detail ? `\n${detail}` : ''}`);
+        Object.assign(error, { stdout, stderr, code, signal });
         reject(error);
         return;
       }
 
       resolve({ stdout, stderr });
     });
-
-    child.stdin?.end();
   });
 
 const execOnePasswordCli = (
   args: readonly string[],
-  options: ExecFileOptions = {}
+  options: NonInteractiveCommandOptions = {}
 ): Promise<{ stdout: string; stderr: string }> =>
-  execFileWithClosedStdin('op', args, {
+  execNonInteractiveCommand('op', args, {
     env: getEnhancedEnv(),
     ...options,
   });
