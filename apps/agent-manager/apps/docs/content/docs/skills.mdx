@@ -5,7 +5,7 @@ description: Attach "knowledge packs" to an agent — compatible with the Anthro
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-A Skill is a **knowledge pack** for an [agent](/agents) — a `SKILL.md` plus optional supporting files (scripts, configs, reference templates) that tell the agent "when you hit this kind of task, think and act like this." Multica adopts the [Anthropic Agent Skills](https://agentskills.io) open standard, so any compliant Skill — from Anthropic's official repository, ClawHub, or skills.sh — can be imported directly.
+A Skill is a **knowledge pack** for an [agent](/agents) — a `SKILL.md` plus optional supporting files (scripts, configs, reference templates) that tell the agent "when you hit this kind of task, think and act like this." Multica adopts the [Anthropic Agent Skills](https://agentskills.io) open standard, so any compliant Skill — from Anthropic's official repository, ClawHub, skills.sh, or JourneyKits — can be imported directly.
 
 ## Workspace skills vs. local skills
 
@@ -18,14 +18,23 @@ Most of the time you want **workspace skills**: import once, every teammate's ag
 
 ## Importing a skill
 
-Workspace skills come from four sources:
+Workspace skills come from five sources:
 
 - **New** — write the `SKILL.md` and related files directly in the UI
 - **From GitHub** — paste a repo URL (e.g. `https://github.com/owner/repo/tree/main/skills/my-skill`) and Multica pulls the `SKILL.md` and every file in that directory
 - **From ClawHub** — search and import from the [ClawHub](https://clawhub.io) public marketplace, with version selection
+- **From JourneyKits** — paste a `journeykits.ai/kits/{owner}/{slug}` URL, or install public JourneyKits from Agent Club's Skills Hub. Multica downloads the JourneyKits skill archive, keeps the supporting files, and records JourneyKits as the origin.
 - **From local** — the daemon scans skill directories on your machine, and you pick which to bring into the workspace
 
 Both individual files and whole skill packs have size caps (single-file cap around 1 MB when importing from GitHub). The exact rules appear in the import dialog — exceeding them returns an error.
+
+## Publishing to JourneyKits
+
+JourneyKits publishing is intentionally owner-gated. Public discovery and skill-archive installs work without credentials, but submitting, updating, deleting, or releasing a kit requires a JourneyKits account/API key with `kits:write` owner access.
+
+In Agent Club, open **Settings → Skills Hub → JourneyKits Repository** to save that key locally. The key is stored in your local app config, not in the repo or workspace export, and the UI only shows that a key is saved. After the key and owner are set, use **Upload** on any local skill card to publish it as a JourneyKit revision, then use **My JourneyKits** to refresh, open, or delete owned kits.
+
+For teams that manage publisher keys outside Agent Club, keep public discovery/install in the app and run publish operations from the JourneyKits console or API. Agent Club only reports a publish succeeded after the JourneyKits API accepts the upload.
 
 ## Attaching to an agent
 

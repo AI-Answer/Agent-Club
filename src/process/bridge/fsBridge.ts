@@ -25,6 +25,13 @@ import { readDirectoryRecursive } from '@process/utils';
 import { getDatabase } from '@process/services/database';
 import { ExtensionRegistry } from '@process/extensions/ExtensionRegistry';
 import type { IWorkspaceFlatFile } from '@/common/adapter/ipcBridge';
+import type {
+  JourneyKitSummary,
+  JourneyKitsConfigPublic,
+  JourneyKitsPublishSkillRequest,
+  JourneyKitsSearchResult,
+  JourneyKitsVisibility,
+} from '@/common/types/journeyKits';
 
 // ============================================================================
 // Helper functions for builtin resource directory resolution
@@ -77,6 +84,313 @@ async function copyDirectory(src: string, dest: string) {
       await fs.copyFile(srcPath, destPath);
     }
   }
+}
+
+const JOURNEY_KITS_API_BASE = 'https://www.journeykits.ai/api';
+const JOURNEY_KITS_ZIP_MAX_FILE_SIZE = 2 * 1024 * 1024;
+const JOURNEY_KITS_ZIP_MAX_TOTAL_SIZE = 12 * 1024 * 1024;
+const JOURNEY_KITS_PUBLISH_MAX_FILES = 160;
+const JOURNEY_KITS_PUBLISH_MAX_FILE_SIZE = 1 * 1024 * 1024;
+const JOURNEY_KITS_PUBLISH_MAX_TOTAL_SIZE = 8 * 1024 * 1024;
+const JOURNEY_KITS_DEFAULT_VISIBILITY: JourneyKitsVisibility = 'public';
+const JOURNEY_KITS_TEXT_EXTENSIONS = new Set([
+  '.cjs',
+  '.css',
+  '.html',
+  '.js',
+  '.json',
+  '.jsx',
+  '.md',
+  '.mdx',
+  '.mjs',
+  '.py',
+  '.sh',
+  '.toml',
+  '.ts',
+  '.tsx',
+  '.txt',
+  '.yaml',
+  '.yml',
+]);
+const JOURNEY_KITS_SKIP_DIRS = new Set([
+  '.git',
+  '.next',
+  '.turbo',
+  'coverage',
+  'dist',
+  'node_modules',
+  'out',
+]);
+
+type StoredJourneyKitsConfig = {
+  apiKey?: string;
+  author?: string;
+  visibility?: JourneyKitsVisibility;
+};
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function parseSkillFrontmatterMeta(content: string, fallbackName = ''): { name: string; description: string } {
+  const frontMatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  let name = fallbackName;
+  let description = '';
+
+  if (frontMatterMatch) {
+    const yaml = frontMatterMatch[1];
+    const nameMatch = yaml.match(/^name:\s*['"]?(.+?)['"]?\s*$/m);
+    const descMatch = yaml.match(/^description:\s*['"]?(.+?)['"]?\s*$/m);
+    if (nameMatch) name = nameMatch[1].trim();
+    if (descMatch) description = descMatch[1].trim();
+  }
+
+  return { name, description };
+}
+
+function normalizeJourneyKitsVisibility(value: unknown): JourneyKitsVisibility {
+  return value === 'private' ? 'private' : JOURNEY_KITS_DEFAULT_VISIBILITY;
+}
+
+function publicJourneyKitsConfig(config: StoredJourneyKitsConfig | undefined): JourneyKitsConfigPublic {
+  const apiKey = config?.apiKey?.trim();
+  const author = config?.author?.trim() ?? '';
+  return {
+    author,
+    visibility: normalizeJourneyKitsVisibility(config?.visibility),
+    hasApiKey: Boolean(apiKey),
+    keyPrefix: apiKey && apiKey.length > 8 ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : undefined,
+  };
+}
+
+async function getStoredJourneyKitsConfig(): Promise<StoredJourneyKitsConfig> {
+  return (await ProcessConfig.get('journeyKits.config')) ?? {};
+}
+
+async function fetchJourneyKitsAuthedJson<T>(
+  url: string,
+  apiKey: string,
+  init: RequestInit = {},
+  timeoutMs = 30_000
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set('Accept', 'application/json');
+  headers.set('Authorization', `Bearer ${apiKey}`);
+  if (init.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(url, {
+    ...init,
+    headers,
+    signal: init.signal ?? AbortSignal.timeout(timeoutMs),
+  });
+  const text = await response.text();
+  let payload: unknown = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { message: text };
+    }
+  }
+
+  if (!response.ok) {
+    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+    throw new Error(asString(record.error) || asString(record.message) || `JourneyKits returned HTTP ${response.status}`);
+  }
+
+  return payload as T;
+}
+
+function safeJourneyKitSlug(name: string, fallback: string): string {
+  const candidate = (name || fallback)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[._-]+|[._-]+$/g, '');
+  return candidate || fallback || `agent-club-skill-${Date.now()}`;
+}
+
+function isJourneyKitsPublishTextFile(relativePath: string): boolean {
+  const baseName = path.basename(relativePath);
+  if (baseName === '.DS_Store') return false;
+  if (['AGENTS.md', 'CLAUDE.md', 'README.md', 'SKILL.md'].includes(baseName)) return true;
+  return JOURNEY_KITS_TEXT_EXTENSIONS.has(path.extname(baseName).toLowerCase());
+}
+
+async function collectJourneyKitsSkillFiles(skillRoot: string): Promise<Record<string, string>> {
+  const files: Record<string, string> = {};
+  let filesRead = 0;
+  let totalSize = 0;
+
+  const walk = async (dir: string, relativeBase = ''): Promise<void> => {
+    if (filesRead >= JOURNEY_KITS_PUBLISH_MAX_FILES) {
+      throw new Error(`JourneyKit publish file limit exceeded (${JOURNEY_KITS_PUBLISH_MAX_FILES})`);
+    }
+
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const relativePath = relativeBase ? path.posix.join(relativeBase, entry.name) : entry.name;
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        if (JOURNEY_KITS_SKIP_DIRS.has(entry.name)) continue;
+        await walk(fullPath, relativePath);
+        continue;
+      }
+      if (!entry.isFile() || !isJourneyKitsPublishTextFile(relativePath)) continue;
+
+      const stat = await fs.stat(fullPath);
+      if (stat.size > JOURNEY_KITS_PUBLISH_MAX_FILE_SIZE) {
+        throw new Error(`JourneyKit publish file exceeds ${JOURNEY_KITS_PUBLISH_MAX_FILE_SIZE} bytes: ${relativePath}`);
+      }
+      totalSize += stat.size;
+      if (totalSize > JOURNEY_KITS_PUBLISH_MAX_TOTAL_SIZE) {
+        throw new Error(`JourneyKit publish bundle exceeds ${JOURNEY_KITS_PUBLISH_MAX_TOTAL_SIZE} bytes`);
+      }
+
+      files[relativePath] = await fs.readFile(fullPath, 'utf-8');
+      filesRead++;
+    }
+  };
+
+  await walk(skillRoot);
+  if (!files['SKILL.md']) {
+    throw new Error('Skill folder must contain SKILL.md');
+  }
+  return files;
+}
+
+async function buildJourneyKitsSkillBundle(request: JourneyKitsPublishSkillRequest) {
+  const skillMdPath = request.skillPath.endsWith('SKILL.md')
+    ? path.resolve(request.skillPath)
+    : path.resolve(path.join(request.skillPath, 'SKILL.md'));
+  const skillRoot = path.dirname(skillMdPath);
+  const skillContent = await fs.readFile(skillMdPath, 'utf-8');
+  const meta = parseSkillFrontmatterMeta(skillContent, request.skillName);
+  const title = meta.name || request.skillName || path.basename(skillRoot);
+  const summary = meta.description || `Agent Club skill: ${title}`;
+  const slug = safeJourneyKitSlug(title, path.basename(skillRoot));
+  const skillFiles = await collectJourneyKitsSkillFiles(skillRoot);
+
+  return {
+    manifest: {
+      slug,
+      title,
+      summary,
+      description: summary,
+      version: '1.0.0',
+      tags: ['agent-club', 'skill'],
+      skills: [
+        {
+          name: title,
+          description: summary,
+        },
+      ],
+      source: {
+        type: 'agent-club',
+      },
+    },
+    kitDoc: skillContent,
+    skillFiles,
+  };
+}
+
+function safeSkillDirectoryName(name: string, fallback: string): string {
+  const withoutUnsafeChars = Array.from(name.trim())
+    .map((char) => (char.charCodeAt(0) < 32 || /[<>:"/\\|?*]/.test(char) ? '-' : char))
+    .join('');
+  const cleaned = withoutUnsafeChars
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^\.+$/, '')
+    .replace(/^-+|-+$/g, '');
+  return cleaned || fallback || `journey-kit-${Date.now()}`;
+}
+
+function normalizeJourneyKitSummary(item: unknown): JourneyKitSummary | null {
+  if (!item || typeof item !== 'object') return null;
+  const record = item as Record<string, unknown>;
+
+  const kitRef = asString(record.kitRef);
+  let owner = asString(record.owner);
+  let slug = asString(record.slug);
+  if ((!owner || !slug) && kitRef?.includes('/')) {
+    const [refOwner, refSlug] = kitRef.split('/');
+    owner = owner || refOwner;
+    slug = slug || refSlug;
+  }
+  if (!owner || !slug) return null;
+
+  return {
+    kitRef: kitRef || `${owner}/${slug}`,
+    owner,
+    slug,
+    title: asString(record.title) || slug,
+    summary: asString(record.summary) || asString(record.description) || '',
+    description: asString(record.description),
+    ownerDisplayName: asString(record.ownerDisplayName),
+    ownerAvatarUrl: asString(record.ownerAvatarUrl),
+    releaseTag: asString(record.releaseTag) || asString(record.latestApprovedReleaseTag),
+    visibility: asString(record.visibility),
+    verifiedPublisher: typeof record.verifiedPublisher === 'boolean' ? record.verifiedPublisher : undefined,
+    installCount: asNumber(record.installCount),
+    setupDifficulty: asString(record.setupDifficulty),
+    topTag: asString(record.topTag),
+    securityScore: asNumber(record.securityScore),
+    completenessScore: asNumber(record.completenessScore),
+  };
+}
+
+function dedupeJourneyKitSummaries(kits: JourneyKitSummary[]): JourneyKitSummary[] {
+  const seen = new Set<string>();
+  const unique: JourneyKitSummary[] = [];
+  for (const kit of kits) {
+    const key = `${kit.owner}/${kit.slug}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(kit);
+  }
+  return unique;
+}
+
+async function fetchJourneyKitsJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    throw new Error(`JourneyKits returned HTTP ${response.status}`);
+  }
+  return (await response.json()) as T;
+}
+
+async function fetchJourneyKitsZip(owner: string, slug: string): Promise<Buffer> {
+  const url = `${JOURNEY_KITS_API_BASE}/kits/${encodeURIComponent(owner)}/${encodeURIComponent(slug)}/skill.zip`;
+  const response = await fetch(url, {
+    headers: { Accept: 'application/zip, application/octet-stream' },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) {
+    throw new Error(`JourneyKits skill archive returned HTTP ${response.status}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function normalizeZipPath(entryName: string, rootPrefix: string): string | null {
+  const withoutRoot = rootPrefix && entryName.startsWith(rootPrefix) ? entryName.slice(rootPrefix.length) : entryName;
+  const normalized = path.normalize(withoutRoot).replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!normalized || normalized === '.' || path.isAbsolute(normalized) || normalized.startsWith('../')) {
+    return null;
+  }
+  return normalized;
 }
 
 /**
@@ -1750,6 +2064,350 @@ export function initFsBridge(): void {
       return {
         success: false,
         msg: `Failed to export skill: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.searchJourneyKits.provider(async (request = {}) => {
+    try {
+      const query = request.query?.trim() ?? '';
+      const limit = Math.min(Math.max(Math.round(request.limit ?? 12), 1), 30);
+      const sort = request.sort ?? 'popular';
+      let source: JourneyKitsSearchResult['source'] = 'list';
+      let total: number | undefined;
+      let rawItems: unknown[] = [];
+
+      if (query) {
+        source = 'search';
+        rawItems = await fetchJourneyKitsJson<unknown[]>(
+          `${JOURNEY_KITS_API_BASE}/kits/search?q=${encodeURIComponent(query)}`
+        );
+      } else {
+        const listResponse = await fetchJourneyKitsJson<unknown>(
+          `${JOURNEY_KITS_API_BASE}/kits?limit=${limit}&sort=${encodeURIComponent(sort)}`
+        );
+        const record = listResponse && typeof listResponse === 'object' ? (listResponse as Record<string, unknown>) : {};
+        rawItems = Array.isArray(record.items) ? record.items : Array.isArray(listResponse) ? listResponse : [];
+        total = asNumber(record.total);
+      }
+
+      const normalizedKits = rawItems
+        .map(normalizeJourneyKitSummary)
+        .filter((kit): kit is JourneyKitSummary => Boolean(kit));
+      const kits = dedupeJourneyKitSummaries(normalizedKits).slice(0, limit);
+
+      return {
+        success: true,
+        data: { kits, total, source },
+        msg: `Found ${kits.length} JourneyKits`,
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to search JourneyKits:', error);
+      return {
+        success: false,
+        msg: `Failed to search JourneyKits: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.installJourneyKit.provider(async ({ owner, slug }) => {
+    try {
+      const safeOwner = owner.trim();
+      const safeSlug = slug.trim();
+      if (!/^[a-zA-Z0-9._-]+$/.test(safeOwner) || !/^[a-zA-Z0-9._-]+$/.test(safeSlug)) {
+        return { success: false, msg: 'Invalid JourneyKit owner or slug' };
+      }
+
+      const archive = await fetchJourneyKitsZip(safeOwner, safeSlug);
+      const zip = await JSZip.loadAsync(archive);
+      const skillEntry =
+        zip.file('SKILL.md') ??
+        Object.values(zip.files).find((entry) => !entry.dir && entry.name.replace(/\\/g, '/').endsWith('/SKILL.md'));
+
+      if (!skillEntry) {
+        return { success: false, msg: 'JourneyKit archive does not contain SKILL.md' };
+      }
+
+      const skillContent = await skillEntry.async('string');
+      const meta = parseSkillFrontmatterMeta(skillContent, safeSlug);
+      const skillName = safeSkillDirectoryName(meta.name, safeSlug);
+      const userSkillsDir = getSkillsDir();
+      const resolvedUserSkillsDir = path.resolve(userSkillsDir);
+      const targetDir = path.resolve(path.join(userSkillsDir, skillName));
+      const builtinTargetDir = path.resolve(path.join(getBuiltinSkillsCopyDir(), skillName));
+
+      if (!targetDir.startsWith(resolvedUserSkillsDir + path.sep)) {
+        return { success: false, msg: 'Invalid target skill path' };
+      }
+
+      try {
+        await fs.access(targetDir);
+        return {
+          success: true,
+          data: {
+            kitRef: `${safeOwner}/${safeSlug}`,
+            skillName,
+            skillPath: targetDir,
+            filesWritten: 0,
+            alreadyExists: true,
+          },
+          msg: `Skill "${skillName}" already exists`,
+        };
+      } catch {
+        // Target does not exist.
+      }
+
+      try {
+        await fs.access(builtinTargetDir);
+        return {
+          success: false,
+          msg: `Skill "${skillName}" already exists in builtin skills`,
+        };
+      } catch {
+        // Builtin target does not exist.
+      }
+
+      await fs.mkdir(userSkillsDir, { recursive: true });
+
+      const rootPrefix =
+        skillEntry.name !== 'SKILL.md' && skillEntry.name.replace(/\\/g, '/').endsWith('/SKILL.md')
+          ? skillEntry.name.replace(/\\/g, '/').slice(0, -'SKILL.md'.length)
+          : '';
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'journey-kit-'));
+      let filesWritten = 0;
+      let totalSize = 0;
+
+      try {
+        for (const entry of Object.values(zip.files)) {
+          if (entry.dir) continue;
+          const relativePath = normalizeZipPath(entry.name.replace(/\\/g, '/'), rootPrefix);
+          if (!relativePath) continue;
+
+          const fileBuffer = await entry.async('nodebuffer');
+          if (fileBuffer.length > JOURNEY_KITS_ZIP_MAX_FILE_SIZE) {
+            throw new Error(`JourneyKit file exceeds ${JOURNEY_KITS_ZIP_MAX_FILE_SIZE} byte limit: ${relativePath}`);
+          }
+          totalSize += fileBuffer.length;
+          if (totalSize > JOURNEY_KITS_ZIP_MAX_TOTAL_SIZE) {
+            throw new Error(`JourneyKit archive exceeds ${JOURNEY_KITS_ZIP_MAX_TOTAL_SIZE} byte limit`);
+          }
+
+          const destination = path.resolve(path.join(tempDir, relativePath));
+          if (!destination.startsWith(path.resolve(tempDir) + path.sep)) {
+            continue;
+          }
+          await fs.mkdir(path.dirname(destination), { recursive: true });
+          await fs.writeFile(destination, fileBuffer);
+          filesWritten++;
+        }
+
+        await fs.rename(tempDir, targetDir);
+      } catch (error) {
+        await fs.rm(tempDir, { recursive: true, force: true });
+        throw error;
+      }
+
+      const { AcpSkillManager } = await import('@process/task/AcpSkillManager');
+      AcpSkillManager.resetInstance();
+
+      console.log(`[fsBridge] Installed JourneyKit "${safeOwner}/${safeSlug}" as skill "${skillName}" at ${targetDir}`);
+      return {
+        success: true,
+        data: {
+          kitRef: `${safeOwner}/${safeSlug}`,
+          skillName,
+          skillPath: targetDir,
+          filesWritten,
+        },
+        msg: `JourneyKit "${safeOwner}/${safeSlug}" installed as "${skillName}"`,
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to install JourneyKit:', error);
+      return {
+        success: false,
+        msg: `Failed to install JourneyKit: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.getJourneyKitsConfig.provider(async () => {
+    try {
+      const config = await getStoredJourneyKitsConfig();
+      return {
+        success: true,
+        data: publicJourneyKitsConfig(config),
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to read JourneyKits config:', error);
+      return {
+        success: false,
+        msg: `Failed to read JourneyKits config: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.saveJourneyKitsConfig.provider(async ({ apiKey, clearApiKey, author, visibility }) => {
+    try {
+      const existing = await getStoredJourneyKitsConfig();
+      const next: StoredJourneyKitsConfig = {
+        ...existing,
+        author: author?.trim() || existing.author || '',
+        visibility: normalizeJourneyKitsVisibility(visibility ?? existing.visibility),
+      };
+      const trimmedApiKey = apiKey?.trim();
+      if (clearApiKey) {
+        delete next.apiKey;
+      } else if (trimmedApiKey) {
+        next.apiKey = trimmedApiKey;
+      }
+
+      await ProcessConfig.set('journeyKits.config', next);
+      return {
+        success: true,
+        data: publicJourneyKitsConfig(next),
+        msg: 'JourneyKits settings saved',
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to save JourneyKits config:', error);
+      return {
+        success: false,
+        msg: `Failed to save JourneyKits config: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.listJourneyKitsOwned.provider(async (request = {}) => {
+    try {
+      const config = await getStoredJourneyKitsConfig();
+      const apiKey = config.apiKey?.trim();
+      if (!apiKey) {
+        return {
+          success: false,
+          msg: 'Add a JourneyKits API key before loading your repository.',
+        };
+      }
+
+      const limit = Math.min(Math.max(Math.round(request.limit ?? 24), 1), 100);
+      const offset = Math.max(Math.round(request.offset ?? 0), 0);
+      const response = await fetchJourneyKitsAuthedJson<unknown>(
+        `${JOURNEY_KITS_API_BASE}/auth/kits?limit=${limit}&offset=${offset}`,
+        apiKey
+      );
+      const record = response && typeof response === 'object' ? (response as Record<string, unknown>) : {};
+      const rawItems = Array.isArray(record.items) ? record.items : Array.isArray(response) ? response : [];
+      const kits = rawItems
+        .map(normalizeJourneyKitSummary)
+        .filter((kit): kit is JourneyKitSummary => Boolean(kit));
+
+      return {
+        success: true,
+        data: { kits, total: asNumber(record.total) },
+        msg: `Loaded ${kits.length} JourneyKits`,
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to list owned JourneyKits:', error);
+      return {
+        success: false,
+        msg: `Failed to load your JourneyKits: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.publishJourneyKitSkill.provider(async (request) => {
+    try {
+      const config = await getStoredJourneyKitsConfig();
+      const apiKey = config.apiKey?.trim();
+      if (!apiKey) {
+        return {
+          success: false,
+          msg: 'Add a JourneyKits API key with kits:write before uploading skills.',
+        };
+      }
+
+      const author = request.author?.trim() || config.author?.trim();
+      if (!author) {
+        return {
+          success: false,
+          msg: 'Add your JourneyKits author or owner before uploading skills.',
+        };
+      }
+
+      const bundle = await buildJourneyKitsSkillBundle(request);
+      const response = await fetchJourneyKitsAuthedJson<unknown>(
+        `${JOURNEY_KITS_API_BASE}/kits/import`,
+        apiKey,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            bundle,
+            author,
+            visibility: normalizeJourneyKitsVisibility(request.visibility ?? config.visibility),
+            releaseNotes: request.releaseNotes || `Uploaded from Agent Club on ${new Date().toISOString()}`,
+          }),
+        },
+        45_000
+      );
+
+      const record = response && typeof response === 'object' ? (response as Record<string, unknown>) : {};
+      const kit = record.kit && typeof record.kit === 'object' ? (record.kit as Record<string, unknown>) : {};
+      const owner = asString(kit.owner) || asString(kit.author) || author;
+      const slug = asString(kit.slug) || asString(bundle.manifest.slug);
+      const kitRef = asString(kit.kitRef) || (owner && slug ? `${owner}/${slug}` : slug || request.skillName);
+
+      return {
+        success: true,
+        data: {
+          kitRef,
+          owner,
+          slug,
+          revisionId: asString(record.revisionId),
+          reviewRequired: typeof record.reviewRequired === 'boolean' ? record.reviewRequired : undefined,
+          message: 'Uploaded to JourneyKits',
+          findings: Array.isArray(record.findings) ? record.findings : undefined,
+        },
+        msg: `Uploaded "${request.skillName}" to JourneyKits`,
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to publish JourneyKit skill:', error);
+      return {
+        success: false,
+        msg: `Failed to upload to JourneyKits: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  });
+
+  ipcBridge.fs.deleteJourneyKitOwned.provider(async ({ owner, slug }) => {
+    try {
+      const config = await getStoredJourneyKitsConfig();
+      const apiKey = config.apiKey?.trim();
+      if (!apiKey) {
+        return {
+          success: false,
+          msg: 'Add a JourneyKits API key with kits:write before deleting kits.',
+        };
+      }
+
+      const safeOwner = owner.trim();
+      const safeSlug = slug.trim();
+      if (!/^[a-zA-Z0-9._-]+$/.test(safeOwner) || !/^[a-zA-Z0-9._-]+$/.test(safeSlug)) {
+        return { success: false, msg: 'Invalid JourneyKit owner or slug' };
+      }
+
+      await fetchJourneyKitsAuthedJson<unknown>(
+        `${JOURNEY_KITS_API_BASE}/auth/kits/${encodeURIComponent(safeOwner)}/${encodeURIComponent(safeSlug)}`,
+        apiKey,
+        { method: 'DELETE' }
+      );
+
+      return {
+        success: true,
+        msg: `Deleted JourneyKit "${safeOwner}/${safeSlug}"`,
+      };
+    } catch (error) {
+      console.error('[fsBridge] Failed to delete owned JourneyKit:', error);
+      return {
+        success: false,
+        msg: `Failed to delete JourneyKit: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   });

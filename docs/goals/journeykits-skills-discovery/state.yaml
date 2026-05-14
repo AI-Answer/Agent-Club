@@ -1,0 +1,409 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "JourneyKits Skills Discovery"
+  slug: "journeykits-skills-discovery"
+  kind: specific
+  tranche: "Discover JourneyKits, existing Agent Club skills surfaces, and local agent skill wiring, then implement verified discovery, install, supported-agent skill availability, and post/publish slices until the full integration works or is explicitly owner/API-gated."
+  status: active
+  intake:
+    original_request: "Make sure the whole Agent Club application, with all supported agents, is integrated well with JourneyKits and the skills. After it is integrated, push it to GitHub and run the goal after planning."
+    interpreted_outcome: "Agent Club should support JourneyKits as a skills source with discovery, install, supported-agent skill availability, and publish/post workflows, then push the finished work to GitHub."
+    input_shape: specific
+    audience: "Agent Club users and skill creators"
+    authority: approved
+    proof_type: demo
+    completion_proof: "Local Agent Club demo shows JourneyKits discovery, install, supported-agent skill availability, and posting/publishing or a documented owner-gated publishing path, with checks passing and the finished work pushed to GitHub."
+    likely_misfire: "Add only a link or placeholder card without real discovery/install/agent-skill/post behavior."
+    blind_spots_considered:
+      - "JourneyKits may not expose a public API or may require browser/session/auth access."
+      - "Skill package formats may differ between JourneyKits, Codex skills, Claude skills, and Agent Club skills."
+      - "Local agents may consume skills through different files, paths, prompts, or generated config, so all-agent support must be mapped and caveated."
+      - "Posting skills may require publisher credentials, ownership checks, moderation, or account setup."
+      - "Install flows must not overwrite user skill folders or import unsafe files silently."
+      - "Existing Skills Hub, skill-installer, and Agent Club whitelabel surfaces need to be preserved."
+    existing_plan_facts:
+      - "Use https://www.journeykits.ai/ as the discovery source."
+      - "Users should be able to install skills from JourneyKits."
+      - "Installed JourneyKits skills should become available to supported detected agents and existing assistant/skills flows."
+      - "Users should be able to post or publish skills to JourneyKits when supported."
+      - "After the goal is done, the finished work must be pushed to GitHub."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  final_completion_requires_git_push: true
+
+agents:
+  # installed | bundled_not_installed | missing | unknown
+  # Bundled templates were found in the GoalBuddy skill cache, but no installed user/project agent configs were verified.
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  # none | local | github_projects | both | unknown
+  selected: local
+  local:
+    status: live
+    url: "http://127.0.0.1:41738/journeykits-skills-discovery/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/journeykits-skills-discovery --host 127.0.0.1 --port 41738"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T998
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map existing Agent Club skills discovery/install/publish surfaces, local agent skill wiring, and JourneyKits capabilities without changing implementation files."
+    inputs:
+      - "goal.md"
+      - "https://www.journeykits.ai/"
+      - "Current repository skills/settings/plugin surfaces"
+      - "Existing skill-installer and Skills Hub behavior"
+      - "Local supported agent skill paths and config propagation behavior"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Browsing JourneyKits is allowed during /goal Scout work, not during goal prep."
+      - "Record whether JourneyKits has public APIs, browser-only flows, auth, package formats, and posting requirements."
+      - "Record how Codex, Claude, OpenClaw, Gemini, Agent Club assistants, and any other supported detected agents consume skills or skill instructions."
+      - "Distinguish verified source behavior from guesses."
+    expected_output:
+      - "Current Agent Club skill surface map"
+      - "Supported-agent skill wiring map"
+      - "JourneyKits capability/API/auth map"
+      - "Skill format compatibility notes"
+      - "Candidate install flow"
+      - "Candidate post/publish flow"
+      - "Files and verification commands for likely implementation slices"
+    receipt:
+      result: done
+      summary: "Mapped existing skill surfaces and JourneyKits APIs. Agent Club has shared user skills, builtin auto skills, external path import/export, assistant selected skills, ACP indexing, OpenClaw full-text injection, and Gemini workspace-copy behavior. Agent Manager has workspace skills, local runtime skill import, and URL skill import. JourneyKits exposes public registry, search/list, install-targets, /skill, /skill.zip, target install payloads, publish/import endpoints, and owner/auth-gated account/org APIs."
+      evidence:
+        - "JourneyKits manifest: /.well-known/agent-kit.json advertises search, install, publish, versioning, install targets, MCP, skill.zip, and publish-to-journey endpoints."
+        - "JourneyKits /api/install-targets lists codex/AGENTS.md, claude-code/CLAUDE.md, cursor/.cursor, openclaw/journey-kits, agent/.skills and summary-file targets."
+        - "JourneyKits /api/kits and /api/kits/search return public kits; /api/kits/{owner}/{slug}/skill.zip contains SKILL.md plus references for a sample kit."
+        - "src/process/bridge/fsBridge.ts owns local skill import, list, external scan/export, and skills-market auto skill toggles."
+        - "src/process/task/AcpSkillManager.ts and conversationBridge.ts make selected user skills available to assistants/agents through index or full-content injection."
+        - "apps/agent-manager/server/internal/handler/skill.go already imports URL skills from ClawHub, Skills.sh, and GitHub; it can safely add JourneyKits as another source."
+      candidate_install_flow: "Search/list JourneyKits in Skills Hub, download skill.zip for a selected owner/slug, safely extract text files into the user skills directory under the SKILL.md frontmatter name, then refresh the existing skills list so assistants and supported agents can select/use it."
+      candidate_publish_flow: "JourneyKits exposes publish-to-journey, import, auth, org, and protected MCP endpoints; full in-app publishing appears credential/account gated, so the safe first slice should expose import/install now and document/route publisher-gated posting later unless credentials are available."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the safest first JourneyKits plus supported-agent skills integration slice from Scout evidence."
+    inputs:
+      - "T001 receipt"
+      - "goal.md"
+    constraints:
+      - "Do not implement."
+      - "Do not select a credentials-dependent posting slice before discovery/install and supported-agent skill availability have a verified local path."
+      - "Require exact allowed_files, verify commands, and stop_if conditions for the first Worker."
+      - "Reject placeholder-only work."
+    expected_output:
+      - "Decision"
+      - "Prioritized slices"
+      - "First Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+      - "Blocked owner-gated JourneyKits requirements"
+    receipt:
+      result: done
+      decision: "Proceed with a two-part first worker slice: Agent Club JourneyKits discovery/install in the Skills Hub, plus Agent Manager JourneyKits URL import support."
+      prioritized_slices:
+        - "Add typed IPC and main-process JourneyKits search/install helpers."
+        - "Add Skills Hub UI to search popular JourneyKits kits and install skill.zip bundles into local user skills."
+        - "Add JourneyKits URL detection/fetch support to Agent Manager's existing import path."
+        - "Verify installed JourneyKits skills become ordinary custom skills, which existing assistant/agent wiring already consumes."
+      allowed_files:
+        - "src/common/types/journeyKits.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/fsBridge.ts"
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+        - "src/renderer/services/i18n/locales/en-US/settings.json"
+        - "src/renderer/services/i18n/i18n-keys.d.ts"
+        - "apps/agent-manager/server/internal/handler/skill.go"
+        - "apps/agent-manager/server/internal/handler/agent_template.go"
+        - "apps/agent-manager/packages/views/skills/components/create-skill-dialog.tsx"
+        - "apps/agent-manager/packages/views/skills/components/skill-columns.tsx"
+        - "apps/agent-manager/packages/views/skills/components/skill-detail-page.tsx"
+        - "apps/agent-manager/packages/views/skills/lib/origin.ts"
+        - "apps/agent-manager/packages/views/locales/en/skills.json"
+        - "docs/goals/journeykits-skills-discovery/state.yaml"
+      verify:
+        - "bun run i18n:types"
+        - "bunx tsc --noEmit"
+        - "node scripts/check-i18n.js"
+        - "bunx oxlint --quiet"
+        - "git diff --check"
+        - "Targeted Agent Manager Go tests if package dependencies are available."
+      stop_if:
+        - "JourneyKits API response shape changes enough that install cannot be safely normalized."
+        - "Need publisher credentials or private JourneyKits access."
+        - "Need files outside allowed_files beyond mechanical generated i18n output."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Execute the first JourneyKits integration slice selected by Judge."
+    allowed_files:
+      - "src/common/types/journeyKits.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/fsBridge.ts"
+      - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+      - "src/renderer/services/i18n/locales/en-US/settings.json"
+      - "src/renderer/services/i18n/i18n-keys.d.ts"
+      - "apps/agent-manager/server/internal/handler/skill.go"
+      - "apps/agent-manager/server/internal/handler/agent_template.go"
+      - "apps/agent-manager/packages/views/skills/components/create-skill-dialog.tsx"
+      - "apps/agent-manager/packages/views/skills/components/skill-columns.tsx"
+      - "apps/agent-manager/packages/views/skills/components/skill-detail-page.tsx"
+      - "apps/agent-manager/packages/views/skills/lib/origin.ts"
+      - "apps/agent-manager/packages/views/locales/en/skills.json"
+      - "docs/goals/journeykits-skills-discovery/state.yaml"
+    verify:
+      - "bun run i18n:types"
+      - "bunx tsc --noEmit"
+      - "node scripts/check-i18n.js"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Targeted Agent Manager Go tests if package dependencies are available."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "JourneyKits source behavior is not verified."
+      - "Credentials or publisher account access is required."
+      - "Verification fails twice."
+      - "Existing Skills Hub, skill-installer, or whitelabel behavior regresses."
+    receipt:
+      result: done
+      summary: "Implemented the first JourneyKits slice. Agent Club Skills Hub now searches public JourneyKits via the main-process IPC bridge and installs selected skill.zip archives into the existing user skills directory, then refreshes normal skills so assistant/agent selection sees them. Agent Manager URL skill import now recognizes JourneyKits URLs, downloads skill.zip bundles, preserves supporting files, and records origin metadata so list/detail screens show JourneyKits provenance."
+      changed_files:
+        - "src/common/types/journeyKits.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/fsBridge.ts"
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+        - "src/renderer/services/i18n/locales/en-US/settings.json"
+        - "src/renderer/services/i18n/i18n-keys.d.ts"
+        - "apps/agent-manager/server/internal/handler/skill.go"
+        - "apps/agent-manager/server/internal/handler/agent_template.go"
+        - "apps/agent-manager/packages/views/skills/components/create-skill-dialog.tsx"
+        - "apps/agent-manager/packages/views/skills/components/skill-columns.tsx"
+        - "apps/agent-manager/packages/views/skills/components/skill-detail-page.tsx"
+        - "apps/agent-manager/packages/views/skills/lib/origin.ts"
+        - "apps/agent-manager/packages/views/locales/en/skills.json"
+      commands:
+        - command: "go test ./internal/handler -run 'TestFetchFromSkillsSh|TestFetchFromGitHub|TestListSkills' (from apps/agent-manager/server)"
+          status: pass
+        - command: "bun run i18n:types"
+          status: pass
+        - command: "node scripts/check-i18n.js"
+          status: pass
+        - command: "bunx tsc --noEmit"
+          status: pass
+        - command: "bunx oxlint --quiet"
+          status: pass
+          note: "Existing warnings only; 0 errors."
+        - command: "pnpm -C apps/agent-manager typecheck"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+      caveats:
+        - "Publishing/posting is still owner-gated by JourneyKits account/API requirements and needs the next Judge/Worker slice before final completion."
+        - "Composio files are dirty in the repo from a separate goal and were not part of this JourneyKits receipt."
+  - id: T004
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit the first JourneyKits integration slice and select the next install, supported-agent wiring, or post/publish slice."
+    inputs:
+      - "T003 receipt"
+      - "Last verification"
+      - "Current dirty diff"
+      - "T001 Scout evidence"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if only discovery UI exists without install behavior and supported-agent skill availability."
+      - "If publishing is blocked by JourneyKits auth/API constraints, require a documented owner-gated path and continue with safe local work."
+    expected_output:
+      - "slice_complete: true | false"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next Worker or Scout task"
+    receipt:
+      result: done
+      slice_complete: true
+      full_outcome_complete: false
+      decision: "Continue with one small owner-gated publishing slice before GitHub publish/final audit."
+      evidence:
+        - "JourneyKits discovery/install now works through Agent Club Skills Hub and installs into the existing user skill system."
+        - "Agent Manager can import JourneyKits skill URLs into workspace skills, preserving files and JourneyKits origin metadata."
+        - "Existing Agent Manager runtime skill injection remains the path for supported agents once a workspace skill is attached."
+      missing_evidence:
+        - "The app needs an explicit JourneyKits publish/post path or documented owner-gated handoff."
+      next_worker:
+        id: T005
+        objective: "Add a visible owner-gated JourneyKits publish path and docs for importing/installing/publishing."
+        allowed_files:
+          - "apps/agent-manager/apps/docs/content/docs/skills.mdx"
+          - "apps/agent-manager/packages/views/skills/components/skill-detail-page.tsx"
+          - "apps/agent-manager/packages/views/locales/en/skills.json"
+          - "docs/goals/journeykits-skills-discovery/state.yaml"
+        verify:
+          - "pnpm -C apps/agent-manager typecheck"
+          - "git diff --check"
+        stop_if:
+          - "JourneyKits publish requires an API key or authenticated browser session beyond a safe external-console handoff."
+          - "The UI would imply publishing is complete without JourneyKits owner credentials."
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add local JourneyKits repository management: save an optional API key locally, upload local skills/kits, list/delete owned JourneyKits, and document the key requirement without committing secrets."
+    allowed_files:
+      - "src/common/types/journeyKits.ts"
+      - "src/common/config/storage.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/fsBridge.ts"
+      - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+      - "src/renderer/services/i18n/locales/en-US/settings.json"
+      - "src/renderer/services/i18n/i18n-keys.d.ts"
+      - "apps/agent-manager/apps/docs/content/docs/skills.mdx"
+      - "apps/agent-manager/packages/views/skills/components/skill-detail-page.tsx"
+      - "apps/agent-manager/packages/views/locales/en/skills.json"
+      - "docs/goals/journeykits-skills-discovery/state.yaml"
+    verify:
+      - "bun run i18n:types"
+      - "node scripts/check-i18n.js"
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "pnpm -C apps/agent-manager typecheck"
+      - "git diff --check"
+    stop_if:
+      - "JourneyKits API key requirements cannot be represented without storing or exposing secrets unsafely."
+      - "JourneyKits publish API requires an authenticated browser-only flow rather than bearer API key upload."
+      - "The UI would imply publishing is verified without JourneyKits owner credentials."
+    receipt:
+      result: done
+      summary: "Added local JourneyKits repository management while keeping publishing owner-gated. Skills Hub can save a local JourneyKits API key/owner/visibility setting, list owned kits, upload local skills through the JourneyKits import/release APIs, delete owned kits, and still search/install public kits. Skill detail pages and docs now surface the JourneyKits Console and publishing guide, and explain that public discovery/install is anonymous while publish/update/delete requires JourneyKits owner credentials."
+      changed_files:
+        - "src/common/types/journeyKits.ts"
+        - "src/common/config/storage.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/fsBridge.ts"
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+        - "src/renderer/services/i18n/locales/en-US/settings.json"
+        - "src/renderer/services/i18n/i18n-keys.d.ts"
+        - "apps/agent-manager/apps/docs/content/docs/skills.mdx"
+        - "apps/agent-manager/packages/views/skills/components/skill-detail-page.tsx"
+        - "apps/agent-manager/packages/views/locales/en/skills.json"
+      commands:
+        - command: "bun run i18n:types"
+          status: pass
+        - command: "node scripts/check-i18n.js"
+          status: pass
+        - command: "bunx tsc --noEmit"
+          status: pass
+        - command: "bunx oxlint --quiet"
+          status: pass
+          note: "Existing warnings only; 0 errors."
+        - command: "pnpm -C apps/agent-manager typecheck"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+        - command: "Live Electron Playwright/CDP smoke check for JourneyKits and Composio"
+          status: pass
+          note: "JourneyKits discovery/install cards and Composio MCP setup rendered with zero page console errors."
+      owner_gated_publish_path:
+        - "Open JourneyKits Console from a skill detail page."
+        - "Open the JourneyKits publishing guide from a skill detail page."
+        - "Use JourneyKits owner credentials/API key on the JourneyKits side; Agent Club does not store or fake publisher credentials."
+  - id: T998
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: high
+    objective: "Publish the finished JourneyKits integration to GitHub after implementation and verification are complete."
+    inputs:
+      - "All done implementation receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "GitHub remote state"
+    constraints:
+      - "Do not stage unrelated user changes."
+      - "Use an intentional branch and commit message."
+      - "Push only after the JourneyKits integration is verified."
+      - "Open or report the GitHub PR/branch according to repo state and available GitHub credentials."
+    expected_output:
+      - "Staged file scope"
+      - "Commit hash"
+      - "Remote branch"
+      - "PR link or clear push receipt"
+      - "Any files intentionally left unstaged"
+    receipt: null
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Final audit: prove whether the JourneyKits skills discovery, install, and post/publish outcome is complete."
+    inputs:
+      - "All done task receipts"
+      - "T998 GitHub publish receipt"
+      - "Last verification"
+      - "Current dirty diff"
+      - "goal.md"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if discovery, install, supported-agent skill availability, and posting/publishing lack evidence or documented owner-gated blockers."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion unless the final JourneyKits work has been committed and pushed to GitHub."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "mapped evidence for discovery, install, post/publish, and checks"
+      - "pushed commit and remote branch evidence"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: "JourneyKits and Composio integration implemented locally; awaiting GitHub publish receipt."
+  last_verification:
+    result: pass
+    task: T005
+    commands:
+      - "bun run i18n:types"
+      - "node scripts/check-i18n.js"
+      - "go test ./internal/handler (apps/agent-manager/server)"
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "node scripts/build-mcp-servers.js"
+      - "pnpm -C apps/agent-manager typecheck"
+      - "git diff --check"
+      - "Live Electron Playwright/CDP smoke checks for JourneyKits and Composio"

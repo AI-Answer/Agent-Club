@@ -1,6 +1,7 @@
 import { ipcBridge } from '@/common';
+import type { JourneyKitSummary, JourneyKitsConfigPublic, JourneyKitsVisibility } from '@/common/types/journeyKits';
 import { Button, Message, Modal, Typography, Input, Dropdown, Menu } from '@arco-design/web-react';
-import { Delete, FolderOpen, Info, Lightning, Puzzle, Search, Plus, Refresh } from '@icon-park/react';
+import { Delete, Download, FolderOpen, Info, Lightning, Puzzle, Search, Plus, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
@@ -63,6 +64,18 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   const [customPathValue, setCustomPathValue] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [builtinAutoSkills, setBuiltinAutoSkills] = useState<Array<{ name: string; description: string }>>([]);
+  const [journeyKits, setJourneyKits] = useState<JourneyKitSummary[]>([]);
+  const [journeyQuery, setJourneyQuery] = useState('');
+  const [journeyLoading, setJourneyLoading] = useState(false);
+  const [journeyInstalling, setJourneyInstalling] = useState<string | null>(null);
+  const [journeyConfig, setJourneyConfig] = useState<JourneyKitsConfigPublic | null>(null);
+  const [journeyApiKey, setJourneyApiKey] = useState('');
+  const [journeyAuthor, setJourneyAuthor] = useState('');
+  const [journeyVisibility, setJourneyVisibility] = useState<JourneyKitsVisibility>('public');
+  const [journeySavingConfig, setJourneySavingConfig] = useState(false);
+  const [journeyOwnedKits, setJourneyOwnedKits] = useState<JourneyKitSummary[]>([]);
+  const [journeyOwnedLoading, setJourneyOwnedLoading] = useState(false);
+  const [journeyPublishingSkill, setJourneyPublishingSkill] = useState<string | null>(null);
 
   const mySkills = useMemo(() => availableSkills.filter((s) => s.source !== 'extension'), [availableSkills]);
   const extensionSkills = useMemo(() => availableSkills.filter((s) => s.source === 'extension'), [availableSkills]);
@@ -106,6 +119,74 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  const fetchJourneyKits = useCallback(
+    async (query = '') => {
+      setJourneyLoading(true);
+      try {
+        const result = await ipcBridge.fs.searchJourneyKits.invoke({
+          query,
+          limit: 12,
+          sort: 'popular',
+        });
+        if (result.success && result.data) {
+          setJourneyKits(result.data.kits);
+        } else {
+          Message.error(
+            result.msg || t('settings.skillsHub.journeyKitsSearchFailed', { defaultValue: 'Failed to load JourneyKits' })
+          );
+        }
+      } catch (error) {
+        console.error('Failed to search JourneyKits:', error);
+        Message.error(t('settings.skillsHub.journeyKitsSearchFailed', { defaultValue: 'Failed to load JourneyKits' }));
+      } finally {
+        setJourneyLoading(false);
+      }
+    },
+    [t]
+  );
+
+  useEffect(() => {
+    void fetchJourneyKits('');
+  }, [fetchJourneyKits]);
+
+  const fetchJourneyOwnedKits = useCallback(async () => {
+    setJourneyOwnedLoading(true);
+    try {
+      const result = await ipcBridge.fs.listJourneyKitsOwned.invoke({ limit: 24, offset: 0 });
+      if (result.success && result.data) {
+        setJourneyOwnedKits(result.data.kits);
+      } else {
+        setJourneyOwnedKits([]);
+        if (result.msg) Message.error(result.msg);
+      }
+    } catch (error) {
+      console.error('Failed to load owned JourneyKits:', error);
+      Message.error(t('settings.skillsHub.journeyKitsOwnedFailed', { defaultValue: 'Failed to load your JourneyKits' }));
+    } finally {
+      setJourneyOwnedLoading(false);
+    }
+  }, [t]);
+
+  const fetchJourneyConfig = useCallback(async () => {
+    try {
+      const result = await ipcBridge.fs.getJourneyKitsConfig.invoke();
+      if (result.success && result.data) {
+        setJourneyConfig(result.data);
+        setJourneyAuthor(result.data.author);
+        setJourneyVisibility(result.data.visibility);
+        if (result.data.hasApiKey) {
+          void fetchJourneyOwnedKits();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load JourneyKits config:', error);
+    }
+  }, [fetchJourneyOwnedKits]);
+
+  useEffect(() => {
+    void fetchJourneyConfig();
+  }, [fetchJourneyConfig]);
 
   // Scroll to and highlight a skill when navigated with ?highlight=skillName
   useEffect(() => {
@@ -191,6 +272,190 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
     }
   };
 
+  const handleJourneySearch = useCallback(() => {
+    void fetchJourneyKits(journeyQuery.trim());
+  }, [fetchJourneyKits, journeyQuery]);
+
+  const handleInstallJourneyKit = useCallback(
+    async (kit: JourneyKitSummary) => {
+      setJourneyInstalling(kit.kitRef);
+      try {
+        const result = await ipcBridge.fs.installJourneyKit.invoke({
+          owner: kit.owner,
+          slug: kit.slug,
+        });
+        if (result.success && result.data) {
+          if (result.data.alreadyExists) {
+            Message.warning(
+              t('settings.skillsHub.journeyKitAlreadyInstalled', {
+                name: result.data.skillName,
+                defaultValue: `Skill "${result.data.skillName}" already exists`,
+              })
+            );
+          } else {
+            Message.success(
+              t('settings.skillsHub.journeyKitInstallSuccess', {
+                name: result.data.skillName,
+                defaultValue: `Installed "${result.data.skillName}"`,
+              })
+            );
+          }
+          void fetchData();
+        } else {
+          Message.error(
+            result.msg ||
+              t('settings.skillsHub.journeyKitInstallFailed', { defaultValue: 'Failed to install JourneyKit' })
+          );
+        }
+      } catch (error) {
+        console.error('Failed to install JourneyKit:', error);
+        Message.error(t('settings.skillsHub.journeyKitInstallFailed', { defaultValue: 'Failed to install JourneyKit' }));
+      } finally {
+        setJourneyInstalling(null);
+      }
+    },
+    [fetchData, t]
+  );
+
+  const handleSaveJourneyConfig = useCallback(async () => {
+    setJourneySavingConfig(true);
+    try {
+      const result = await ipcBridge.fs.saveJourneyKitsConfig.invoke({
+        apiKey: journeyApiKey.trim() || undefined,
+        author: journeyAuthor.trim(),
+        visibility: journeyVisibility,
+      });
+      if (result.success && result.data) {
+        setJourneyConfig(result.data);
+        setJourneyAuthor(result.data.author);
+        setJourneyVisibility(result.data.visibility);
+        setJourneyApiKey('');
+        Message.success(t('settings.skillsHub.journeyKitsConfigSaved', { defaultValue: 'JourneyKits settings saved' }));
+        if (result.data.hasApiKey) {
+          void fetchJourneyOwnedKits();
+        }
+      } else {
+        Message.error(
+          result.msg ||
+            t('settings.skillsHub.journeyKitsConfigSaveFailed', { defaultValue: 'Failed to save JourneyKits settings' })
+        );
+      }
+    } catch (error) {
+      console.error('Failed to save JourneyKits config:', error);
+      Message.error(
+        t('settings.skillsHub.journeyKitsConfigSaveFailed', { defaultValue: 'Failed to save JourneyKits settings' })
+      );
+    } finally {
+      setJourneySavingConfig(false);
+    }
+  }, [fetchJourneyOwnedKits, journeyApiKey, journeyAuthor, journeyVisibility, t]);
+
+  const handleClearJourneyKey = useCallback(async () => {
+    setJourneySavingConfig(true);
+    try {
+      const result = await ipcBridge.fs.saveJourneyKitsConfig.invoke({
+        clearApiKey: true,
+        author: journeyAuthor.trim(),
+        visibility: journeyVisibility,
+      });
+      if (result.success && result.data) {
+        setJourneyConfig(result.data);
+        setJourneyApiKey('');
+        setJourneyOwnedKits([]);
+        Message.success(t('settings.skillsHub.journeyKitsKeyCleared', { defaultValue: 'JourneyKits key removed' }));
+      } else {
+        Message.error(result.msg || t('settings.skillsHub.journeyKitsKeyClearFailed', { defaultValue: 'Failed to remove key' }));
+      }
+    } catch (error) {
+      console.error('Failed to clear JourneyKits key:', error);
+      Message.error(t('settings.skillsHub.journeyKitsKeyClearFailed', { defaultValue: 'Failed to remove key' }));
+    } finally {
+      setJourneySavingConfig(false);
+    }
+  }, [journeyAuthor, journeyVisibility, t]);
+
+  const handlePublishSkillToJourneyKits = useCallback(
+    async (skill: SkillInfo) => {
+      if (!journeyConfig?.hasApiKey && !journeyApiKey.trim()) {
+        Message.warning(
+          t('settings.skillsHub.journeyKitsMissingKey', {
+            defaultValue: 'Add and save a JourneyKits API key before uploading.',
+          })
+        );
+        return;
+      }
+      if (!journeyAuthor.trim()) {
+        Message.warning(
+          t('settings.skillsHub.journeyKitsMissingAuthor', {
+            defaultValue: 'Add your JourneyKits author or owner before uploading.',
+          })
+        );
+        return;
+      }
+
+      setJourneyPublishingSkill(skill.name);
+      try {
+        const result = await ipcBridge.fs.publishJourneyKitSkill.invoke({
+          skillName: skill.name,
+          skillPath: skill.location,
+          author: journeyAuthor.trim(),
+          visibility: journeyVisibility,
+        });
+        if (result.success && result.data) {
+          Message.success(
+            t('settings.skillsHub.journeyKitsPublishSuccess', {
+              name: skill.name,
+              defaultValue: `Uploaded "${skill.name}" to JourneyKits`,
+            })
+          );
+          void fetchJourneyOwnedKits();
+        } else {
+          Message.error(
+            result.msg ||
+              t('settings.skillsHub.journeyKitsPublishFailed', {
+                defaultValue: 'Failed to upload to JourneyKits',
+              })
+          );
+        }
+      } catch (error) {
+        console.error('Failed to publish skill to JourneyKits:', error);
+        Message.error(t('settings.skillsHub.journeyKitsPublishFailed', { defaultValue: 'Failed to upload to JourneyKits' }));
+      } finally {
+        setJourneyPublishingSkill(null);
+      }
+    },
+    [fetchJourneyOwnedKits, journeyApiKey, journeyAuthor, journeyConfig?.hasApiKey, journeyVisibility, t]
+  );
+
+  const handleOpenJourneyKit = useCallback((kit: JourneyKitSummary) => {
+    void ipcBridge.shell.openExternal.invoke(
+      `https://www.journeykits.ai/browse/kits/${encodeURIComponent(kit.owner)}/${encodeURIComponent(kit.slug)}`
+    );
+  }, []);
+
+  const handleDeleteJourneyKit = useCallback(
+    (kit: JourneyKitSummary) => {
+      Modal.confirm({
+        title: t('settings.skillsHub.journeyKitsDeleteConfirmTitle', { defaultValue: 'Delete JourneyKit' }),
+        content: t('settings.skillsHub.journeyKitsDeleteConfirmContent', {
+          name: kit.kitRef,
+          defaultValue: `Delete "${kit.kitRef}" from your JourneyKits repository?`,
+        }),
+        okButtonProps: { status: 'danger' },
+        onOk: async () => {
+          const result = await ipcBridge.fs.deleteJourneyKitOwned.invoke({ owner: kit.owner, slug: kit.slug });
+          if (result.success) {
+            Message.success(result.msg || t('settings.skillsHub.journeyKitsDeleteSuccess', { defaultValue: 'JourneyKit deleted' }));
+            void fetchJourneyOwnedKits();
+          } else {
+            Message.error(result.msg || t('settings.skillsHub.journeyKitsDeleteFailed', { defaultValue: 'Failed to delete JourneyKit' }));
+          }
+        },
+      });
+    },
+    [fetchJourneyOwnedKits, t]
+  );
+
   const handleRefreshExternal = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -245,6 +510,262 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   const mainContent = (
     <div className='flex flex-col h-full w-full'>
       <div className='space-y-16px pb-24px'>
+        {/* ======== JourneyKits ======== */}
+        <div className='px-[16px] md:px-[32px] py-32px bg-base rd-16px md:rd-24px mb-16px shadow-sm border border-b-base relative overflow-hidden transition-all'>
+          <div className='flex flex-col lg:flex-row lg:items-start justify-between gap-16px mb-24px relative z-10 w-full'>
+            <div className='flex flex-col'>
+              <div className='flex items-center gap-10px mb-8px'>
+                <span className='text-16px md:text-18px text-t-primary font-bold tracking-tight'>
+                  {t('settings.skillsHub.journeyKitsTitle', { defaultValue: 'JourneyKits' })}
+                </span>
+                <span className='bg-[rgba(var(--primary-6),0.08)] text-primary-6 text-12px px-10px py-2px rd-[100px] font-medium ml-4px'>
+                  {journeyKits.length}
+                </span>
+                <button
+                  className='outline-none border-none bg-transparent cursor-pointer p-6px text-t-tertiary hover:text-primary-6 transition-colors rd-full hover:bg-fill-2 ml-4px'
+                  onClick={() => void fetchJourneyKits(journeyQuery.trim())}
+                  title={t('common.refresh', { defaultValue: 'Refresh' })}
+                >
+                  <Refresh theme='outline' size={16} className={journeyLoading ? 'animate-spin' : ''} />
+                </button>
+              </div>
+              <Typography.Text className='text-13px text-t-secondary block max-w-xl leading-relaxed'>
+                {t('settings.skillsHub.journeyKitsSubtitle', {
+                  defaultValue: 'Search public JourneyKits and install compatible skills into Agent Club.',
+                })}
+              </Typography.Text>
+            </div>
+
+            <div className='flex items-center gap-8px shrink-0 w-full lg:w-auto'>
+              <div className='relative group flex-1 lg:w-[280px]'>
+                <div className='absolute left-12px top-1/2 -translate-y-1/2 text-t-tertiary group-focus-within:text-primary-6 flex pointer-events-none transition-colors'>
+                  <Search size={15} />
+                </div>
+                <input
+                  type='text'
+                  className='w-full bg-fill-1 hover:bg-fill-2 border border-border-1 focus:border-primary-5 focus:bg-base outline-none rd-8px py-6px pl-36px pr-12px text-13px text-t-primary placeholder:text-t-tertiary transition-all shadow-sm box-border m-0'
+                  placeholder={t('settings.skillsHub.journeyKitsSearchPlaceholder', {
+                    defaultValue: 'Search JourneyKits...',
+                  })}
+                  value={journeyQuery}
+                  onChange={(e) => setJourneyQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleJourneySearch();
+                  }}
+                />
+              </div>
+              <Button
+                type='primary'
+                className='rd-8px shrink-0'
+                loading={journeyLoading}
+                onClick={handleJourneySearch}
+              >
+                {t('settings.skillsHub.searchJourneyKits', { defaultValue: 'Search' })}
+              </Button>
+            </div>
+          </div>
+
+          <div className='mb-20px grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] gap-12px relative z-10'>
+            <div className='bg-fill-1 border border-border-1 rd-12px p-14px flex flex-col gap-12px'>
+              <div className='flex items-center justify-between gap-12px flex-wrap'>
+                <div>
+                  <div className='text-13px font-semibold text-t-primary'>
+                    {t('settings.skillsHub.journeyKitsRepoTitle', { defaultValue: 'JourneyKits Repository' })}
+                  </div>
+                  <div className='text-12px text-t-secondary mt-2px'>
+                    {journeyConfig?.hasApiKey
+                      ? t('settings.skillsHub.journeyKitsKeySaved', {
+                          key: journeyConfig.keyPrefix || '',
+                          defaultValue: journeyConfig.keyPrefix
+                            ? `API key saved (${journeyConfig.keyPrefix})`
+                            : 'API key saved',
+                        })
+                      : t('settings.skillsHub.journeyKitsKeyNeeded', {
+                          defaultValue: 'Add a JourneyKits key to upload and manage your own kits.',
+                        })}
+                  </div>
+                </div>
+                <div className='flex items-center gap-8px'>
+                  <Button
+                    size='small'
+                    className='rd-8px'
+                    loading={journeyOwnedLoading}
+                    disabled={!journeyConfig?.hasApiKey}
+                    onClick={() => void fetchJourneyOwnedKits()}
+                  >
+                    {t('settings.skillsHub.refreshMyKits', { defaultValue: 'Refresh My Kits' })}
+                  </Button>
+                  {journeyConfig?.hasApiKey && (
+                    <Button size='small' className='rd-8px' status='danger' onClick={() => void handleClearJourneyKey()}>
+                      {t('settings.skillsHub.clearKey', { defaultValue: 'Clear Key' })}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className='grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px_auto] gap-10px items-end'>
+                <div className='flex flex-col gap-6px'>
+                  <label className='text-12px font-medium text-t-secondary'>
+                    {t('settings.skillsHub.journeyKitsAuthor', { defaultValue: 'Author / Owner' })}
+                  </label>
+                  <Input
+                    value={journeyAuthor}
+                    onChange={setJourneyAuthor}
+                    placeholder={t('settings.skillsHub.journeyKitsAuthorPlaceholder', {
+                      defaultValue: 'your JourneyKits owner',
+                    })}
+                    className='rd-8px'
+                  />
+                </div>
+                <div className='flex flex-col gap-6px'>
+                  <label className='text-12px font-medium text-t-secondary'>
+                    {t('settings.skillsHub.journeyKitsApiKey', { defaultValue: 'API Key' })}
+                  </label>
+                  <Input.Password
+                    value={journeyApiKey}
+                    visibilityToggle
+                    onChange={setJourneyApiKey}
+                    placeholder={
+                      journeyConfig?.hasApiKey
+                        ? t('settings.skillsHub.journeyKitsApiKeyRotate', {
+                            defaultValue: 'Saved. Enter a new key to rotate.',
+                          })
+                        : t('settings.skillsHub.journeyKitsApiKeyPlaceholder', {
+                            defaultValue: 'JourneyKits API key',
+                          })
+                    }
+                    className='rd-8px'
+                  />
+                </div>
+                <div className='flex flex-col gap-6px'>
+                  <label className='text-12px font-medium text-t-secondary'>
+                    {t('settings.skillsHub.journeyKitsVisibility', { defaultValue: 'Visibility' })}
+                  </label>
+                  <select
+                    value={journeyVisibility}
+                    onChange={(event) => setJourneyVisibility(event.target.value as JourneyKitsVisibility)}
+                    className='h-32px bg-base border border-border-1 text-t-primary rd-8px px-10px text-13px outline-none'
+                  >
+                    <option value='public'>
+                      {t('settings.skillsHub.journeyKitsVisibilityPublic', { defaultValue: 'Public' })}
+                    </option>
+                    <option value='private'>
+                      {t('settings.skillsHub.journeyKitsVisibilityPrivate', { defaultValue: 'Private' })}
+                    </option>
+                  </select>
+                </div>
+                <Button
+                  type='primary'
+                  className='rd-8px'
+                  loading={journeySavingConfig}
+                  onClick={() => void handleSaveJourneyConfig()}
+                >
+                  {t('common.save', { defaultValue: 'Save' })}
+                </Button>
+              </div>
+            </div>
+
+            <div className='bg-fill-1 border border-border-1 rd-12px p-14px min-h-[128px] flex flex-col gap-10px'>
+              <div className='flex items-center justify-between gap-10px'>
+                <div className='text-13px font-semibold text-t-primary'>
+                  {t('settings.skillsHub.myJourneyKitsTitle', { defaultValue: 'My JourneyKits' })}
+                </div>
+                <span className='text-12px text-t-tertiary'>{journeyOwnedKits.length}</span>
+              </div>
+              {journeyOwnedKits.length > 0 ? (
+                <div className='flex flex-col gap-6px max-h-[180px] overflow-y-auto custom-scrollbar pr-2px'>
+                  {journeyOwnedKits.map((kit) => (
+                    <div key={kit.kitRef} className='bg-base border border-border-1 rd-8px p-10px flex gap-10px'>
+                      <div className='flex-1 min-w-0'>
+                        <div className='text-13px font-medium text-t-primary truncate'>{kit.title}</div>
+                        <div className='text-12px text-t-tertiary font-mono truncate'>{kit.kitRef}</div>
+                      </div>
+                      <div className='flex items-center gap-6px shrink-0'>
+                        <Button size='mini' className='rd-6px' onClick={() => handleOpenJourneyKit(kit)}>
+                          {t('common.open', { defaultValue: 'Open' })}
+                        </Button>
+                        <Button size='mini' status='danger' className='rd-6px' onClick={() => handleDeleteJourneyKit(kit)}>
+                          {t('common.delete', { defaultValue: 'Delete' })}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className='flex-1 min-h-[74px] flex items-center justify-center text-center text-12px text-t-secondary border border-dashed border-border-1 rd-8px px-12px'>
+                  {journeyConfig?.hasApiKey
+                    ? t('settings.skillsHub.noOwnedJourneyKits', { defaultValue: 'No owned JourneyKits loaded yet.' })
+                    : t('settings.skillsHub.saveKeyForOwnedJourneyKits', {
+                        defaultValue: 'Save a key to load, upload, and manage your kits.',
+                      })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className='max-h-[360px] overflow-y-auto custom-scrollbar flex flex-col gap-6px pr-4px'>
+            {journeyKits.map((kit) => {
+              const installing = journeyInstalling === kit.kitRef;
+              return (
+                <div
+                  key={kit.kitRef}
+                  className='group flex flex-col sm:flex-row gap-16px p-16px bg-base border hover:border-border-1 hover:bg-fill-1 hover:shadow-sm rd-12px transition-all duration-200 border-transparent'
+                >
+                  <div className='shrink-0 flex items-start sm:mt-2px'>
+                    <div className='w-40px h-40px rd-10px bg-[rgba(var(--primary-6),0.08)] flex items-center justify-center shadow-sm text-primary-6'>
+                      <Puzzle theme='filled' size={20} fill='rgb(var(--primary-6))' />
+                    </div>
+                  </div>
+                  <div className='flex-1 min-w-0 flex flex-col justify-center gap-6px'>
+                    <div className='flex items-center gap-8px flex-wrap min-w-0'>
+                      <h3 className='text-14px font-semibold text-t-primary/90 truncate m-0'>{kit.title}</h3>
+                      {kit.setupDifficulty && (
+                        <span className='bg-fill-2 text-t-secondary text-11px px-6px py-1px rd-4px font-medium'>
+                          {kit.setupDifficulty}
+                        </span>
+                      )}
+                      {kit.releaseTag && (
+                        <span className='bg-[rgba(var(--success-6),0.08)] text-[rgb(var(--success-6))] text-11px px-6px py-1px rd-4px font-medium'>
+                          {kit.releaseTag}
+                        </span>
+                      )}
+                    </div>
+                    {kit.summary && (
+                      <p className='text-13px text-t-secondary leading-relaxed line-clamp-2 m-0' title={kit.summary}>
+                        {kit.summary}
+                      </p>
+                    )}
+                    <div className='flex items-center gap-8px text-12px text-t-tertiary font-mono min-w-0'>
+                      <span className='truncate'>{kit.kitRef}</span>
+                      {typeof kit.installCount === 'number' && <span>{kit.installCount.toLocaleString()} installs</span>}
+                    </div>
+                  </div>
+                  <div className='shrink-0 sm:self-center flex items-center mt-8px sm:mt-0'>
+                    <Button
+                      size='small'
+                      type='primary'
+                      loading={installing}
+                      disabled={Boolean(journeyInstalling && !installing)}
+                      onClick={() => void handleInstallJourneyKit(kit)}
+                      className='rd-[100px] shadow-sm px-16px'
+                      icon={<Download size={14} />}
+                    >
+                      {t('settings.skillsHub.install', { defaultValue: 'Install' })}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            {journeyKits.length === 0 && (
+              <div className='text-center text-t-secondary text-13px py-40px bg-fill-1 rd-12px border border-b-base border-dashed'>
+                {journeyLoading
+                  ? t('common.loading', { defaultValue: 'Please wait...' })
+                  : t('settings.skillsHub.noJourneyKits', { defaultValue: 'No JourneyKits found' })}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* ======== Discovered External Skills ======== */}
         {totalExternal > 0 && (
           <div className='px-[16px] md:px-[32px] py-32px bg-base rd-16px md:rd-24px mb-16px shadow-sm border border-b-base relative overflow-hidden transition-all'>
@@ -489,6 +1010,18 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                   </div>
 
                   <div className='shrink-0 sm:self-center flex items-center justify-end gap-6px mt-12px sm:mt-0 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity pl-4px'>
+                    <Button
+                      size='small'
+                      className='rd-[100px] shadow-sm px-12px'
+                      loading={journeyPublishingSkill === skill.name}
+                      disabled={Boolean(journeyPublishingSkill && journeyPublishingSkill !== skill.name)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handlePublishSkillToJourneyKits(skill);
+                      }}
+                    >
+                      {t('settings.skillsHub.uploadToJourneyKits', { defaultValue: 'Upload' })}
+                    </Button>
                     {externalSources.length > 0 && (
                       <Dropdown
                         trigger='click'

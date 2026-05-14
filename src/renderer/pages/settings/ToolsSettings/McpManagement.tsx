@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { type IMcpServer, BUILTIN_IMAGE_GEN_ID } from '@/common/config/storage';
 import { acpConversation } from '@/common/adapter/ipcBridge';
 import AddMcpServerModal from '../components/AddMcpServerModal';
+import ComposioMcpSetup from './ComposioMcpSetup';
 import McpServerItem from './McpServerItem';
 import {
   useMcpServers,
@@ -269,6 +270,7 @@ const McpManagement: React.FC<McpManagementProps> = ({ message }) => {
         name={'mcp-servers'}
       >
         <div>
+          <ComposioMcpSetup mcpServers={mcpServers} onSaveServer={wrappedHandleAddMcpServer} />
           {visibleMcpServers.length === 0 && extensionMcpServers.length === 0 ? (
             <div className='text-center py-8 text-t-secondary'>{t('settings.mcpNoServersFound')}</div>
           ) : (

@@ -24,6 +24,20 @@ import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../uti
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
 import type { AgentManagerStatus } from '../types/agentManager';
 import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from '../types/memory';
+import type { ComposioToolRouterSetupRequest, ComposioToolRouterSetupResult } from '../types/composio';
+import type {
+  JourneyKitsConfigPublic,
+  JourneyKitsConfigSaveRequest,
+  JourneyKitsDeleteRequest,
+  JourneyKitsInstallRequest,
+  JourneyKitsInstallResult,
+  JourneyKitsOwnKitsRequest,
+  JourneyKitsOwnKitsResult,
+  JourneyKitsPublishResult,
+  JourneyKitsPublishSkillRequest,
+  JourneyKitsSearchRequest,
+  JourneyKitsSearchResult,
+} from '../types/journeyKits';
 
 export const shell = {
   openFile: bridge.buildProvider<void, string>('open-file'), // 使用系统默认程序打开文件
@@ -346,6 +360,26 @@ export const fs = {
   // Skills Market: inject/remove the aionui-skills builtin skill
   enableSkillsMarket: bridge.buildProvider<IBridgeResponse, void>('enable-skills-market'),
   disableSkillsMarket: bridge.buildProvider<IBridgeResponse, void>('disable-skills-market'),
+  // JourneyKits: discover and install compatible skills
+  searchJourneyKits: bridge.buildProvider<IBridgeResponse<JourneyKitsSearchResult>, JourneyKitsSearchRequest>(
+    'journey-kits.search'
+  ),
+  installJourneyKit: bridge.buildProvider<IBridgeResponse<JourneyKitsInstallResult>, JourneyKitsInstallRequest>(
+    'journey-kits.install'
+  ),
+  getJourneyKitsConfig: bridge.buildProvider<IBridgeResponse<JourneyKitsConfigPublic>, void>(
+    'journey-kits.config.get'
+  ),
+  saveJourneyKitsConfig: bridge.buildProvider<IBridgeResponse<JourneyKitsConfigPublic>, JourneyKitsConfigSaveRequest>(
+    'journey-kits.config.save'
+  ),
+  listJourneyKitsOwned: bridge.buildProvider<IBridgeResponse<JourneyKitsOwnKitsResult>, JourneyKitsOwnKitsRequest>(
+    'journey-kits.owned.list'
+  ),
+  publishJourneyKitSkill: bridge.buildProvider<IBridgeResponse<JourneyKitsPublishResult>, JourneyKitsPublishSkillRequest>(
+    'journey-kits.skill.publish'
+  ),
+  deleteJourneyKitOwned: bridge.buildProvider<IBridgeResponse, JourneyKitsDeleteRequest>('journey-kits.owned.delete'),
 };
 
 export const speechToText = {
@@ -551,6 +585,10 @@ export const mcpService = {
     IBridgeResponse<{ success: boolean; results: Array<{ agent: string; success: boolean; error?: string }> }>,
     { mcpServerName: string; agents: Array<{ backend: string; name: string; cliPath?: string }> }
   >('mcp.remove-from-agents'),
+  createComposioToolRouterSession: bridge.buildProvider<
+    IBridgeResponse<ComposioToolRouterSetupResult>,
+    ComposioToolRouterSetupRequest
+  >('mcp.composio.create-tool-router-session'),
   // OAuth 相关接口
   checkOAuthStatus: bridge.buildProvider<
     IBridgeResponse<{ isAuthenticated: boolean; needsLogin: boolean; error?: string }>,

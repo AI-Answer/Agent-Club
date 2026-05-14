@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -623,6 +625,7 @@ const (
 	sourceClawHub importSource = iota
 	sourceSkillsSh
 	sourceGitHub
+	sourceJourneyKits
 )
 
 // detectImportSource determines the source from a URL.
@@ -651,12 +654,14 @@ func detectImportSource(raw string) (importSource, string, error) {
 		return sourceClawHub, normalized, nil
 	case host == "github.com" || host == "www.github.com":
 		return sourceGitHub, normalized, nil
+	case host == "journeykits.ai" || host == "www.journeykits.ai":
+		return sourceJourneyKits, normalized, nil
 	default:
 		// If no host (bare slug), default to clawhub
 		if !strings.Contains(raw, "/") || !strings.Contains(raw, ".") {
 			return sourceClawHub, raw, nil
 		}
-		return 0, "", fmt.Errorf("unsupported source: %s (supported: clawhub.ai, skills.sh, github.com)", host)
+		return 0, "", fmt.Errorf("unsupported source: %s (supported: clawhub.ai, skills.sh, github.com, journeykits.ai)", host)
 	}
 }
 
@@ -914,6 +919,164 @@ func fetchFromSkillsSh(httpClient *http.Client, rawURL string) (*importedSkill, 
 		}
 		// Convert absolute GitHub path to relative path within skill
 		relPath := strings.TrimPrefix(entry.Path, basePath)
+		if err := result.addFile(relPath, string(body)); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+// --- JourneyKits import ---
+
+func parseJourneyKitsRef(raw string) (owner, slug string, err error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid URL: %w", err)
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+
+	if len(parts) >= 4 && parts[0] == "api" && parts[1] == "kits" {
+		return parts[2], parts[3], nil
+	}
+	if len(parts) >= 3 && (parts[0] == "kits" || parts[0] == "kit") {
+		return parts[1], parts[2], nil
+	}
+	if len(parts) >= 4 && parts[0] == "browse" && parts[1] == "kits" {
+		return parts[2], parts[3], nil
+	}
+	if len(parts) >= 2 && parts[0] != "" && parts[1] != "" {
+		return parts[0], parts[1], nil
+	}
+
+	return "", "", fmt.Errorf("expected JourneyKits URL format: journeykits.ai/kits/{owner}/{slug}")
+}
+
+func normalizeJourneyKitArchivePath(name, rootPrefix string) (string, bool) {
+	name = filepath.ToSlash(name)
+	if rootPrefix != "" && strings.HasPrefix(name, rootPrefix) {
+		name = strings.TrimPrefix(name, rootPrefix)
+	}
+	cleaned := filepath.Clean(filepath.FromSlash(strings.TrimLeft(name, "/")))
+	if cleaned == "." || filepath.IsAbs(cleaned) || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) || cleaned == ".." {
+		return "", false
+	}
+	return filepath.ToSlash(cleaned), true
+}
+
+func readJourneyKitZipFile(file *zip.File) ([]byte, error) {
+	rc, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	body, err := io.ReadAll(io.LimitReader(rc, maxImportFileSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxImportFileSize {
+		return nil, fmt.Errorf("%w: file exceeds %d byte limit", errImportCapExceeded, maxImportFileSize)
+	}
+	return body, nil
+}
+
+func fetchJourneyKitArchive(httpClient *http.Client, archiveURL string) ([]byte, error) {
+	resp, err := httpClient.Get(archiveURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxImportTotalSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxImportTotalSize {
+		return nil, fmt.Errorf("%w: archive exceeds %d byte limit", errImportCapExceeded, maxImportTotalSize)
+	}
+	return body, nil
+}
+
+func fetchFromJourneyKits(httpClient *http.Client, rawURL string) (*importedSkill, error) {
+	owner, slug, err := parseJourneyKitsRef(rawURL)
+	if err != nil {
+		return nil, err
+	}
+
+	archiveURL := fmt.Sprintf("https://www.journeykits.ai/api/kits/%s/%s/skill.zip",
+		url.PathEscape(owner), url.PathEscape(slug))
+	archiveBody, err := fetchJourneyKitArchive(httpClient, archiveURL)
+	if err != nil {
+		return nil, fmt.Errorf("journeykits import: failed to download skill archive: %w", err)
+	}
+
+	reader, err := zip.NewReader(bytes.NewReader(archiveBody), int64(len(archiveBody)))
+	if err != nil {
+		return nil, fmt.Errorf("journeykits import: invalid skill archive: %w", err)
+	}
+
+	var skillFile *zip.File
+	for _, file := range reader.File {
+		name := filepath.ToSlash(file.Name)
+		if name == "SKILL.md" {
+			skillFile = file
+			break
+		}
+		if skillFile == nil && strings.HasSuffix(name, "/SKILL.md") {
+			skillFile = file
+		}
+	}
+	if skillFile == nil {
+		return nil, fmt.Errorf("journeykits import: SKILL.md not found in archive")
+	}
+
+	skillMdBody, err := readJourneyKitZipFile(skillFile)
+	if err != nil {
+		return nil, fmt.Errorf("journeykits import: SKILL.md: %w", err)
+	}
+
+	name, description := parseSkillFrontmatter(string(skillMdBody))
+	if name == "" {
+		name = slug
+	}
+
+	result := &importedSkill{
+		name:        name,
+		description: description,
+		content:     string(skillMdBody),
+		origin: map[string]any{
+			"type":       "journeykits",
+			"source_url": rawURL,
+			"owner":      owner,
+			"slug":       slug,
+			"kit_ref":    owner + "/" + slug,
+		},
+	}
+
+	rootPrefix := ""
+	skillPath := filepath.ToSlash(skillFile.Name)
+	if skillPath != "SKILL.md" && strings.HasSuffix(skillPath, "/SKILL.md") {
+		rootPrefix = strings.TrimSuffix(skillPath, "SKILL.md")
+	}
+
+	for _, file := range reader.File {
+		if file.FileInfo().IsDir() {
+			continue
+		}
+		relPath, ok := normalizeJourneyKitArchivePath(file.Name, rootPrefix)
+		if !ok || strings.EqualFold(relPath, "SKILL.md") {
+			continue
+		}
+		body, err := readJourneyKitZipFile(file)
+		if err != nil {
+			if isCapError(err) {
+				return nil, fmt.Errorf("journeykits import: %s: %w", relPath, err)
+			}
+			slog.Warn("journeykits import: file download failed", "path", relPath, "error", err)
+			continue
+		}
 		if err := result.addFile(relPath, string(body)); err != nil {
 			return nil, err
 		}
@@ -1614,6 +1777,8 @@ func (h *Handler) ImportSkill(w http.ResponseWriter, r *http.Request) {
 		imported, err = fetchFromSkillsSh(httpClient, normalized)
 	case sourceGitHub:
 		imported, err = fetchFromGitHub(httpClient, normalized)
+	case sourceJourneyKits:
+		imported, err = fetchFromJourneyKits(httpClient, normalized)
 	}
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())

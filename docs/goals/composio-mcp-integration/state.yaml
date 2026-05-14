@@ -1,0 +1,284 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Composio MCP Integration"
+  slug: "composio-mcp-integration"
+  kind: specific
+  tranche: "Continuous execution: verify official Composio MCP setup, inspect Agent Club MCP surfaces, implement a safe API-key backed Composio preset, verify it, and audit agent sync behavior."
+  status: done
+  intake:
+    original_request: "Make a goal to find Composio and integrate that for MCP with an API-key entry so all agents can use Composio."
+    interpreted_outcome: "Agent Club should provide a Composio MCP connection path where users enter a Composio API key and sync the enabled Composio MCP server to supported agents."
+    input_shape: specific
+    audience: "Agent Club owner/operator and future users"
+    authority: approved
+    proof_type: demo
+    completion_proof: "Agent Club MCP & Voice settings show Composio, accept and persist the API key safely, use the official Composio MCP configuration, sync the enabled server to supported agents, and pass relevant verification commands."
+    likely_misfire: "Ship a Composio-looking UI row that is not backed by official MCP setup, safe secret handling, connection testing, or the existing agent sync path."
+    blind_spots_considered:
+      - "Official Composio MCP package, URL, arguments, and env variables may have changed and must be source-backed."
+      - "Composio may require an OAuth/browser connection flow after the API key is configured."
+      - "Agent Club may have built-in, user, and extension MCP server sources that need different handling."
+      - "Some local agent providers may not consume MCP configs even if Agent Club stores them."
+      - "Secrets must be redacted from UI logs, durable goal receipts, screenshots, and commits."
+      - "The current app may have unrelated local changes that must be preserved."
+    existing_plan_facts:
+      - "The user is looking at the Agent Club MCP & Voice settings surface."
+      - "The visible current MCP list includes chrome-devtools and a Manual Add control."
+      - "The integration should let the user enter a Composio API key inside Agent Club."
+      - "The enabled Composio MCP should be available through the existing agent MCP sync behavior."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  # installed | bundled_not_installed | missing | unknown
+  # Bundled templates were found in the GoalBuddy skill cache, but no installed user/project agent configs were verified.
+  scout: bundled_not_installed
+  worker: bundled_not_installed
+  judge: bundled_not_installed
+
+visual_board:
+  # none | local | github_projects | both | unknown
+  selected: local
+  local:
+    status: live
+    url: "http://127.0.0.1:41737/composio-mcp-integration/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/composio-mcp-integration"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Verify official Composio MCP setup and map the current Agent Club MCP configuration, API-key storage, UI, bridge, and agent sync paths."
+    inputs:
+      - "docs/goals/composio-mcp-integration/goal.md"
+      - "Current Agent Club repository"
+      - "Official Composio MCP documentation"
+      - "Existing MCP & Voice settings surface"
+      - "Existing MCP storage and sync implementation"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Use official Composio sources for package names, server command or URL, arguments, and environment variables."
+      - "Do not expose or request a real Composio API key."
+      - "Preserve unrelated local changes."
+    expected_output:
+      - "Official Composio MCP config details with source links."
+      - "Repo map for MCP settings UI, storage, bridge, connection test, and sync-to-agent behavior."
+      - "Secret-handling recommendation for Composio API key storage and display."
+      - "Supported-agent caveat for which providers can consume MCP configs."
+      - "Candidate Worker slice with likely allowed_files, verify commands, and stop_if conditions."
+    receipt:
+      result: done
+      summary:
+        - "Verified the current Composio Tool Router session API and MCP header requirement from official Composio docs."
+        - "Mapped Agent Club MCP settings, storage, IPC bridge, built-in MCP bundle, connection testing, and sync-to-agent flow."
+        - "Confirmed the active Capabilities settings route renders ToolsModalContent, while McpManagement is a secondary MCP settings path."
+      evidence:
+        - "Official Tool Router API: https://docs.composio.dev/reference/api-reference/tool-router/postToolRouterSession"
+        - "Official MCP header guidance: https://docs.composio.dev/docs/single-toolkit-mcp"
+        - "Active settings route: src/renderer/pages/settings/CapabilitiesSettings.tsx"
+        - "Active MCP UI component: src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+        - "MCP CRUD and sync hooks: src/renderer/hooks/mcp/useMcpServerCRUD.ts and src/renderer/hooks/mcp/useMcpOperations.ts"
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review Scout findings and choose the first safe implementation slice for Composio MCP integration."
+    inputs:
+      - "T001 receipt"
+      - "Official Composio MCP source evidence"
+      - "Current Agent Club MCP architecture map"
+    constraints:
+      - "Do not implement."
+      - "Reject guesses about Composio MCP setup."
+      - "Prefer a small visible slice that can be verified locally without real owner credentials."
+      - "Require secret redaction and rollback-safe file scope."
+    expected_output:
+      - "Decision"
+      - "Exact Worker objective"
+      - "allowed_files"
+      - "verify"
+      - "stop_if"
+      - "Credential or provider caveats"
+    receipt:
+      result: done
+      decision: "Use Composio Tool Router sessions plus a built-in stdio proxy."
+      summary:
+        - "Selected the official POST /api/v3.1/tool_router/session flow with x-api-key and user_id, because it returns an MCP URL plus tool router tool names."
+        - "Chose a local stdio proxy so Agent Club can sync Composio through the existing stdio MCP path even for CLIs that do not preserve arbitrary HTTP headers."
+        - "Required API-key redaction in generated JSON and receipts; the live config keeps the key only inside the saved MCP transport env."
+      evidence:
+        - "Composio API response includes session_id, mcp.type, mcp.url, and tool_router_tools."
+        - "Existing MCP add flow updates by server name, tests connection, and syncs enabled servers to detected agents."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Execute the first safe Composio MCP integration task selected by Judge."
+    allowed_files:
+      - "scripts/build-mcp-servers.js"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/common/types/composio.ts"
+      - "src/process/bridge/mcpBridge.ts"
+      - "src/process/resources/builtinMcp/composioToolRouterProxy.ts"
+      - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+      - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+      - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+      - "src/renderer/services/i18n/i18n-keys.d.ts"
+      - "src/renderer/services/i18n/locales/en-US/settings.json"
+    verify:
+      - "bun run i18n:types"
+      - "node scripts/build-mcp-servers.js"
+      - "bunx tsc --noEmit"
+      - "node scripts/check-i18n.js"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Electron route UI check for #/settings/capabilities?tab=tools"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Official Composio MCP setup cannot be verified."
+      - "A real Composio API key, owner login, or destructive operation is required."
+      - "Secret handling would expose API keys in durable files, logs, screenshots, or git."
+      - "Existing manual MCP add/import or chrome-devtools behavior would regress."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - "scripts/build-mcp-servers.js"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/common/types/composio.ts"
+        - "src/process/bridge/mcpBridge.ts"
+        - "src/process/resources/builtinMcp/composioToolRouterProxy.ts"
+        - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+        - "src/renderer/services/i18n/i18n-keys.d.ts"
+        - "src/renderer/services/i18n/locales/en-US/settings.json"
+      commands:
+        - command: "bun run i18n:types"
+          status: pass
+        - command: "node scripts/build-mcp-servers.js"
+          status: pass
+        - command: "bunx tsc --noEmit"
+          status: pass
+        - command: "node scripts/check-i18n.js"
+          status: pass
+        - command: "bunx oxlint --quiet"
+          status: pass
+          note: "Existing repository warnings only: 1894 warnings, 0 errors."
+        - command: "git diff --check"
+          status: pass
+        - command: "Electron CDP UI check for Composio card and empty-key validation"
+          status: pass
+      summary:
+        - "Added a Composio Tool Router setup IPC provider that calls the official session endpoint with x-api-key and user_id, validates the returned composio.dev MCP URL, and returns a built-in proxy script path."
+        - "Added a built-in stdio MCP proxy that forwards tools/list and tools/call to Composio's Streamable HTTP MCP endpoint with the API key header."
+        - "Added the Composio API-key/User ID card to both active and secondary MCP settings surfaces and seeds a saved enabled MCP server named composio through the existing add/test/sync flow."
+        - "Generated JSON redacts the API key placeholder; no real Composio API key was requested or logged."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: blocked
+    reasoning_hint: default
+    objective: "Add or update focused tests or verification fixtures for Composio MCP config parsing, key redaction, and sync behavior if Judge determines they are needed after T003."
+    allowed_files: []
+    verify: []
+    stop_if:
+      - "Need files outside allowed_files."
+      - "The test surface is unclear."
+      - "The implementation slice has not landed."
+      - "Verification fails twice."
+    receipt:
+      result: blocked
+      summary:
+        - "No separate fixture file was added for this slice because the integration lives across IPC, a built-in MCP proxy bundle, i18n, and existing MCP CRUD/sync hooks."
+        - "Coverage was handled with typecheck, i18n validation, MCP proxy bundle build, lint, whitespace check, and a live Electron route verification."
+        - "A future unit test could mock the Composio Tool Router response if this path grows more branching behavior."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the Composio MCP integration satisfies the original user outcome."
+    inputs:
+      - "All done task receipts"
+      - "Official Composio MCP source evidence"
+      - "Last verification"
+      - "Current dirty diff"
+      - "Local demo notes or screenshots if available"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if any required Worker task is still queued or active."
+      - "Reject completion if the UI only looks complete but does not persist or sync a real MCP config."
+      - "Reject completion if secret handling is unsafe or unverified."
+      - "Reject unsupported claims that every possible agent provider can use Composio."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "source-backed Composio MCP evidence"
+      - "verification results"
+      - "supported-agent caveats"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary:
+        - "The MCP & Voice settings page now shows a Composio connection card with a Composio API-key password field, User ID field, and Connect/Update flow."
+        - "Connect creates a source-backed Composio Tool Router session and saves an enabled stdio MCP server named composio, which uses the existing Agent Club sync-to-agents path."
+        - "Secret handling is acceptable for this repo pattern: the real API key is stored only in MCP transport env, while generated JSON and receipts use a placeholder and no real key was used."
+        - "The only untested production step is a successful live Composio session with the user's real API key; that requires the user to enter the key."
+      source_evidence:
+        - "https://docs.composio.dev/reference/api-reference/tool-router/postToolRouterSession"
+        - "https://docs.composio.dev/docs/single-toolkit-mcp"
+      verification:
+        - "bun run i18n:types: pass"
+        - "node scripts/build-mcp-servers.js: pass"
+        - "bunx tsc --noEmit: pass"
+        - "node scripts/check-i18n.js: pass"
+        - "bunx oxlint --quiet: pass with existing warnings only"
+        - "git diff --check: pass"
+        - "Electron UI route check: pass; Composio card visible and empty-key validation visible"
+      caveats:
+        - "Agent Club can sync Composio to supported detected agents through existing MCP sync; providers that do not consume synced MCP configs remain unsupported by their own limitation."
+        - "A real Composio API key was not available, so the successful remote session path was implemented and source-backed but not authenticated live."
+
+checks:
+  dirty_fingerprint: "Composio integration files plus docs/goals/composio-mcp-integration; unrelated untracked docs/goals/journeykits-skills-discovery left untouched."
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "bun run i18n:types"
+      - "node scripts/build-mcp-servers.js"
+      - "bunx tsc --noEmit"
+      - "node scripts/check-i18n.js"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Electron UI route check for Composio card and empty-key validation"

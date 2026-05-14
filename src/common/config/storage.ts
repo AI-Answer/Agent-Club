@@ -5,6 +5,7 @@
  */
 
 import type { AcpBackend, AcpBackendAll, AcpBackendConfig } from '@/common/types/acpTypes';
+import type { JourneyKitsVisibility } from '@/common/types/journeyKits';
 import type { HonchoMemoryConfig } from '@/common/types/memory';
 import type { SpeechToTextConfig } from '@/common/types/speech';
 import { storage } from '@office-ai/platform';
@@ -78,6 +79,11 @@ export interface IConfigStorageRefer {
   'mcp.config': IMcpServer[];
   'mcp.agentInstallStatus': Record<string, string[]>;
   'memory.honcho'?: HonchoMemoryConfig;
+  'journeyKits.config'?: {
+    apiKey?: string;
+    author?: string;
+    visibility?: JourneyKitsVisibility;
+  };
   language: string;
   theme: string;
   colorScheme: string;

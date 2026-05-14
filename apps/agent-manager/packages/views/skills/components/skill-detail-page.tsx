@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ChevronRight,
+  ExternalLink,
   HardDrive,
   Loader2,
   Lock,
@@ -66,8 +67,24 @@ import { FileViewer } from "./file-viewer";
 import { useT } from "../../i18n";
 
 const SKILL_MD = "SKILL.md";
+const JOURNEY_KITS_CONSOLE_URL = "https://www.journeykits.ai/console";
+const JOURNEY_KITS_PUBLISH_GUIDE_URL = "https://www.journeykits.ai/api/kits/publish-to-journey";
 
 type DraftFile = { id?: string; path: string; content: string };
+type JourneyKitsOriginInfo = OriginInfo & {
+  owner?: string;
+  slug?: string;
+  kit_ref?: string;
+};
+
+function journeyKitPublicUrl(origin: OriginInfo | null): string | null {
+  if (!origin || origin.type !== "journeykits") return null;
+  const journeyOrigin = origin as JourneyKitsOriginInfo;
+  if (journeyOrigin.owner && journeyOrigin.slug) {
+    return `https://www.journeykits.ai/kits/${encodeURIComponent(journeyOrigin.owner)}/${encodeURIComponent(journeyOrigin.slug)}`;
+  }
+  return origin.source_url ?? null;
+}
 
 // ---------------------------------------------------------------------------
 // File path validation + inline add
@@ -201,7 +218,9 @@ function OriginSidebarCard({
         ? t(($) => $.detail.origin_card.imported_clawhub)
         : origin.type === "github"
           ? t(($) => $.detail.origin_card.imported_github)
-          : t(($) => $.detail.origin_card.imported_skills_sh);
+          : origin.type === "journeykits"
+            ? t(($) => $.detail.origin_card.imported_journeykits)
+            : t(($) => $.detail.origin_card.imported_skills_sh);
 
   return (
     <div className="rounded-md border bg-muted/30 p-3">
@@ -233,6 +252,54 @@ function OriginSidebarCard({
           {t(($) => $.detail.origin_card.provider, { provider: origin.provider })}
         </div>
       )}
+    </div>
+  );
+}
+
+function JourneyKitsPublishCard({ origin }: { origin: OriginInfo | null }) {
+  const { t } = useT("skills");
+  const kitUrl = journeyKitPublicUrl(origin);
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Sparkles className="h-3 w-3" />
+        {t(($) => $.detail.journeykits_publish.title)}
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+        {t(($) => $.detail.journeykits_publish.body)}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {kitUrl && (
+          <a
+            href={kitUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "outline", size: "xs" })}
+          >
+            <ExternalLink className="h-3 w-3" />
+            {t(($) => $.detail.journeykits_publish.open_kit)}
+          </a>
+        )}
+        <a
+          href={JOURNEY_KITS_CONSOLE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonVariants({ variant: "outline", size: "xs" })}
+        >
+          <ExternalLink className="h-3 w-3" />
+          {t(($) => $.detail.journeykits_publish.open_console)}
+        </a>
+        <a
+          href={JOURNEY_KITS_PUBLISH_GUIDE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonVariants({ variant: "ghost", size: "xs" })}
+        >
+          <ExternalLink className="h-3 w-3" />
+          {t(($) => $.detail.journeykits_publish.guide)}
+        </a>
+      </div>
     </div>
   );
 }
@@ -546,6 +613,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     if (origin.type === "clawhub") return t(($) => $.detail.subline.origin_clawhub);
     if (origin.type === "skills_sh") return t(($) => $.detail.subline.origin_skills_sh);
     if (origin.type === "github") return t(($) => $.detail.subline.origin_github);
+    if (origin.type === "journeykits") return t(($) => $.detail.subline.origin_journeykits);
     return t(($) => $.detail.subline.origin_workspace);
   })();
 
@@ -869,6 +937,10 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               <OriginSidebarCard origin={origin} runtime={originRuntime} />
             </div>
           )}
+
+          <div>
+            <JourneyKitsPublishCard origin={origin} />
+          </div>
 
           <div>
             <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">

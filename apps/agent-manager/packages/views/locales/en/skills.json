@@ -49,7 +49,8 @@
     "source_runtime_unknown": "From a runtime",
     "source_clawhub": "From ClawHub",
     "source_skills_sh": "From Skills.sh",
-    "source_github": "From GitHub"
+    "source_github": "From GitHub",
+    "source_journeykits": "From JourneyKits"
   },
   "detail": {
     "all_skills": "All skills",
@@ -72,6 +73,7 @@
       "origin_clawhub": "Imported · ClawHub",
       "origin_skills_sh": "Imported · Skills.sh",
       "origin_github": "Imported · GitHub",
+      "origin_journeykits": "Imported · JourneyKits",
       "origin_workspace": "Workspace",
       "updated_label": "Updated {{when}}",
       "by_creator": "by {{name}}"
@@ -107,7 +109,15 @@
       "imported_clawhub": "Imported from ClawHub",
       "imported_skills_sh": "Imported from Skills.sh",
       "imported_github": "Imported from GitHub",
+      "imported_journeykits": "Imported from JourneyKits",
       "provider": "provider · {{provider}}"
+    },
+    "journeykits_publish": {
+      "title": "JourneyKits publishing",
+      "body": "Publishing is owner-gated. Use a JourneyKits account with kit owner access to package, submit, or update this skill.",
+      "open_kit": "Open kit",
+      "open_console": "Open Console",
+      "guide": "Publishing guide"
     },
     "not_found": {
       "title": "Skill not found",
@@ -193,6 +203,7 @@
       "importing_clawhub": "Importing from ClawHub…",
       "importing_skills_sh": "Importing from Skills.sh…",
       "importing_github": "Importing from GitHub…",
+      "importing_journeykits": "Importing from JourneyKits…",
       "name_conflict_hint": " The imported skill's name already exists — delete the existing one before retrying.",
       "fallback_error": "Import failed",
       "cancel": "Cancel",
