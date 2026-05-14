@@ -21,6 +21,10 @@ export interface AgentVaultSaveRequest {
   content: string;
 }
 
+export interface AgentVaultSyncRequest {
+  enabled: boolean;
+}
+
 export interface OnePasswordSecurityConfig {
   enabled: boolean;
   resolveReferences: boolean;

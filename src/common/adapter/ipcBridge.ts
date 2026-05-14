@@ -27,6 +27,7 @@ import type { HonchoMemoryConfig, HonchoMemorySnapshot, HonchoSetupResult } from
 import type { ComposioToolRouterSetupRequest, ComposioToolRouterSetupResult } from '../types/composio';
 import type {
   AgentVaultSaveRequest,
+  AgentVaultSyncRequest,
   OnePasswordCliInstallResult,
   OnePasswordCliStatus,
   OnePasswordConnectionStatus,
@@ -216,6 +217,9 @@ export const security = {
   getState: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, void>('security.get-state'),
   saveAgentVault: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, AgentVaultSaveRequest>(
     'security.agent-vault.save'
+  ),
+  syncAgentVault: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, AgentVaultSyncRequest>(
+    'security.agent-vault.sync'
   ),
   openAgentVaultFile: bridge.buildProvider<IBridgeResponse<SecuritySettingsState>, void>(
     'security.agent-vault.open-file'

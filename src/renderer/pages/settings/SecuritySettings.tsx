@@ -43,7 +43,6 @@ const SecuritySettings: React.FC = () => {
   const [agentVault, setAgentVault] = useState<AgentVaultState>(EMPTY_VAULT);
   const [onePassword, setOnePassword] = useState<OnePasswordSecurityPublicConfig>(EMPTY_ONE_PASSWORD);
   const [vaultEnabled, setVaultEnabled] = useState(false);
-  const [vaultContent, setVaultContent] = useState('');
   const [onePasswordEnabled, setOnePasswordEnabled] = useState(false);
   const [resolveReferences, setResolveReferences] = useState(true);
   const [onePasswordAccount, setOnePasswordAccount] = useState('');
@@ -63,7 +62,6 @@ const SecuritySettings: React.FC = () => {
       setAgentVault(state.agentVault);
       setOnePassword(state.onePassword);
       setVaultEnabled(state.agentVault.enabled);
-      setVaultContent(state.agentVault.content);
       setOnePasswordEnabled(state.onePassword.enabled);
       setResolveReferences(state.onePassword.resolveReferences);
       setOnePasswordAccount(state.onePassword.account || '');
@@ -93,9 +91,8 @@ const SecuritySettings: React.FC = () => {
   const handleSaveVault = useCallback(async () => {
     setSavingVault(true);
     try {
-      const result = await ipcBridge.security.saveAgentVault.invoke({
+      const result = await ipcBridge.security.syncAgentVault.invoke({
         enabled: vaultEnabled,
-        content: vaultContent,
       });
       if (!result.success) {
         message.error(result.msg || t('settings.securityPage.saveFailed'));
@@ -106,7 +103,7 @@ const SecuritySettings: React.FC = () => {
     } finally {
       setSavingVault(false);
     }
-  }, [hydrate, message, t, vaultContent, vaultEnabled]);
+  }, [hydrate, message, t, vaultEnabled]);
 
   const handleOpenVaultFile = useCallback(async () => {
     setOpeningVaultFile(true);
@@ -245,9 +242,9 @@ const SecuritySettings: React.FC = () => {
           <div className='mt-6px text-13px text-t-secondary'>{t('settings.securityPage.subtitle')}</div>
         </div>
 
-        <div className='px-[12px] md:px-[32px] py-[24px] bg-2 rd-12px md:rd-16px border border-border-2'>
-          <div className='flex flex-col gap-16px'>
-            <div className='flex items-start justify-between gap-16px'>
+        <div className='px-[12px] md:px-[24px] py-[20px] bg-2 rd-12px md:rd-16px border border-border-2'>
+          <div className='flex flex-col gap-12px'>
+            <div className='flex flex-col gap-12px md:flex-row md:items-start md:justify-between'>
               <div className='min-w-0'>
                 <div className='text-15px font-medium text-t-primary'>{t('settings.securityPage.vaultTitle')}</div>
                 <div className='mt-4px text-13px text-t-secondary'>{vaultSummary}</div>
@@ -256,21 +253,17 @@ const SecuritySettings: React.FC = () => {
             </div>
 
             <Alert type='warning' showIcon content={t('settings.securityPage.vaultWarning')} />
+            <div className='text-12px text-t-tertiary'>{t('settings.securityPage.vaultHiddenNote')}</div>
 
-            <Input.TextArea
-              value={vaultContent}
-              onChange={setVaultContent}
-              placeholder={t('settings.securityPage.vaultPlaceholder')}
-              autoSize={{ minRows: 12, maxRows: 22 }}
-              disabled={loading}
-              className='font-mono text-13px'
-            />
-
-            <div className='flex flex-col gap-10px md:flex-row md:items-center md:justify-between'>
-              <div className='min-w-0 text-12px text-t-tertiary break-all'>
-                {agentVault.filePath || t('settings.securityPage.vaultPathPending')}
+            <div className='flex flex-col gap-8px md:flex-row md:items-center md:justify-between'>
+              <div className='min-w-0 text-12px text-t-tertiary'>
+                {agentVault.updatedAt
+                  ? t('settings.securityPage.vaultUpdated', {
+                      time: new Date(agentVault.updatedAt).toLocaleString(),
+                    })
+                  : t('settings.securityPage.vaultPathPending')}
               </div>
-              <div className='flex shrink-0 items-center gap-8px'>
+              <div className='flex shrink-0 flex-wrap items-center gap-8px md:justify-end'>
                 <Button
                   icon={<FileCode size='14' />}
                   disabled={!agentVault.filePath}
@@ -287,7 +280,7 @@ const SecuritySettings: React.FC = () => {
                 >
                   {t('settings.securityPage.showFile')}
                 </Button>
-                <Button type='primary' icon={<CheckOne size='14' />} loading={savingVault} onClick={handleSaveVault}>
+                <Button type='primary' icon={<Refresh size='14' />} loading={savingVault} onClick={handleSaveVault}>
                   {t('settings.securityPage.saveVault')}
                 </Button>
               </div>

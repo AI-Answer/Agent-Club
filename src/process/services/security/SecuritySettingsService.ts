@@ -3,6 +3,7 @@ import type {
   AgentVaultConfig,
   AgentVaultSaveRequest,
   AgentVaultState,
+  AgentVaultSyncRequest,
   OnePasswordCliInstallResult,
   OnePasswordCliStatus,
   OnePasswordConnectionStatus,
@@ -201,6 +202,25 @@ class SecuritySettingsService {
 
     console.log(
       `[Security] Agent vault ${vaultState.enabled ? 'enabled' : 'disabled'} with ${vaultState.keyCount} key(s)`
+    );
+
+    return this.getState();
+  }
+
+  async syncAgentVault(request: AgentVaultSyncRequest): Promise<SecuritySettingsState> {
+    await ensureAgentVaultFileExists();
+    const current = getAgentVaultRuntimeStateSync();
+    await saveAgentVaultRuntimeState({
+      enabled: request.enabled,
+      content: current.content,
+    });
+    const vaultState = applyAgentVaultToProcessEnv();
+    const agentVault = this.toAgentVaultState();
+    await ProcessConfig.set('security.agentVault', toAgentVaultConfig(agentVault));
+    await this.ensureAgentVaultMcpServer();
+
+    console.log(
+      `[Security] Agent vault applied from disk ${vaultState.enabled ? 'enabled' : 'disabled'} with ${vaultState.keyCount} key(s)`
     );
 
     return this.getState();

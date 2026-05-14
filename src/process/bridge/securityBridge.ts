@@ -27,6 +27,14 @@ export function initSecurityBridge(): void {
     }
   });
 
+  ipcBridge.security.syncAgentVault.provider(async (request) => {
+    try {
+      return { success: true, data: await securitySettingsService.syncAgentVault(request) };
+    } catch (error) {
+      return { success: false, msg: errorMessage(error) };
+    }
+  });
+
   ipcBridge.security.openAgentVaultFile.provider(async () => {
     try {
       const state = await securitySettingsService.prepareAgentVaultFile();
