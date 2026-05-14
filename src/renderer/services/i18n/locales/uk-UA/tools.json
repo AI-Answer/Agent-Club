@@ -1,69 +1,69 @@
 {
-  "unknownFile": "Невідомий файл",
-  "newFile": "Новий файл",
-  "deletedFile": "Видалений файл",
-  "modified": "Змінено",
-  "fileChanges": "Зміни у файлах",
+  "unknownFile": "Unknown file",
+  "newFile": "New File",
+  "deletedFile": "Deleted File",
+  "modified": "Modified",
+  "fileChanges": "File Changes",
   "shell": {
-    "displayName": "Команда Shell",
-    "description": "Виконання команд оболонки"
+    "displayName": "Shell Command",
+    "description": "Execute shell commands"
   },
   "fileOps": {
-    "displayName": "Операції з файлами",
-    "description": "Читання, запис та модифікація файлів"
+    "displayName": "File Operations",
+    "description": "File read, write and modification"
   },
   "webSearch": {
-    "displayName": "Пошук у веб",
-    "description": "Пошук вебконтенту"
+    "displayName": "Web Search",
+    "description": "Search web content"
   },
   "mcp": {
     "generic": {
-      "displayName": "Інструмент MCP: {{toolName}}",
-      "description": "Виклик інструменту MCP: {{toolName}}"
+      "displayName": "MCP Tool: {{toolName}}",
+      "description": "MCP tool call: {{toolName}}"
     }
   },
   "unknown": {
-    "displayName": "Невідомий інструмент",
-    "description": "Невідомий тип інструменту"
+    "displayName": "Unknown Tool",
+    "description": "Unknown tool type"
   },
   "status": {
-    "pending": "Очікує",
-    "executing": "Виконується",
-    "success": "Успішно",
-    "error": "Помилка",
-    "canceled": "Скасовано"
+    "pending": "Pending",
+    "executing": "Executing",
+    "success": "Success",
+    "error": "Error",
+    "canceled": "Canceled"
   },
   "titles": {
-    "web_search_started": "Пошук у веб розпочато",
-    "web_search_completed": "Пошук у веб завершено",
-    "web_search": "Пошук у веб",
-    "applying_patch": "Застосування патчу",
-    "patch_applied": "Патч застосовано",
-    "file_patch": "Патч файлу",
-    "mcp_tool_starting": "Інструмент MCP: {{toolName}} (запуск)",
-    "mcp_tool": "Інструмент MCP: {{toolName}}",
-    "execute_command": "Виконати: {{command}}",
-    "command_output": "Вивід команди",
-    "command_completed": "Команду завершено",
-    "shell_command": "Команда Shell"
+    "web_search_started": "Web Search Started",
+    "web_search_completed": "Web Search Completed",
+    "web_search": "Web Search",
+    "applying_patch": "Applying Patch",
+    "patch_applied": "Patch Applied",
+    "file_patch": "File Patch",
+    "mcp_tool_starting": "MCP Tool: {{toolName}} (starting)",
+    "mcp_tool": "MCP Tool: {{toolName}}",
+    "execute_command": "Execute: {{command}}",
+    "command_output": "Command Output",
+    "command_completed": "Command Completed",
+    "shell_command": "Shell Command"
   },
   "labels": {
-    "search_query": "Пошуковий запит:",
-    "file_changes": "Зміни у файлах:",
-    "tool_details": "Деталі інструменту:",
-    "tool": "Інструмент",
-    "arguments": "Аргументи:",
-    "result": "Результат:",
-    "command": "Команда:",
-    "working_directory": "Робоча директорія:",
-    "exit_code": "Вихід: {{code}}",
-    "duration": "Тривалість: {{seconds}} с",
-    "auto_approved": "Схвалено автоматично",
-    "manual_approval": "Ручне схвалення"
+    "search_query": "Search Query:",
+    "file_changes": "File Changes:",
+    "tool_details": "Tool Details:",
+    "tool": "Tool",
+    "arguments": "Arguments:",
+    "result": "Result:",
+    "command": "Command:",
+    "working_directory": "Working directory:",
+    "exit_code": "Exit: {{code}}",
+    "duration": "Duration: {{seconds}}",
+    "auto_approved": "Auto-approved",
+    "manual_approval": "Manual approval"
   },
   "actions": {
-    "create": "створити",
-    "modify": "змінити",
-    "delete": "видалити"
+    "create": "create",
+    "modify": "modify",
+    "delete": "delete"
   }
 }

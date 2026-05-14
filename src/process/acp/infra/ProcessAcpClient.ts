@@ -137,7 +137,7 @@ export class ProcessAcpClient implements AcpClient {
       const initResult = await Promise.race([
         this.runConnectionRequest(() =>
           this.conn.initialize({
-            clientInfo: { name: 'AionUi', version: '2.0.0' },
+            clientInfo: { name: 'Agent Club', version: '2.0.0' },
             protocolVersion: PROTOCOL_VERSION,
             clientCapabilities: {
               fs: { readTextFile: true, writeTextFile: true },

@@ -30,6 +30,7 @@ export const BUILTIN_TAB_IDS = [
   'model',
   'assistants',
   'capabilities',
+  'hooks',
   'display',
   'webui',
   'pet',
@@ -156,6 +157,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         label: t('settings.capabilities', { defaultValue: 'Capabilities' }),
         icon: <Lightning />,
         path: 'capabilities',
+      },
+      hooks: {
+        id: 'hooks',
+        label: t('settings.hooks', { defaultValue: 'Hooks' }),
+        icon: <Puzzle />,
+        path: 'hooks',
       },
       display: { id: 'display', label: t('settings.display'), icon: <Computer />, path: 'display' },
       webui: {

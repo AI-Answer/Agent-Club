@@ -245,7 +245,7 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   const mainContent = (
     <div className='flex flex-col h-full w-full'>
       <div className='space-y-16px pb-24px'>
-        {/* ======== 发现外部技能 / Discovered External Skills ======== */}
+        {/* ======== Discovered External Skills ======== */}
         {totalExternal > 0 && (
           <div className='px-[16px] md:px-[32px] py-32px bg-base rd-16px md:rd-24px mb-16px shadow-sm border border-b-base relative overflow-hidden transition-all'>
             {/* Section Header with Search Bar */}
@@ -268,7 +268,7 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                 </div>
                 <Typography.Text className='text-13px text-t-secondary block max-w-xl leading-relaxed'>
                   {t('settings.skillsHub.discoveryAlert', {
-                    defaultValue: 'Detected skills from your CLI tools. Import them to use in AionUi.',
+                    defaultValue: 'Detected skills from your CLI tools. Import them to use in Agent Club.',
                   })}
                 </Typography.Text>
               </div>

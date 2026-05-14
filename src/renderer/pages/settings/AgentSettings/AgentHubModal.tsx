@@ -13,14 +13,14 @@ interface AgentHubModalProps {
   onCancel: () => void;
 }
 
-const AION_HUB_REPO_URL = 'https://github.com/iOfficeAI/AionHub';
+const AGENT_CLUB_REPO_URL = 'https://github.com/Samin12/Agent-Club';
 
 export const AgentHubModal: React.FC<AgentHubModalProps> = ({ visible, onCancel }) => {
   const { t } = useTranslation();
   const { agents, loading, error, install, retryInstall, update } = useHubAgents();
   const actionButtonClassName = '!min-w-80px !rounded-9px !px-10px';
-  const openAionHubRepo = () => {
-    void openExternalUrl(AION_HUB_REPO_URL).catch(console.error);
+  const openAgentClubRepo = () => {
+    void openExternalUrl(AGENT_CLUB_REPO_URL).catch(console.error);
   };
 
   const renderActionBtn = (agent: IHubAgentItem) => {
@@ -98,9 +98,9 @@ export const AgentHubModal: React.FC<AgentHubModalProps> = ({ visible, onCancel 
               defaultValue: 'Want a new Agent listed here?',
             })}
           </Typography.Text>
-          <Link className='text-12px leading-18px' onClick={openAionHubRepo}>
+          <Link className='text-12px leading-18px' onClick={openAgentClubRepo}>
             {t('settings.agentManagement.marketContributionAction', {
-              defaultValue: 'Open a PR on AionHub',
+              defaultValue: 'Open the Agent Club repo',
             })}
           </Link>
         </div>

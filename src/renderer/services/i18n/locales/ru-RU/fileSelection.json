@@ -1,6 +1,6 @@
 {
-  "selectFile": "Выбрать файл",
-  "selectDirectory": "Выбрать директорию",
-  "pleaseSelectFile": "Пожалуйста, выберите файл",
-  "pleaseSelectDirectory": "Пожалуйста, выберите директорию"
+  "selectFile": "Select File",
+  "selectDirectory": "Select Directory",
+  "pleaseSelectFile": "Please select a file",
+  "pleaseSelectDirectory": "Please select a directory"
 }

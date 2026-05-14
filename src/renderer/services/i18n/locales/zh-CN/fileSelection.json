@@ -1,6 +1,6 @@
 {
-  "selectFile": "选择文件",
-  "selectDirectory": "选择目录",
-  "pleaseSelectFile": "请选择一个文件",
-  "pleaseSelectDirectory": "请选择一个目录"
+  "selectFile": "Select File",
+  "selectDirectory": "Select Directory",
+  "pleaseSelectFile": "Please select a file",
+  "pleaseSelectDirectory": "Please select a directory"
 }

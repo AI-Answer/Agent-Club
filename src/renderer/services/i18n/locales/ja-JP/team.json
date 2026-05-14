@@ -2,59 +2,59 @@
   "sider": {
     "title": "Teams",
     "createTeam": "New Team",
-    "pin": "ピン留め",
-    "unpin": "ピン留め解除",
-    "rename": "名前変更",
-    "delete": "削除",
-    "renameTitle": "チーム名変更",
-    "renamePlaceholder": "チーム名",
-    "deleteConfirm": "このチームを削除しますか？",
-    "deleteConfirmContent": "この操作は元に戻せません。",
-    "deleteOk": "削除",
-    "deleteCancel": "キャンセル",
-    "renameOk": "保存",
-    "renameCancel": "キャンセル",
-    "renameSuccess": "チーム名を変更しました",
-    "deleteSuccess": "チームを削除しました"
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "rename": "Rename",
+    "delete": "Delete",
+    "renameTitle": "Rename Team",
+    "renamePlaceholder": "Team name",
+    "deleteConfirm": "Delete this team?",
+    "deleteConfirmContent": "This action cannot be undone.",
+    "deleteOk": "Delete",
+    "deleteCancel": "Cancel",
+    "renameOk": "Save",
+    "renameCancel": "Cancel",
+    "renameSuccess": "Team renamed",
+    "deleteSuccess": "Team deleted"
   },
   "newAgent": "New Agent",
   "noMessages": "No messages yet.",
-  "agentNotConfigured": "エージェントはまだ設定されていません。",
+  "agentNotConfigured": "Agent not configured yet.",
   "sendBox": {
-    "placeholder": "ディスパッチエージェントにメッセージを送信..."
+    "placeholder": "Message dispatch agent..."
   },
   "create": {
     "title": "Create Team",
     "namePlaceholder": "Team name",
-    "dispatchAgentPlaceholder": "チームリーダーを選択",
+    "dispatchAgentPlaceholder": "Select team leader",
     "subAgentsPlaceholder": "Select sub agents",
     "workspacePlaceholder": "Workspace path (optional)",
     "confirm": "Create Team",
-    "noSupportedAgents": "対応する Agent が見つかりません",
-    "supportedAgentsHint": "現在 Claude と Codex に対応しています。他の Agent は順次対応予定です。",
-    "leaderDesc": "目標を理解し、エージェントを調整してタスクを完了します",
+    "noSupportedAgents": "No supported agents installed",
+    "supportedAgentsHint": "Currently supports Claude and Codex. More agents coming soon.",
+    "leaderDesc": "Understands your goals and coordinates agents to complete tasks",
     "step": {
-      "dispatch": "チームリーダー",
+      "dispatch": "Team Leader",
       "subAgents": "Sub Agents",
       "workspace": "Workspace"
     },
-    "nameRequired": "チーム名を入力してください",
-    "leaderRequired": "チームリーダーを選択してください",
-    "selectFolder": "フォルダを選択",
-    "recentLabel": "最近使用",
-    "chooseDifferentFolder": "別のフォルダを選択",
-    "error": "チームの作成に失敗しました"
+    "nameRequired": "Please enter a team name",
+    "leaderRequired": "Please select a team leader",
+    "selectFolder": "Select folder",
+    "recentLabel": "Recent",
+    "chooseDifferentFolder": "Choose a different folder",
+    "error": "Failed to create team"
   },
   "removeAgent": {
-    "confirmTitle": "チームメンバーを削除",
-    "confirmContent": "このメンバーは現在稼働中です。強制的に削除しますか？"
+    "confirmTitle": "Remove Team Member",
+    "confirmContent": "This member is currently active. Force remove?"
   },
   "emptyState": {
-    "subtitle": "目標を教えてください。チームを調整してタスクを完了します",
+    "subtitle": "Describe your goal and I'll get the team working on it",
     "suggestions": {
-      "debate": "Agentが異なる立場をとるディベートを開催する",
-      "interview": "Agentによる深層インタビューを企画する",
-      "expert_review": "複数の専門家が同じ問題を分析する"
+      "debate": "Organize a debate with agents taking different sides",
+      "interview": "Plan an in-depth interview between agents",
+      "expert_review": "Have multiple experts analyze the same problem"
     }
   }
 }

@@ -1,60 +1,60 @@
 {
   "sider": {
-    "title": "团队",
-    "createTeam": "新建团队",
-    "pin": "置顶",
-    "unpin": "取消置顶",
-    "rename": "重命名",
-    "delete": "删除",
-    "renameTitle": "重命名团队",
-    "renamePlaceholder": "团队名称",
-    "deleteConfirm": "删除此团队？",
-    "deleteConfirmContent": "此操作不可撤销。",
-    "deleteOk": "删除",
-    "deleteCancel": "取消",
-    "renameOk": "保存",
-    "renameCancel": "取消",
-    "renameSuccess": "团队已重命名",
-    "deleteSuccess": "团队已删除"
+    "title": "Teams",
+    "createTeam": "New Team",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "rename": "Rename",
+    "delete": "Delete",
+    "renameTitle": "Rename Team",
+    "renamePlaceholder": "Team name",
+    "deleteConfirm": "Delete this team?",
+    "deleteConfirmContent": "This action cannot be undone.",
+    "deleteOk": "Delete",
+    "deleteCancel": "Cancel",
+    "renameOk": "Save",
+    "renameCancel": "Cancel",
+    "renameSuccess": "Team renamed",
+    "deleteSuccess": "Team deleted"
   },
-  "newAgent": "新成员",
-  "noMessages": "暂无消息。",
-  "agentNotConfigured": "Agent 尚未配置。",
+  "newAgent": "New Agent",
+  "noMessages": "No messages yet.",
+  "agentNotConfigured": "Agent not configured yet.",
   "sendBox": {
-    "placeholder": "向调度 Agent 发消息..."
+    "placeholder": "Message dispatch agent..."
   },
   "create": {
-    "title": "创建团队",
-    "namePlaceholder": "团队名称",
-    "dispatchAgentPlaceholder": "选择团队 Leader",
-    "subAgentsPlaceholder": "选择子 Agent",
-    "workspacePlaceholder": "工作目录路径（可选）",
-    "confirm": "创建团队",
-    "noSupportedAgents": "未检测到支持的 Agent",
-    "supportedAgentsHint": "目前支持 Claude 和 Codex，更多 Agent 适配中",
-    "leaderDesc": "接收你的指令，拆解任务并分配给团队中的 Agent",
+    "title": "Create Team",
+    "namePlaceholder": "Team name",
+    "dispatchAgentPlaceholder": "Select team leader",
+    "subAgentsPlaceholder": "Select sub agents",
+    "workspacePlaceholder": "Workspace path (optional)",
+    "confirm": "Create Team",
+    "noSupportedAgents": "No supported agents installed",
+    "supportedAgentsHint": "Currently supports Claude and Codex. More agents coming soon.",
+    "leaderDesc": "Understands your goals and coordinates agents to complete tasks",
     "step": {
-      "dispatch": "团队 Leader",
-      "subAgents": "子 Agent",
-      "workspace": "工作空间"
+      "dispatch": "Team Leader",
+      "subAgents": "Sub Agents",
+      "workspace": "Workspace"
     },
-    "nameRequired": "请输入团队名称",
-    "leaderRequired": "请选择团队 Leader",
-    "selectFolder": "选择工作目录",
-    "recentLabel": "最近使用",
-    "chooseDifferentFolder": "选择其他目录",
-    "error": "创建团队失败"
+    "nameRequired": "Please enter a team name",
+    "leaderRequired": "Please select a team leader",
+    "selectFolder": "Select folder",
+    "recentLabel": "Recent",
+    "chooseDifferentFolder": "Choose a different folder",
+    "error": "Failed to create team"
   },
   "removeAgent": {
-    "confirmTitle": "移除团队成员",
-    "confirmContent": "该成员正在工作中，确定要强制移除吗？"
+    "confirmTitle": "Remove Team Member",
+    "confirmContent": "This member is currently active. Force remove?"
   },
   "emptyState": {
-    "subtitle": "描述你的目标，我来协调团队搞定它",
+    "subtitle": "Describe your goal and I'll get the team working on it",
     "suggestions": {
-      "debate": "组织一场辩论赛，让 Agent 各持立场",
-      "interview": "策划一场深度访谈",
-      "expert_review": "多位专家会诊同一个问题"
+      "debate": "Organize a debate with agents taking different sides",
+      "interview": "Plan an in-depth interview between agents",
+      "expert_review": "Have multiple experts analyze the same problem"
     }
   }
 }

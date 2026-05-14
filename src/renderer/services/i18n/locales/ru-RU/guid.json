@@ -1,21 +1,21 @@
 {
-  "agentFallbackNotice": "{{original}} недоступен, используется {{fallback}}.",
-  "noAgentAvailable": "Нет доступного основного агента. Войдите в Google или установите Claude/Codex CLI. Перейти к настройкам?",
-  "noAgentAvailableShort": "Основной агент недоступен. Нажмите для настройки.",
-  "agentTabAutoSwitch": "Модель несовместима с Gemini, автоматическое переключение на {{fallback}}",
-  "autoSwitchToAgent": "Gemini не настроен, автоматическое переключение на {{agent}}",
-  "autoSwitchedAgent": "{{from}} недоступен, переключено на {{to}}",
-  "promptExamplesHint": "Попробуйте примеры промптов:",
-  "agentSwitcherLabel": "Агент",
-  "switchedToAgent": "Переключено на {{agent}}",
+  "agentFallbackNotice": "{{original}} is unavailable, using {{fallback}} instead.",
+  "noAgentAvailable": "No Main Agent is available. Please login to Google or install Claude/Codex CLI. Go to settings?",
+  "noAgentAvailableShort": "No Main Agent available. Click to configure.",
+  "agentTabAutoSwitch": "Model not compatible with Gemini, auto-switched to {{fallback}}",
+  "autoSwitchToAgent": "Gemini is not configured, auto-switching to {{agent}}",
+  "autoSwitchedAgent": "{{from}} is not available, switched to {{to}}",
+  "promptExamplesHint": "Try example prompts:",
+  "agentSwitcherLabel": "Agent",
+  "switchedToAgent": "Switched to {{agent}}",
   "scanning": {
-    "initialMessage": "Текущий агент недоступен, обнаружение других доступных агентов...",
-    "scanningMessage": "Сканирование локальных доступных агентов...",
-    "connectingMessage": "Успешно подключено, пожалуйста, подождите...",
-    "establishingConnection": "Установка подключения...",
-    "statusQueued": "В очереди",
-    "statusTesting": "Тестирование задержки...",
-    "statusUnreachable": "Недоступен",
-    "statusAvailable": "Доступен"
+    "initialMessage": "Current Agent is unavailable, detecting other available agents...",
+    "scanningMessage": "Scanning local available agents...",
+    "connectingMessage": "Connected successfully, please wait...",
+    "establishingConnection": "Establishing connection...",
+    "statusQueued": "Queued",
+    "statusTesting": "Testing latency...",
+    "statusUnreachable": "Unreachable",
+    "statusAvailable": "Available"
   }
 }

@@ -798,7 +798,7 @@ ${collectedResponses.join('\n')}`;
         return;
       }
 
-      // Auto-approve team MCP tools — internal tools provided by AionUi.
+      // Auto-approve team MCP tools — internal tools provided by Agent Club.
       const toolTitle = toolCall.title || '';
       if (toolTitle.includes('aionui-team') && options.length > 0) {
         const autoOption = options[0];
@@ -824,7 +824,7 @@ ${collectedResponses.join('\n')}`;
         type: 'error',
         conversation_id: this.conversation_id,
         msg_id: v.msg_id,
-        data: 'Permission required. Please open AionUi and confirm the pending request in the conversation panel.',
+        data: 'Permission required. Please open Agent Club and confirm the pending request in the conversation panel.',
       });
       return;
     }

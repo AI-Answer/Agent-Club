@@ -1,133 +1,133 @@
 {
   "sendbox": {},
   "network": {
-    "cloudflare_blocked": "Cloudflareの保護により{{service}}へのアクセスがブロックされました。対処: 1) VPN を利用 2) ネットワークを切替 3) 時間をおいて再試行 4) 別の AI サービスへ切替",
-    "network_timeout": "ネットワークがタイムアウトしました。接続を自動的に再試行しています...",
-    "connection_refused": "接続が拒否されました。Codex サービスが正常に稼働しているか確認してください。",
-    "unknown_error": "ネットワーク接続エラーです。ネットワーク設定を確認してください。",
-    "retry_attempt": "再試行中 {{current}} 回目...",
-    "cloudflare_blocked_title": "🚫 Cloudflare の保護により {{service}} へのアクセスがブロック",
-    "network_timeout_title": "⏱️ ネットワーク接続がタイムアウト",
-    "connection_refused_title": "❌ サービス接続が拒否されました",
-    "unknown_error_title": "🔌 ネットワーク接続エラー",
-    "recovery_suggestions": "**推奨対処：**",
-    "technical_info": "**技術情報：**",
-    "error_type": "エラー種別",
-    "retry_count": "再試行回数",
-    "error_details": "エラー詳細",
-    "quick_switch_title": "💡 **すぐに切り替えるには：**",
-    "quick_switch_content": "現在のサービスでネットワーク制限が発生した場合は：\n\n1. **AIアシスタントを即時切替**：左側パネルから他のアシスタントを選択\n2. **サービス状況を確認**：地域により可用性が異なる場合があります\n3. **ネットワーク最適化**：安定したネットワーク環境を使用\n4. **後で再試行**：制限は一時的な場合が多いです\n\n**ヒント**：業務継続のため、代替の AI サービスを複数設定しておくことをおすすめします。",
+    "cloudflare_blocked": "Cloudflare protection blocked access to {{service}}. Suggestions: 1) Use VPN 2) Switch network 3) Retry later 4) Switch to other AI services",
+    "network_timeout": "Network timeout, automatically retrying connection...",
+    "connection_refused": "Connection refused, please check if Codex service is running properly.",
+    "unknown_error": "Network connection error, please check network settings.",
+    "retry_attempt": "Retrying attempt {{current}}...",
+    "cloudflare_blocked_title": "🚫 {{service}} service blocked by Cloudflare protection",
+    "network_timeout_title": "⏱️ Network connection timeout",
+    "connection_refused_title": "❌ Service connection refused",
+    "unknown_error_title": "🔌 Network connection error",
+    "recovery_suggestions": "**Suggested Solutions:**",
+    "technical_info": "**Technical Information:**",
+    "error_type": "Error Type",
+    "retry_count": "Retry Count",
+    "error_details": "Error Details",
+    "quick_switch_title": "💡 **Quick Switch Options:**",
+    "quick_switch_content": "When current service encounters network restrictions, you can:\n\n1. **Switch AI Assistant Immediately**: Select other available assistants from the left panel\n2. **Check Service Status**: Availability of different AI services may vary by region\n3. **Network Optimization**: Use stable network environment to improve connection success rate\n4. **Retry Later**: Network restrictions are usually temporary\n\n**Tip**: It's recommended to configure multiple AI services as alternatives to ensure work continuity.",
     "recovery_actions": {
       "cloudflare_blocked": [
-        "• VPN やプロキシサービスを利用",
-        "• ネットワーク環境を切替（モバイルホットスポットなど）",
-        "• 10-30分待ってから再試行",
-        "• ブラウザのキャッシュとクッキーをクリア",
-        "• 他の利用可能なサービスに切替：ChatGPT、Claude、Qwen、Gemini"
+        "• Use VPN or proxy service",
+        "• Switch network environment (like mobile hotspot)",
+        "• Wait 10-30 minutes and retry",
+        "• Clear browser cache and cookies",
+        "• Switch to other available services: ChatGPT, Claude, Qwen, Gemini"
       ],
       "network_timeout": [
-        "• ネットワーク接続が安定しているか確認",
-        "• 接続操作を再試行",
-        "• より安定したネットワーク環境に切替",
-        "• ファイアウォールの設定を確認"
+        "• Check if network connection is stable",
+        "• Retry connection operation",
+        "• Switch to more stable network environment",
+        "• Check firewall settings"
       ],
       "connection_refused": [
-        "• Codex CLI が正しくインストールされているか確認",
-        "• サービス設定とAPIキーを確認",
-        "• アプリケーションを再起動",
-        "• ローカルポートが占有されていないか確認"
+        "• Check if Codex CLI is properly installed",
+        "• Verify service configuration and API keys",
+        "• Restart application",
+        "• Check if local ports are occupied"
       ],
       "unknown": [
-        "• ネットワーク接続状態を確認",
-        "• 現在の操作を再試行",
-        "• ネットワーク環境を切替",
-        "• 技術サポートに連絡"
+        "• Check network connection status",
+        "• Retry current operation",
+        "• Switch network environment",
+        "• Contact technical support"
       ]
     }
   },
   "thinking": {
-    "processing": "🤔 Codex が思考中...",
-    "completed": "💭 思考過程完了",
-    "analyzing": "問題を分析し、解決策を策定しています...",
-    "composing": "回答内容を整理しています..."
+    "processing": "🤔 Codex is thinking...",
+    "completed": "💭 Thinking process completed",
+    "analyzing": "Analyzing the problem and formulating solutions...",
+    "composing": "Composing response content..."
   },
   "error": {
-    "system_init_failed": "Codex システムの初期化に失敗しました",
-    "invalid_message_format": "メッセージフォーマットが無効です",
-    "invalid_input": "入力内容が無効です",
-    "session_timeout": "セッションがタイムアウトしました。再試行してください",
-    "permission_denied": "この操作はアクセス拒否されました",
-    "context_error": "{{context}}でエラーが発生しました。ページを更新するか再試行してください。",
-    "generic": "Codex コンポーネントで異常が発生しました。しばらくしてから再試行してください。",
-    "troubleshooting": "トラブルシューティング提案",
-    "suggestion_1": "ネットワーク接続が正常か確認",
-    "suggestion_2": "Codex サービスが実行されているか確認",
-    "suggestion_3": "アプリケーションの再起動を試す",
-    "suggestion_4": "ブラウザキャッシュとローカルストレージをクリア"
+    "system_init_failed": "Failed to initialize Codex system",
+    "invalid_message_format": "Invalid message format",
+    "invalid_input": "Invalid input provided",
+    "session_timeout": "Session timed out, please retry",
+    "permission_denied": "Permission denied for this operation",
+    "context_error": "Error occurred in {{context}}, please refresh or retry.",
+    "generic": "Codex component encountered an exception, please try again later.",
+    "troubleshooting": "Troubleshooting Suggestions",
+    "suggestion_1": "Check if network connection is stable",
+    "suggestion_2": "Ensure Codex service is running properly",
+    "suggestion_3": "Try restarting the application",
+    "suggestion_4": "Clear browser cache and local storage"
   },
   "performance": {
-    "virtualization_enabled": "パフォーマンス向上のため、リスト仮想化が有効になりました",
-    "virtualization_disabled": "リスト仮想化が無効になり、すべての項目を表示します",
-    "debounce_enabled": "入力デバウンスが有効です（{{delay}}ms 遅延）",
-    "debounce_disabled": "入力デバウンスが無効です"
+    "virtualization_enabled": "List virtualization is enabled for better performance",
+    "virtualization_disabled": "List virtualization is disabled, showing all items",
+    "debounce_enabled": "Input debouncing is enabled ({{delay}}ms delay)",
+    "debounce_disabled": "Input debouncing is disabled"
   },
   "config": {
-    "loaded": "設定の読み込みが成功しました",
-    "updated": "設定の更新が成功しました",
-    "reset": "設定をデフォルト値にリセットしました",
-    "validation_failed": "設定の検証に失敗しました",
-    "import_success": "設定のインポートが成功しました",
-    "import_failed": "設定のインポートに失敗しました",
-    "export_success": "設定のエクスポートが成功しました"
+    "loaded": "Configuration loaded successfully",
+    "updated": "Configuration updated successfully",
+    "reset": "Configuration reset to defaults",
+    "validation_failed": "Configuration validation failed",
+    "import_success": "Configuration imported successfully",
+    "import_failed": "Failed to import configuration",
+    "export_success": "Configuration exported successfully"
   },
   "permissions": {
-    "allow_once": "今回のみ許可",
-    "allow_always": "常に許可",
-    "reject_once": "今回のみ拒否",
-    "reject_always": "常に拒否",
-    "allow_once_desc": "この要求のみ権限を付与",
-    "allow_always_desc": "同種の要求に常に権限を付与",
-    "reject_once_desc": "この要求のみ拒否",
-    "reject_always_desc": "同種の要求を常に拒否",
-    "processing": "処理中...",
-    "response_sent": "レスポンスを正常に送信しました",
-    "choose_action": "アクションを選択してください：",
+    "allow_once": "Allow Once",
+    "allow_always": "Allow Always",
+    "reject_once": "Reject Once",
+    "reject_always": "Reject Always",
+    "allow_once_desc": "Grant permission for this request only",
+    "allow_always_desc": "Always grant permission for similar requests",
+    "reject_once_desc": "Reject this request only",
+    "reject_always_desc": "Always reject similar requests",
+    "processing": "Processing...",
+    "response_sent": "Response sent successfully",
+    "choose_action": "Choose an action:",
     "titles": {
-      "exec_approval_request": "コマンド実行権限",
-      "apply_patch_approval_request": "ファイル変更権限",
-      "command_execution": "コマンド実行権限",
-      "file_write": "ファイル書き込み権限",
-      "file_read": "ファイル読み取り権限"
+      "exec_approval_request": "Execute Command Permission",
+      "apply_patch_approval_request": "Apply File Changes Permission",
+      "command_execution": "Command Execution Permission",
+      "file_write": "File Write Permission",
+      "file_read": "File Read Permission"
     },
     "labels": {
-      "command": "コマンド：",
-      "directory": "ディレクトリ：",
-      "reason": "理由：",
-      "files_to_modify": "変更するファイル",
-      "summary": "要約："
+      "command": "Command:",
+      "directory": "Directory:",
+      "reason": "Reason:",
+      "files_to_modify": "Files to modify",
+      "summary": "Summary:"
     },
     "descriptions": {
-      "command_execution": "Codex がシステムコマンドの実行を要求",
-      "file_write": "Codex がファイルの変更または作成を要求",
-      "file_read": "Codex がファイル内容の読み取りを要求"
+      "command_execution": "Codex requests to execute system commands",
+      "file_write": "Codex requests to modify or create files",
+      "file_read": "Codex requests to read file contents"
     },
     "command_execution": {
-      "allow_once_desc": "このコマンド実行のみ許可",
-      "allow_always_desc": "すべてのコマンド実行要求を常に許可",
-      "reject_once_desc": "このコマンド実行のみ拒否",
-      "reject_always_desc": "すべてのコマンド実行要求を常に拒否"
+      "allow_once_desc": "Allow this command execution only",
+      "allow_always_desc": "Always allow all command execution requests",
+      "reject_once_desc": "Reject this command execution only",
+      "reject_always_desc": "Always reject all command execution requests"
     },
     "file_write": {
-      "allow_once_desc": "このファイル書き込みのみ許可",
-      "allow_always_desc": "すべてのファイル書き込み要求を常に許可",
-      "reject_once_desc": "このファイル書き込みのみ拒否",
-      "reject_always_desc": "すべてのファイル書き込み要求を常に拒否"
+      "allow_once_desc": "Allow this file write only",
+      "allow_always_desc": "Always allow all file write requests",
+      "reject_once_desc": "Reject this file write only",
+      "reject_always_desc": "Always reject all file write requests"
     },
     "file_read": {
-      "allow_once_desc": "このファイル読み取りのみ許可",
-      "allow_always_desc": "すべてのファイル読み取り要求を常に許可",
-      "reject_once_desc": "このファイル読み取りのみ拒否",
-      "reject_always_desc": "すべてのファイル読み取り要求を常に拒否"
+      "allow_once_desc": "Allow this file read only",
+      "allow_always_desc": "Always allow all file read requests",
+      "reject_once_desc": "Reject this file read only",
+      "reject_always_desc": "Always reject all file read requests"
     }
   }
 }

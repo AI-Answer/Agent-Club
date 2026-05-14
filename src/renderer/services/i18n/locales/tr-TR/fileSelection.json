@@ -1,6 +1,6 @@
 {
-  "selectFile": "Dosya Seç",
-  "selectDirectory": "Klasör Seç",
-  "pleaseSelectFile": "Lütfen bir dosya seçin",
-  "pleaseSelectDirectory": "Lütfen bir klasör seçin"
+  "selectFile": "Select File",
+  "selectDirectory": "Select Directory",
+  "pleaseSelectFile": "Please select a file",
+  "pleaseSelectDirectory": "Please select a directory"
 }

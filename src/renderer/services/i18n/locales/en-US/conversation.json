@@ -5,6 +5,7 @@
     "uploadFile": "Upload Files",
     "linkFolder": "Open Folder",
     "newConversation": "New Chat",
+    "newConversationShortcut": "New Chat (Cmd/Ctrl+N)",
     "multiAgentModeEnabled": "Entering multi-agent mode",
     "selectModel": "Select Model",
     "useCliModel": "Select Model",

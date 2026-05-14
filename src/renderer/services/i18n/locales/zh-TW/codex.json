@@ -1,22 +1,22 @@
 {
   "sendbox": {},
   "network": {
-    "cloudflare_blocked": "Cloudflare 保護導致無法存取 {{service}}。建議：1）使用 VPN 2）切換網路 3）稍後重試 4）切換至其他 AI 服務",
-    "network_timeout": "網路逾時，正在自動重試連線...",
-    "connection_refused": "連線被拒絕，請確認 Codex 服務是否正常運行。",
-    "unknown_error": "發生網路連線錯誤，請檢查網路設定。",
-    "retry_attempt": "正在重試第 {{current}} 次...",
-    "cloudflare_blocked_title": "🚫 由於 Cloudflare 保護，{{service}} 服務被封鎖",
-    "network_timeout_title": "⏱️ 網路連線逾時",
-    "connection_refused_title": "❌ 服務連線被拒絕",
-    "unknown_error_title": "🔌 網路連線錯誤",
-    "recovery_suggestions": "**建議解法：**",
-    "technical_info": "**技術資訊：**",
-    "error_type": "錯誤類型",
-    "retry_count": "重試次數",
-    "error_details": "錯誤詳情",
-    "quick_switch_title": "💡 **快速切換選項：**",
-    "quick_switch_content": "當前服務遇到網路限制時，你可以：\n\n1. **立即切換 AI 助手**：從左側面板選擇其他可用助手\n2. **檢查服務狀態**：不同地區的服務可用性可能不同\n3. **網路優化**：使用穩定的網路環境以提升連線成功率\n4. **稍後重試**：網路限制通常是暫時的\n\n**提示**：建議配置多個備用的 AI 服務以確保工作不中斷。",
+    "cloudflare_blocked": "Cloudflare protection blocked access to {{service}}. Suggestions: 1) Use VPN 2) Switch network 3) Retry later 4) Switch to other AI services",
+    "network_timeout": "Network timeout, automatically retrying connection...",
+    "connection_refused": "Connection refused, please check if Codex service is running properly.",
+    "unknown_error": "Network connection error, please check network settings.",
+    "retry_attempt": "Retrying attempt {{current}}...",
+    "cloudflare_blocked_title": "🚫 {{service}} service blocked by Cloudflare protection",
+    "network_timeout_title": "⏱️ Network connection timeout",
+    "connection_refused_title": "❌ Service connection refused",
+    "unknown_error_title": "🔌 Network connection error",
+    "recovery_suggestions": "**Suggested Solutions:**",
+    "technical_info": "**Technical Information:**",
+    "error_type": "Error Type",
+    "retry_count": "Retry Count",
+    "error_details": "Error Details",
+    "quick_switch_title": "💡 **Quick Switch Options:**",
+    "quick_switch_content": "When current service encounters network restrictions, you can:\n\n1. **Switch AI Assistant Immediately**: Select other available assistants from the left panel\n2. **Check Service Status**: Availability of different AI services may vary by region\n3. **Network Optimization**: Use stable network environment to improve connection success rate\n4. **Retry Later**: Network restrictions are usually temporary\n\n**Tip**: It's recommended to configure multiple AI services as alternatives to ensure work continuity.",
     "recovery_actions": {
       "cloudflare_blocked": [
         "• Use VPN or proxy service",
@@ -46,88 +46,88 @@
     }
   },
   "thinking": {
-    "processing": "🤔 Codex 正在思考...",
-    "completed": "💭 思考過程完成",
-    "analyzing": "正在分析問題和制定解決方案...",
-    "composing": "正在整理回覆內容..."
+    "processing": "🤔 Codex is thinking...",
+    "completed": "💭 Thinking process completed",
+    "analyzing": "Analyzing the problem and formulating solutions...",
+    "composing": "Composing response content..."
   },
   "error": {
-    "system_init_failed": "Codex 系統初始化失敗",
-    "invalid_message_format": "訊息格式無效",
-    "invalid_input": "輸入內容無效",
-    "session_timeout": "工作階段已逾時，請重試",
-    "permission_denied": "此操作被拒絕存取",
-    "context_error": "在{{context}}中發生錯誤，請重新整理或重試。",
-    "generic": "Codex 元件出現異常，請稍後重試。",
-    "troubleshooting": "疑難排解建議",
-    "suggestion_1": "檢查網路連線是否正常",
-    "suggestion_2": "確認 Codex 服務正在執行",
-    "suggestion_3": "嘗試重新啟動應用程式",
-    "suggestion_4": "清除瀏覽器快取和本機儲存"
+    "system_init_failed": "Failed to initialize Codex system",
+    "invalid_message_format": "Invalid message format",
+    "invalid_input": "Invalid input provided",
+    "session_timeout": "Session timed out, please retry",
+    "permission_denied": "Permission denied for this operation",
+    "context_error": "Error occurred in {{context}}, please refresh or retry.",
+    "generic": "Codex component encountered an exception, please try again later.",
+    "troubleshooting": "Troubleshooting Suggestions",
+    "suggestion_1": "Check if network connection is stable",
+    "suggestion_2": "Ensure Codex service is running properly",
+    "suggestion_3": "Try restarting the application",
+    "suggestion_4": "Clear browser cache and local storage"
   },
   "performance": {
-    "virtualization_enabled": "清單虛擬化已啟用以提升效能",
-    "virtualization_disabled": "清單虛擬化已停用，顯示所有項目",
-    "debounce_enabled": "輸入防抖已啟用（{{delay}}毫秒延遲）",
-    "debounce_disabled": "輸入防抖已停用"
+    "virtualization_enabled": "List virtualization is enabled for better performance",
+    "virtualization_disabled": "List virtualization is disabled, showing all items",
+    "debounce_enabled": "Input debouncing is enabled ({{delay}}ms delay)",
+    "debounce_disabled": "Input debouncing is disabled"
   },
   "config": {
-    "loaded": "設定載入成功",
-    "updated": "設定更新成功",
-    "reset": "設定已重設為預設值",
-    "validation_failed": "設定驗證失敗",
-    "import_success": "設定匯入成功",
-    "import_failed": "設定匯入失敗",
-    "export_success": "設定匯出成功"
+    "loaded": "Configuration loaded successfully",
+    "updated": "Configuration updated successfully",
+    "reset": "Configuration reset to defaults",
+    "validation_failed": "Configuration validation failed",
+    "import_success": "Configuration imported successfully",
+    "import_failed": "Failed to import configuration",
+    "export_success": "Configuration exported successfully"
   },
   "permissions": {
-    "allow_once": "僅此次允許",
-    "allow_always": "總是允許",
-    "reject_once": "僅此次拒絕",
-    "reject_always": "總是拒絕",
-    "allow_once_desc": "僅對此次請求給予權限",
-    "allow_always_desc": "對同類型請求總是給予權限",
-    "reject_once_desc": "僅拒絕此次請求",
-    "reject_always_desc": "對同類型請求總是拒絕",
-    "processing": "處理中...",
-    "response_sent": "回應已成功發送",
-    "choose_action": "請選擇操作：",
+    "allow_once": "Allow Once",
+    "allow_always": "Allow Always",
+    "reject_once": "Reject Once",
+    "reject_always": "Reject Always",
+    "allow_once_desc": "Grant permission for this request only",
+    "allow_always_desc": "Always grant permission for similar requests",
+    "reject_once_desc": "Reject this request only",
+    "reject_always_desc": "Always reject similar requests",
+    "processing": "Processing...",
+    "response_sent": "Response sent successfully",
+    "choose_action": "Choose an action:",
     "titles": {
-      "exec_approval_request": "指令執行權限",
-      "apply_patch_approval_request": "檔案修改權限",
-      "command_execution": "指令執行權限",
-      "file_write": "檔案寫入權限",
-      "file_read": "檔案讀取權限"
+      "exec_approval_request": "Execute Command Permission",
+      "apply_patch_approval_request": "Apply File Changes Permission",
+      "command_execution": "Command Execution Permission",
+      "file_write": "File Write Permission",
+      "file_read": "File Read Permission"
     },
     "labels": {
-      "command": "指令：",
-      "directory": "目錄：",
-      "reason": "原因：",
-      "files_to_modify": "要修改的檔案",
-      "summary": "摘要："
+      "command": "Command:",
+      "directory": "Directory:",
+      "reason": "Reason:",
+      "files_to_modify": "Files to modify",
+      "summary": "Summary:"
     },
     "descriptions": {
-      "command_execution": "Codex 請求執行系統指令",
-      "file_write": "Codex 請求修改或建立檔案",
-      "file_read": "Codex 請求讀取檔案內容"
+      "command_execution": "Codex requests to execute system commands",
+      "file_write": "Codex requests to modify or create files",
+      "file_read": "Codex requests to read file contents"
     },
     "command_execution": {
-      "allow_once_desc": "僅允許此次指令執行",
-      "allow_always_desc": "對所有指令執行請求總是允許",
-      "reject_once_desc": "僅拒絕此次指令執行",
-      "reject_always_desc": "對所有指令執行請求總是拒絕"
+      "allow_once_desc": "Allow this command execution only",
+      "allow_always_desc": "Always allow all command execution requests",
+      "reject_once_desc": "Reject this command execution only",
+      "reject_always_desc": "Always reject all command execution requests"
     },
     "file_write": {
-      "allow_once_desc": "僅允許此次檔案寫入",
-      "allow_always_desc": "對所有檔案寫入請求總是允許",
-      "reject_once_desc": "僅拒絕此次檔案寫入",
-      "reject_always_desc": "對所有檔案寫入請求總是拒絕"
+      "allow_once_desc": "Allow this file write only",
+      "allow_always_desc": "Always allow all file write requests",
+      "reject_once_desc": "Reject this file write only",
+      "reject_always_desc": "Always reject all file write requests"
     },
     "file_read": {
-      "allow_once_desc": "僅允許此次檔案讀取",
-      "allow_always_desc": "對所有檔案讀取請求總是允許",
-      "reject_once_desc": "僅拒絕此次檔案讀取",
-      "reject_always_desc": "對所有檔案讀取請求總是拒絕"
+      "allow_once_desc": "Allow this file read only",
+      "allow_always_desc": "Always allow all file read requests",
+      "reject_once_desc": "Reject this file read only",
+      "reject_always_desc": "Always reject all file read requests"
     }
   }
 }

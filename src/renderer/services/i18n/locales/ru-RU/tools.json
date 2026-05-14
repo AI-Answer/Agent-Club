@@ -1,69 +1,69 @@
 {
-  "unknownFile": "Неизвестный файл",
-  "newFile": "Новый файл",
-  "deletedFile": "Удалённый файл",
-  "modified": "Изменено",
-  "fileChanges": "Изменения файлов",
+  "unknownFile": "Unknown file",
+  "newFile": "New File",
+  "deletedFile": "Deleted File",
+  "modified": "Modified",
+  "fileChanges": "File Changes",
   "shell": {
-    "displayName": "Команда оболочки",
-    "description": "Выполнение команд оболочки"
+    "displayName": "Shell Command",
+    "description": "Execute shell commands"
   },
   "fileOps": {
-    "displayName": "Файловые операции",
-    "description": "Чтение, запись и изменение файлов"
+    "displayName": "File Operations",
+    "description": "File read, write and modification"
   },
   "webSearch": {
-    "displayName": "Веб-поиск",
-    "description": "Поиск веб-контента"
+    "displayName": "Web Search",
+    "description": "Search web content"
   },
   "mcp": {
     "generic": {
-      "displayName": "MCP-инструмент: {{toolName}}",
-      "description": "Вызов MCP-инструмента: {{toolName}}"
+      "displayName": "MCP Tool: {{toolName}}",
+      "description": "MCP tool call: {{toolName}}"
     }
   },
   "unknown": {
-    "displayName": "Неизвестный инструмент",
-    "description": "Неизвестный тип инструмента"
+    "displayName": "Unknown Tool",
+    "description": "Unknown tool type"
   },
   "status": {
-    "pending": "В очереди",
-    "executing": "Выполняется",
-    "success": "Успешно",
-    "error": "Ошибка",
-    "canceled": "Отменено"
+    "pending": "Pending",
+    "executing": "Executing",
+    "success": "Success",
+    "error": "Error",
+    "canceled": "Canceled"
   },
   "titles": {
-    "web_search_started": "Веб-поиск начат",
-    "web_search_completed": "Веб-поиск завершён",
-    "web_search": "Веб-поиск",
-    "applying_patch": "Применение патча",
-    "patch_applied": "Патч применён",
-    "file_patch": "Патч файла",
-    "mcp_tool_starting": "MCP-инструмент: {{toolName}} (запуск)",
-    "mcp_tool": "MCP-инструмент: {{toolName}}",
-    "execute_command": "Выполнить: {{command}}",
-    "command_output": "Вывод команды",
-    "command_completed": "Команда завершена",
-    "shell_command": "Команда оболочки"
+    "web_search_started": "Web Search Started",
+    "web_search_completed": "Web Search Completed",
+    "web_search": "Web Search",
+    "applying_patch": "Applying Patch",
+    "patch_applied": "Patch Applied",
+    "file_patch": "File Patch",
+    "mcp_tool_starting": "MCP Tool: {{toolName}} (starting)",
+    "mcp_tool": "MCP Tool: {{toolName}}",
+    "execute_command": "Execute: {{command}}",
+    "command_output": "Command Output",
+    "command_completed": "Command Completed",
+    "shell_command": "Shell Command"
   },
   "labels": {
-    "search_query": "Поисковый запрос:",
-    "file_changes": "Изменения файлов:",
-    "tool_details": "Детали инструмента:",
-    "tool": "Инструмент",
-    "arguments": "Аргументы:",
-    "result": "Результат:",
-    "command": "Команда:",
-    "working_directory": "Рабочая директория:",
-    "exit_code": "Выход: {{code}}",
-    "duration": "Длительность: {{seconds}}",
-    "auto_approved": "Авто-одобрено",
-    "manual_approval": "Ручное одобрение"
+    "search_query": "Search Query:",
+    "file_changes": "File Changes:",
+    "tool_details": "Tool Details:",
+    "tool": "Tool",
+    "arguments": "Arguments:",
+    "result": "Result:",
+    "command": "Command:",
+    "working_directory": "Working directory:",
+    "exit_code": "Exit: {{code}}",
+    "duration": "Duration: {{seconds}}",
+    "auto_approved": "Auto-approved",
+    "manual_approval": "Manual approval"
   },
   "actions": {
-    "create": "создать",
-    "modify": "изменить",
-    "delete": "удалить"
+    "create": "create",
+    "modify": "modify",
+    "delete": "delete"
   }
 }

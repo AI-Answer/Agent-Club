@@ -1,34 +1,14 @@
-# PRD 索引：Custom Agent（自定义 Agent 配置与连接测试）
+# README
 
-## 文档
+This Agent Club documentation page was reset during the whitelabel pass. The old upstream or localized copy was removed so it does not leak obsolete branding, stale links, or non-English placeholder content.
 
-| 文件                               | 说明                    |
-| ---------------------------------- | ----------------------- |
-| [custom-agent.md](custom-agent.md) | PRD 最终版（16 功能点） |
+## Current Canonical References
 
-## 功能点总览
+- Product: Agent Club
+- Help and community: https://www.skool.com/claude
+- Main guide: ../../README.md
+- Settings Hooks page: /settings/hooks
 
-| 编号        | 功能点                             | 状态   | 模块 |
-| ----------- | ---------------------------------- | ------ | ---- |
-| F-CAGENT-01 | Agent 设置页入口与 Tab 切换        | 已实现 | 导航 |
-| F-CAGENT-02 | Detected Agents 列表展示           | 已实现 | 列表 |
-| F-CAGENT-03 | Custom Agent 列表展示              | 已实现 | 列表 |
-| F-CAGENT-04 | 创建 Custom Agent                  | 已实现 | CRUD |
-| F-CAGENT-05 | 编辑 Custom Agent                  | 已实现 | CRUD |
-| F-CAGENT-06 | InlineAgentEditor — Avatar 选择    | 已实现 | 表单 |
-| F-CAGENT-07 | InlineAgentEditor — 名称与命令输入 | 已实现 | 表单 |
-| F-CAGENT-08 | InlineAgentEditor — 参数输入       | 已实现 | 表单 |
-| F-CAGENT-09 | InlineAgentEditor — 环境变量管理   | 已实现 | 表单 |
-| F-CAGENT-10 | 高级 JSON 编辑器                   | 已实现 | 表单 |
-| F-CAGENT-11 | 连接测试                           | 已实现 | 测试 |
-| F-CAGENT-12 | 保存 Custom Agent                  | 已实现 | CRUD |
-| F-CAGENT-13 | 删除 Custom Agent                  | 已实现 | CRUD |
-| F-CAGENT-14 | 启用/禁用 Custom Agent             | 已实现 | CRUD |
-| F-CAGENT-15 | Agent 自动检测机制                 | 已实现 | 检测 |
-| F-CAGENT-16 | Custom Agent 数据加载（GuidPage）  | 已实现 | 加载 |
+## Rebuild Note
 
-## 工作记录
-
-- R1: 静态分析（19 功能点）+ 动态分析（12 截图）
-- R2: PRD 初稿（16 功能点）+ DA 质疑（18 条）+ 测试计划（66 AC, 92% E2E 可执行）
-- R3: 回应（25 条，21 接受 + 2 部分接受）+ PRD 终稿 + 辩论记录
+Rewrite this page with Agent Club-specific details before using it as user-facing documentation. Keep the copy English-first and verify that any product links, screenshots, or commands match the current Agent Club app.

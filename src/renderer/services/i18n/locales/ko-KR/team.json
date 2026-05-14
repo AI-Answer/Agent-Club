@@ -2,59 +2,59 @@
   "sider": {
     "title": "Teams",
     "createTeam": "New Team",
-    "pin": "고정",
-    "unpin": "고정 해제",
-    "rename": "이름 변경",
-    "delete": "삭제",
-    "renameTitle": "팀 이름 변경",
-    "renamePlaceholder": "팀 이름",
-    "deleteConfirm": "이 팀을 삭제하시겠습니까?",
-    "deleteConfirmContent": "이 작업은 되돌릴 수 없습니다.",
-    "deleteOk": "삭제",
-    "deleteCancel": "취소",
-    "renameOk": "저장",
-    "renameCancel": "취소",
-    "renameSuccess": "팀 이름이 변경되었습니다",
-    "deleteSuccess": "팀이 삭제되었습니다"
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "rename": "Rename",
+    "delete": "Delete",
+    "renameTitle": "Rename Team",
+    "renamePlaceholder": "Team name",
+    "deleteConfirm": "Delete this team?",
+    "deleteConfirmContent": "This action cannot be undone.",
+    "deleteOk": "Delete",
+    "deleteCancel": "Cancel",
+    "renameOk": "Save",
+    "renameCancel": "Cancel",
+    "renameSuccess": "Team renamed",
+    "deleteSuccess": "Team deleted"
   },
   "newAgent": "New Agent",
   "noMessages": "No messages yet.",
-  "agentNotConfigured": "에이전트가 아직 구성되지 않았습니다.",
+  "agentNotConfigured": "Agent not configured yet.",
   "sendBox": {
-    "placeholder": "디스패치 에이전트에 메시지 보내기..."
+    "placeholder": "Message dispatch agent..."
   },
   "create": {
     "title": "Create Team",
     "namePlaceholder": "Team name",
-    "dispatchAgentPlaceholder": "팀 리더 선택",
+    "dispatchAgentPlaceholder": "Select team leader",
     "subAgentsPlaceholder": "Select sub agents",
     "workspacePlaceholder": "Workspace path (optional)",
     "confirm": "Create Team",
-    "noSupportedAgents": "지원되는 에이전트가 설치되지 않았습니다",
-    "supportedAgentsHint": "현재 Claude와 Codex를 지원합니다. 더 많은 에이전트가 곧 추가됩니다.",
-    "leaderDesc": "목표를 이해하고 에이전트를 조율하여 작업을 완료합니다",
+    "noSupportedAgents": "No supported agents installed",
+    "supportedAgentsHint": "Currently supports Claude and Codex. More agents coming soon.",
+    "leaderDesc": "Understands your goals and coordinates agents to complete tasks",
     "step": {
-      "dispatch": "팀 리더",
+      "dispatch": "Team Leader",
       "subAgents": "Sub Agents",
       "workspace": "Workspace"
     },
-    "nameRequired": "팀 이름을 입력하세요",
-    "leaderRequired": "팀 리더를 선택하세요",
-    "selectFolder": "폴더 선택",
-    "recentLabel": "최근 사용",
-    "chooseDifferentFolder": "다른 폴더 선택",
-    "error": "팀 생성에 실패했습니다"
+    "nameRequired": "Please enter a team name",
+    "leaderRequired": "Please select a team leader",
+    "selectFolder": "Select folder",
+    "recentLabel": "Recent",
+    "chooseDifferentFolder": "Choose a different folder",
+    "error": "Failed to create team"
   },
   "removeAgent": {
-    "confirmTitle": "팀 멤버 제거",
-    "confirmContent": "이 멤버는 현재 활성 상태입니다. 강제 제거하시겠습니까?"
+    "confirmTitle": "Remove Team Member",
+    "confirmContent": "This member is currently active. Force remove?"
   },
   "emptyState": {
-    "subtitle": "목표를 알려주세요. 팀을 조율해서 완료하겠습니다",
+    "subtitle": "Describe your goal and I'll get the team working on it",
     "suggestions": {
-      "debate": "Agent들이 서로 다른 입장을 취하는 토론 개최",
-      "interview": "Agent 간 심층 인터뷰 기획",
-      "expert_review": "여러 전문가가 같은 문제를 분석"
+      "debate": "Organize a debate with agents taking different sides",
+      "interview": "Plan an in-depth interview between agents",
+      "expert_review": "Have multiple experts analyze the same problem"
     }
   }
 }

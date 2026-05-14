@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
  *
  * Reset password CLI utility for packaged applications
@@ -94,7 +94,7 @@ export async function resetPasswordCLI(username: string): Promise<void> {
     if (!hasUsersResult.data) {
       log.error('Database is not initialized yet');
       log.info('');
-      log.info('Please run AionUi at least once to initialize the database:');
+      log.info('Please run Agent Club at least once to initialize the database:');
       log.info('  aionui --webui');
       log.info('');
       log.info('Then you can reset the password using:');

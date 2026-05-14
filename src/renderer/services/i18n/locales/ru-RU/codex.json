@@ -1,133 +1,133 @@
 {
   "sendbox": {},
   "network": {
-    "cloudflare_blocked": "Защита Cloudflare заблокировала доступ к {{service}}. Варианты: 1) Использовать VPN 2) Сменить сеть 3) Попробовать позже 4) Переключиться на другие ИИ-сервисы",
-    "network_timeout": "Таймаут сети, автоматическое повторное подключение...",
-    "connection_refused": "В соединении отказано, проверьте, что сервис Codex работает корректно.",
-    "unknown_error": "Ошибка сетевого подключения, проверьте настройки сети.",
-    "retry_attempt": "Повторная попытка {{current}}...",
-    "cloudflare_blocked_title": "🚫 Сервис {{service}} заблокирован защитой Cloudflare",
-    "network_timeout_title": "⏱️ Таймаут сетевого подключения",
-    "connection_refused_title": "❌ В соединении отказано",
-    "unknown_error_title": "🔌 Ошибка сетевого подключения",
-    "recovery_suggestions": "**Предлагаемые решения:**",
-    "technical_info": "**Техническая информация:**",
-    "error_type": "Тип ошибки",
-    "retry_count": "Количество попыток",
-    "error_details": "Детали ошибки",
-    "quick_switch_title": "💡 **Быстрое переключение:**",
-    "quick_switch_content": "Когда текущий сервис сталкивается с сетевыми ограничениями, вы можете:\n\n1. **Немедленно переключить ИИ-ассистента**: Выберите других доступных ассистентов на левой панели\n2. **Проверить статус сервиса**: Доступность разных ИИ-сервисов может варьироваться по регионам\n3. **Оптимизация сети**: Используйте стабильную сетевую среду для улучшения успешности подключений\n4. **Попробовать позже**: Сетевые ограничения обычно временные\n\n**Подсказка**: Рекомендуется настроить несколько ИИ-сервисов как альтернативы для обеспечения непрерывности работы.",
+    "cloudflare_blocked": "Cloudflare protection blocked access to {{service}}. Suggestions: 1) Use VPN 2) Switch network 3) Retry later 4) Switch to other AI services",
+    "network_timeout": "Network timeout, automatically retrying connection...",
+    "connection_refused": "Connection refused, please check if Codex service is running properly.",
+    "unknown_error": "Network connection error, please check network settings.",
+    "retry_attempt": "Retrying attempt {{current}}...",
+    "cloudflare_blocked_title": "🚫 {{service}} service blocked by Cloudflare protection",
+    "network_timeout_title": "⏱️ Network connection timeout",
+    "connection_refused_title": "❌ Service connection refused",
+    "unknown_error_title": "🔌 Network connection error",
+    "recovery_suggestions": "**Suggested Solutions:**",
+    "technical_info": "**Technical Information:**",
+    "error_type": "Error Type",
+    "retry_count": "Retry Count",
+    "error_details": "Error Details",
+    "quick_switch_title": "💡 **Quick Switch Options:**",
+    "quick_switch_content": "When current service encounters network restrictions, you can:\n\n1. **Switch AI Assistant Immediately**: Select other available assistants from the left panel\n2. **Check Service Status**: Availability of different AI services may vary by region\n3. **Network Optimization**: Use stable network environment to improve connection success rate\n4. **Retry Later**: Network restrictions are usually temporary\n\n**Tip**: It's recommended to configure multiple AI services as alternatives to ensure work continuity.",
     "recovery_actions": {
       "cloudflare_blocked": [
-        "• Использовать VPN или прокси",
-        "• Сменить сетевую среду (например, мобильную точку доступа)",
-        "• Подождать 10-30 минут и повторить",
-        "• Очистить кэш браузера и cookies",
-        "• Переключиться на другие сервисы: ChatGPT, Claude, Qwen, Gemini"
+        "• Use VPN or proxy service",
+        "• Switch network environment (like mobile hotspot)",
+        "• Wait 10-30 minutes and retry",
+        "• Clear browser cache and cookies",
+        "• Switch to other available services: ChatGPT, Claude, Qwen, Gemini"
       ],
       "network_timeout": [
-        "• Проверить стабильность сетевого подключения",
-        "• Повторить операцию подключения",
-        "• Переключиться на более стабильную сетевую среду",
-        "• Проверить настройки брандмауэра"
+        "• Check if network connection is stable",
+        "• Retry connection operation",
+        "• Switch to more stable network environment",
+        "• Check firewall settings"
       ],
       "connection_refused": [
-        "• Проверить, что Codex CLI установлен корректно",
-        "• Проверить конфигурацию сервиса и API-ключи",
-        "• Перезапустить приложение",
-        "• Проверить, не заняты ли локальные порты"
+        "• Check if Codex CLI is properly installed",
+        "• Verify service configuration and API keys",
+        "• Restart application",
+        "• Check if local ports are occupied"
       ],
       "unknown": [
-        "• Проверить статус сетевого подключения",
-        "• Повторить текущую операцию",
-        "• Сменить сетевую среду",
-        "• Обратиться в техподдержку"
+        "• Check network connection status",
+        "• Retry current operation",
+        "• Switch network environment",
+        "• Contact technical support"
       ]
     }
   },
   "thinking": {
-    "processing": "🤔 Codex думает...",
-    "completed": "💭 Процесс мышления завершён",
-    "analyzing": "Анализ проблемы и формирование решений...",
-    "composing": "Составление содержимого ответа..."
+    "processing": "🤔 Codex is thinking...",
+    "completed": "💭 Thinking process completed",
+    "analyzing": "Analyzing the problem and formulating solutions...",
+    "composing": "Composing response content..."
   },
   "error": {
-    "system_init_failed": "Не удалось инициализировать систему Codex",
-    "invalid_message_format": "Неверный формат сообщения",
-    "invalid_input": "Неверный ввод",
-    "session_timeout": "Сессия истекла, повторите попытку",
-    "permission_denied": "Доступ запрещён для этой операции",
-    "context_error": "Ошибка в {{context}}, обновите или повторите попытку.",
-    "generic": "Компонент Codex столкнулся с исключением, попробуйте позже.",
-    "troubleshooting": "Предложения по устранению",
-    "suggestion_1": "Проверьте стабильность сетевого подключения",
-    "suggestion_2": "Убедитесь, что сервис Codex работает корректно",
-    "suggestion_3": "Попробуйте перезапустить приложение",
-    "suggestion_4": "Очистите кэш браузера и локальное хранилище"
+    "system_init_failed": "Failed to initialize Codex system",
+    "invalid_message_format": "Invalid message format",
+    "invalid_input": "Invalid input provided",
+    "session_timeout": "Session timed out, please retry",
+    "permission_denied": "Permission denied for this operation",
+    "context_error": "Error occurred in {{context}}, please refresh or retry.",
+    "generic": "Codex component encountered an exception, please try again later.",
+    "troubleshooting": "Troubleshooting Suggestions",
+    "suggestion_1": "Check if network connection is stable",
+    "suggestion_2": "Ensure Codex service is running properly",
+    "suggestion_3": "Try restarting the application",
+    "suggestion_4": "Clear browser cache and local storage"
   },
   "performance": {
-    "virtualization_enabled": "Виртуализация списка включена для лучшей производительности",
-    "virtualization_disabled": "Виртуализация списка отключена, показываются все элементы",
-    "debounce_enabled": "Дебаунсинг ввода включён (задержка {{delay}} мс)",
-    "debounce_disabled": "Дебаунсинг ввода отключён"
+    "virtualization_enabled": "List virtualization is enabled for better performance",
+    "virtualization_disabled": "List virtualization is disabled, showing all items",
+    "debounce_enabled": "Input debouncing is enabled ({{delay}}ms delay)",
+    "debounce_disabled": "Input debouncing is disabled"
   },
   "config": {
-    "loaded": "Конфигурация успешно загружена",
-    "updated": "Конфигурация успешно обновлена",
-    "reset": "Конфигурация сброшена к значениям по умолчанию",
-    "validation_failed": "Ошибка валидации конфигурации",
-    "import_success": "Конфигурация успешно импортирована",
-    "import_failed": "Не удалось импортировать конфигурацию",
-    "export_success": "Конфигурация успешно экспортирована"
+    "loaded": "Configuration loaded successfully",
+    "updated": "Configuration updated successfully",
+    "reset": "Configuration reset to defaults",
+    "validation_failed": "Configuration validation failed",
+    "import_success": "Configuration imported successfully",
+    "import_failed": "Failed to import configuration",
+    "export_success": "Configuration exported successfully"
   },
   "permissions": {
-    "allow_once": "Разрешить один раз",
-    "allow_always": "Разрешать всегда",
-    "reject_once": "Отклонить один раз",
-    "reject_always": "Отклонять всегда",
-    "allow_once_desc": "Разрешить только этот запрос",
-    "allow_always_desc": "Всегда разрешать похожие запросы",
-    "reject_once_desc": "Отклонить только этот запрос",
-    "reject_always_desc": "Всегда отклонять похожие запросы",
-    "processing": "Обработка...",
-    "response_sent": "Ответ успешно отправлен",
-    "choose_action": "Выберите действие:",
+    "allow_once": "Allow Once",
+    "allow_always": "Allow Always",
+    "reject_once": "Reject Once",
+    "reject_always": "Reject Always",
+    "allow_once_desc": "Grant permission for this request only",
+    "allow_always_desc": "Always grant permission for similar requests",
+    "reject_once_desc": "Reject this request only",
+    "reject_always_desc": "Always reject similar requests",
+    "processing": "Processing...",
+    "response_sent": "Response sent successfully",
+    "choose_action": "Choose an action:",
     "titles": {
-      "exec_approval_request": "Разрешение на выполнение команды",
-      "apply_patch_approval_request": "Разрешение на применение изменений файла",
-      "command_execution": "Разрешение на выполнение команды",
-      "file_write": "Разрешение на запись файла",
-      "file_read": "Разрешение на чтение файла"
+      "exec_approval_request": "Execute Command Permission",
+      "apply_patch_approval_request": "Apply File Changes Permission",
+      "command_execution": "Command Execution Permission",
+      "file_write": "File Write Permission",
+      "file_read": "File Read Permission"
     },
     "labels": {
-      "command": "Команда:",
-      "directory": "Директория:",
-      "reason": "Причина:",
-      "files_to_modify": "Файлы для изменения",
-      "summary": "Сводка:"
+      "command": "Command:",
+      "directory": "Directory:",
+      "reason": "Reason:",
+      "files_to_modify": "Files to modify",
+      "summary": "Summary:"
     },
     "descriptions": {
-      "command_execution": "Codex запрашивает выполнение системных команд",
-      "file_write": "Codex запрашивает изменение или создание файлов",
-      "file_read": "Codex запрашивает чтение содержимого файлов"
+      "command_execution": "Codex requests to execute system commands",
+      "file_write": "Codex requests to modify or create files",
+      "file_read": "Codex requests to read file contents"
     },
     "command_execution": {
-      "allow_once_desc": "Разрешить это выполнение команды",
-      "allow_always_desc": "Всегда разрешать все запросы на выполнение команд",
-      "reject_once_desc": "Отклонить это выполнение команды",
-      "reject_always_desc": "Всегда отклонять все запросы на выполнение команд"
+      "allow_once_desc": "Allow this command execution only",
+      "allow_always_desc": "Always allow all command execution requests",
+      "reject_once_desc": "Reject this command execution only",
+      "reject_always_desc": "Always reject all command execution requests"
     },
     "file_write": {
-      "allow_once_desc": "Разрешить эту запись файла",
-      "allow_always_desc": "Всегда разрешать все запросы на запись файлов",
-      "reject_once_desc": "Отклонить эту запись файла",
-      "reject_always_desc": "Всегда отклонять все запросы на запись файлов"
+      "allow_once_desc": "Allow this file write only",
+      "allow_always_desc": "Always allow all file write requests",
+      "reject_once_desc": "Reject this file write only",
+      "reject_always_desc": "Always reject all file write requests"
     },
     "file_read": {
-      "allow_once_desc": "Разрешить это чтение файла",
-      "allow_always_desc": "Всегда разрешать все запросы на чтение файлов",
-      "reject_once_desc": "Отклонить это чтение файла",
-      "reject_always_desc": "Всегда отклонять все запросы на чтение файлов"
+      "allow_once_desc": "Allow this file read only",
+      "allow_always_desc": "Always allow all file read requests",
+      "reject_once_desc": "Reject this file read only",
+      "reject_always_desc": "Always reject all file read requests"
     }
   }
 }

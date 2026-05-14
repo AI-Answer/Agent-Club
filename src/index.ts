@@ -40,6 +40,8 @@ import {
   clearPendingDeepLinkUrl,
   getPendingDeepLinkUrl,
   handleDeepLinkUrl,
+  isDeepLinkUrl,
+  LEGACY_PROTOCOL_SCHEMES,
   PROTOCOL_SCHEME,
 } from './process/utils/deepLink';
 import {
@@ -71,7 +73,7 @@ import electronSquirrelStartup from 'electron-squirrel-startup';
 // to the first instance via second-instance event, then quits.
 const isE2ETestMode = process.env.AIONUI_E2E_TEST === '1';
 const skipSingleInstanceLock = isE2ETestMode || process.env.AIONUI_MULTI_INSTANCE === '1';
-const deepLinkFromArgv = process.argv.find((arg) => arg.startsWith(`${PROTOCOL_SCHEME}://`));
+const deepLinkFromArgv = process.argv.find(isDeepLinkUrl);
 const gotTheLock = skipSingleInstanceLock ? true : app.requestSingleInstanceLock({ deepLinkUrl: deepLinkFromArgv });
 if (!gotTheLock) {
   console.warn('[AionUi] Another instance is already running; current process will exit.');
@@ -81,7 +83,7 @@ if (!gotTheLock) {
     // Prefer additionalData (reliable on all platforms), fallback to argv scan
     const deepLinkUrl =
       (additionalData as { deepLinkUrl?: string })?.deepLinkUrl ||
-      argv.find((arg) => arg.startsWith(`${PROTOCOL_SCHEME}://`));
+      argv.find(isDeepLinkUrl);
     if (deepLinkUrl) {
       handleDeepLinkUrl(deepLinkUrl);
     }
@@ -714,15 +716,21 @@ const handleAppReady = async (): Promise<void> => {
 };
 
 // ============ Protocol Registration ============
-// Register aionui:// as the default protocol client
-if (process.defaultApp) {
-  // Dev mode: need to pass execPath explicitly
-  app.setAsDefaultProtocolClient(PROTOCOL_SCHEME, process.execPath, [path.resolve(process.argv[1])]);
-} else {
-  app.setAsDefaultProtocolClient(PROTOCOL_SCHEME);
+// Register Agent Club deep links, while keeping the old upstream scheme as a compatibility alias.
+const registerProtocolScheme = (scheme: string) => {
+  if (process.defaultApp) {
+    app.setAsDefaultProtocolClient(scheme, process.execPath, [path.resolve(process.argv[1])]);
+  } else {
+    app.setAsDefaultProtocolClient(scheme);
+  }
+};
+
+registerProtocolScheme(PROTOCOL_SCHEME);
+for (const legacyScheme of LEGACY_PROTOCOL_SCHEMES) {
+  registerProtocolScheme(legacyScheme);
 }
 
-// macOS: handle aionui:// URLs via the open-url event
+// macOS: handle deep-link URLs via the open-url event.
 app.on('open-url', (event, url) => {
   event.preventDefault();
   handleDeepLinkUrl(url);

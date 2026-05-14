@@ -1,12 +1,12 @@
 appId: com.agentclub.app
 productName: Agent Club
-executableName: Agent Club
+executableName: AgentClub
 copyright: Copyright © 2026 Agent Club
 
 protocols:
   - name: Agent Club Protocol
     schemes:
-      - aionui
+      - agentclub
 
 asar:
   smartUnpack: true
@@ -192,9 +192,9 @@ linux:
     entry:
       Name: Agent Club
       Comment: ${description}
-      Icon: aionui
+      Icon: agentclub
       Categories: Office;Utility;
-      MimeType: x-scheme-handler/aionui;
+      MimeType: x-scheme-handler/agentclub;
 
 npmRebuild: false
 buildDependenciesFromSource: false
@@ -236,7 +236,7 @@ electronDownload:
 
 publish:
   provider: github
-  owner: iOfficeAI
-  repo: AionUi
+  owner: Samin12
+  repo: Agent-Club
   publishAutoUpdate: true
   releaseType: release

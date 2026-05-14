@@ -383,7 +383,7 @@ export function initFsBridge(): void {
           {
             headers: {
               'User-Agent': 'AionUI-Preview',
-              Referer: 'https://github.com/iOfficeAI/AionUi',
+              Referer: 'https://github.com/Samin12/Agent-Club',
             },
           },
           (response) => {

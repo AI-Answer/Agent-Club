@@ -165,7 +165,7 @@ export async function createAmbientWindow(): Promise<void> {
     height: BUBBLE_SIZE,
     x,
     y,
-    title: 'AionUi Ambient Bubble',
+    title: 'Agent Club Ambient Bubble',
     frame: false,
     transparent: true,
     resizable: false,

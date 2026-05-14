@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -8,7 +8,7 @@
  * OpenClaw Conflict Detector
  *
  * Detects if OpenClaw has Lark/Telegram channels enabled with the same credentials
- * as AionUi Channels, and warns the user about the conflict.
+ * as Agent Club Channels, and warns the user about the conflict.
  */
 
 import fs from 'node:fs';
@@ -96,7 +96,7 @@ function readOpenClawConfig(): OpenClawConfig | null {
 }
 
 /**
- * Check if OpenClaw Lark channel conflicts with AionUi credentials
+ * Check if OpenClaw Lark channel conflicts with Agent Club credentials
  */
 export function detectLarkConflict(aionuiAppId: string): ConflictInfo | null {
   const config = readOpenClawConfig();
@@ -128,7 +128,7 @@ export function detectLarkConflict(aionuiAppId: string): ConflictInfo | null {
 }
 
 /**
- * Check if OpenClaw Telegram channel conflicts with AionUi credentials
+ * Check if OpenClaw Telegram channel conflicts with Agent Club credentials
  */
 export function detectTelegramConflict(aionuiBotToken: string): ConflictInfo | null {
   const config = readOpenClawConfig();
@@ -184,10 +184,10 @@ export function getConflictResolutionSteps(platform: 'lark' | 'telegram'): strin
   const platformName = platform === 'lark' ? 'Feishu' : 'Telegram';
 
   return [
-    `Detected conflict: OpenClaw ${platformName} channel is using the same credentials as AionUi.`,
+    `Detected conflict: OpenClaw ${platformName} channel is using the same credentials as Agent Club.`,
     ``,
-    `This means messages are being handled by OpenClaw, not AionUi Channels.`,
-    `Switching agents in AionUi will have no effect.`,
+    `This means messages are being handled by OpenClaw, not Agent Club Channels.`,
+    `Switching agents in Agent Club will have no effect.`,
     ``,
     `To fix this, choose one:`,
     ``,
@@ -198,11 +198,11 @@ export function getConflictResolutionSteps(platform: 'lark' | 'telegram'): strin
     ``,
     `Option 2: Use different credentials`,
     `  - Create a new ${platformName} bot`,
-    `  - Configure it in AionUi Channels`,
+    `  - Configure it in Agent Club Channels`,
     `  - Keep OpenClaw ${platformName} channel for other use`,
     ``,
     `Option 3: Use OpenClaw for ${platformName}`,
-    `  - Disable ${platformName} in AionUi Channels`,
+    `  - Disable ${platformName} in Agent Club Channels`,
     `  - Use OpenClaw's native ${platformName} integration`,
   ];
 }

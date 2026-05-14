@@ -55,6 +55,12 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       icon: <Lightning theme='outline' size='16' />,
       path: 'capabilities',
     },
+    hooks: {
+      id: 'hooks',
+      label: t('settings.hooks', { defaultValue: 'Hooks' }),
+      icon: <Puzzle theme='outline' size='16' />,
+      path: 'hooks',
+    },
     display: {
       id: 'display',
       label: t('settings.display'),

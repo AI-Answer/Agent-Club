@@ -1,22 +1,22 @@
 {
   "auth": {
-    "failed": "Автентифікація {{backend}} не вдалася:\n\n{{error}}\n\nБудь ласка, перевірте статус автентифікації вашого локального CLI-інструмента",
-    "console_error": "Деталі помилки автентифікації ACP:",
-    "failed_confirm": "Автентифікація ACP {{backend}} не вдалася:\n\n{{error}}\n\nБажаєте перейти на сторінку налаштувань для конфігурації зараз?"
+    "failed": "{{backend}} authentication failed:\n\n{{error}}\n\nPlease check your local CLI tool authentication status",
+    "console_error": "ACP authentication error details:",
+    "failed_confirm": "ACP {{backend}} authentication failed:\n\n{{error}}\n\nWould you like to go to settings page to configure now?"
   },
   "sendbox": {
-    "placeholder": "Надіслати повідомлення до {{backend}}..."
+    "placeholder": "Send message to {{backend}}..."
   },
   "status": {
-    "connecting": "Підключення до {{agent}}...",
-    "connected": "Підключено до {{agent}}",
-    "authenticated": "Автентифіковано з {{agent}}",
-    "session_active": "Активна сесія з {{agent}}",
-    "error": "Помилка підключення",
-    "unknown": "Невідомий статус"
+    "connecting": "Connecting to {{agent}}...",
+    "connected": "Connected to {{agent}}",
+    "authenticated": "Authenticated with {{agent}}",
+    "session_active": "Active session with {{agent}}",
+    "error": "Connection error",
+    "unknown": "Unknown status"
   },
   "config": {
-    "reasoning_effort": "Зусилля міркування",
-    "default": "За замовчуванням"
+    "reasoning_effort": "Reasoning Effort",
+    "default": "Default"
   }
 }

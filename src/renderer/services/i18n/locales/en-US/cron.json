@@ -130,7 +130,7 @@
     "save": "Save as Skill",
     "dismiss": "Dismiss",
     "preview": "Preview skill content",
-    "saveSuccess": "Skill saved — future executions will use it",
+    "saveSuccess": "Skill saved - future executions will use it",
     "saveFailed": "Failed to save skill"
   },
   "error": {

@@ -1,22 +1,22 @@
 {
   "auth": {
-    "failed": "{{backend}} 認証が失敗しました：\n\n{{error}}\n\nローカルCLIツールの認証状態を確認してください",
-    "console_error": "ACP認証エラー詳細:",
-    "failed_confirm": "ACP {{backend}} 認証が失敗しました：\n\n{{error}}\n\n設定ページで設定しますか？"
+    "failed": "{{backend}} authentication failed:\n\n{{error}}\n\nPlease check your local CLI tool authentication status",
+    "console_error": "ACP authentication error details:",
+    "failed_confirm": "ACP {{backend}} authentication failed:\n\n{{error}}\n\nWould you like to go to settings page to configure now?"
   },
   "sendbox": {
-    "placeholder": "{{backend}}にメッセージを送信..."
+    "placeholder": "Send message to {{backend}}..."
   },
   "status": {
-    "connecting": "{{agent}} に接続中...",
-    "connected": "{{agent}} に接続しました",
-    "authenticated": "{{agent}} 認証が完了しました",
-    "session_active": "{{agent}} セッション実行中",
-    "error": "接続エラー",
-    "unknown": "不明な状態"
+    "connecting": "Connecting to {{agent}}...",
+    "connected": "Connected to {{agent}}",
+    "authenticated": "Authenticated with {{agent}}",
+    "session_active": "Active session with {{agent}}",
+    "error": "Connection error",
+    "unknown": "Unknown status"
   },
   "config": {
-    "reasoning_effort": "推論の深さ",
-    "default": "デフォルト"
+    "reasoning_effort": "Reasoning Effort",
+    "default": "Default"
   }
 }
