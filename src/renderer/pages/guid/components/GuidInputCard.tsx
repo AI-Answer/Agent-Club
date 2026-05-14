@@ -110,6 +110,7 @@ const GuidInputCard: React.FC<GuidInputCardProps> = ({
     >
       {mentionSelectorBadge}
       <Input.TextArea
+        data-guid-prompt-textarea='true'
         autoSize={textareaAutoSize}
         placeholder={placeholder}
         spellCheck={false}

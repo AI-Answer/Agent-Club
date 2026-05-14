@@ -38,11 +38,18 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styles from './index.module.css';
 
+type GuidLocationState = {
+  resetAssistant?: boolean;
+  workspace?: string;
+} | null;
+
 const GuidPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const guidLocationState = location.state as GuidLocationState;
   const guidContainerRef = useRef<HTMLDivElement>(null);
+  const keepPromptFocusAfterAgentCycleRef = useRef(false);
   const openAssistantDetailsRef = useRef<(() => void) | null>(null);
   const descriptionTextRef = useRef<HTMLDivElement>(null);
   const { closeAllTabs, openTab } = useConversationTabs();
@@ -83,7 +90,7 @@ const GuidPage: React.FC = () => {
   const [providerAgentKey, setProviderAgentKey] = useState<'gemini' | 'aionrs'>('aionrs');
   const modelSelection = useGuidModelSelection(providerAgentKey);
 
-  const resetAssistantRequested = (location.state as { resetAssistant?: boolean } | null)?.resetAssistant === true;
+  const resetAssistantRequested = guidLocationState?.resetAssistant === true;
   const agentSelection = useGuidAgentSelection({
     modelList: modelSelection.modelList,
     isGoogleAuth: modelSelection.isGoogleAuth,
@@ -101,7 +108,7 @@ const GuidPage: React.FC = () => {
   }, [agentSelection.selectedAgent]);
 
   const guidInput = useGuidInput({
-    locationState: location.state as { workspace?: string } | null,
+    locationState: guidLocationState,
   });
 
   const mention = useGuidMention({
@@ -175,8 +182,83 @@ const GuidPage: React.FC = () => {
     [mention.mentionMatchRegex, guidInput.setInput, mention.setMentionQuery, mention.setMentionOpen]
   );
 
+  const focusPromptTextarea = useCallback(() => {
+    const focus = () => {
+      const textarea =
+        guidContainerRef.current?.querySelector<HTMLTextAreaElement>('textarea[data-guid-prompt-textarea="true"]') ??
+        guidContainerRef.current?.querySelector<HTMLTextAreaElement>('textarea');
+
+      if (!textarea) return;
+
+      textarea.focus({ preventScroll: true });
+      const cursorPosition = textarea.value.length;
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+      guidInput.handleTextareaFocus();
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(focus);
+    });
+  }, [guidInput.handleTextareaFocus]);
+
+  const handleCycleAgentByKeyboard = useCallback(
+    (direction: 1 | -1) => {
+      const directAgents = agentSelection.availableAgents?.filter((agent) => !agent.isPreset) ?? [];
+      if (directAgents.length === 0) {
+        return false;
+      }
+
+      const agentKeys = directAgents.map((agent) => agentSelection.getAgentKey(agent));
+      const currentIndex = agentKeys.findIndex((key) => key === agentSelection.selectedAgentKey);
+      const nextIndex =
+        currentIndex >= 0
+          ? (currentIndex + direction + agentKeys.length) % agentKeys.length
+          : direction === 1
+            ? 0
+            : agentKeys.length - 1;
+      const nextKey = agentKeys[nextIndex];
+      if (!nextKey) {
+        return false;
+      }
+
+      keepPromptFocusAfterAgentCycleRef.current = true;
+      agentSelection.setSelectedAgentKey(nextKey);
+      mention.setMentionOpen(false);
+      mention.setMentionQuery(null);
+      mention.setMentionSelectorOpen(false);
+      mention.setMentionActiveIndex(0);
+      focusPromptTextarea();
+      return true;
+    },
+    [
+      agentSelection.availableAgents,
+      agentSelection.getAgentKey,
+      agentSelection.selectedAgentKey,
+      agentSelection.setSelectedAgentKey,
+      mention.setMentionActiveIndex,
+      mention.setMentionOpen,
+      mention.setMentionQuery,
+      mention.setMentionSelectorOpen,
+      focusPromptTextarea,
+    ]
+  );
+
   const handleInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
+      if (
+        event.key === 'Tab' &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !mention.mentionOpen &&
+        !mention.mentionSelectorOpen
+      ) {
+        if (handleCycleAgentByKeyboard(event.shiftKey ? -1 : 1)) {
+          event.preventDefault();
+        }
+        return;
+      }
+
       if (
         (mention.mentionOpen || mention.mentionSelectorOpen) &&
         (event.key === 'ArrowDown' || event.key === 'ArrowUp')
@@ -247,7 +329,7 @@ const GuidPage: React.FC = () => {
         send.sendMessageHandler();
       }
     },
-    [mention, guidInput.input, send.sendMessageHandler]
+    [mention, handleCycleAgentByKeyboard, guidInput.input, send.sendMessageHandler]
   );
 
   const handleSelectAgentFromPillBar = useCallback(
@@ -347,11 +429,28 @@ const GuidPage: React.FC = () => {
     guidInput.setInput('');
     guidInput.setFiles([]);
     guidInput.setLoading(false);
-    if (!(location.state as { workspace?: string } | null)?.workspace) {
+    if (!guidLocationState?.workspace) {
       guidInput.setDir('');
     }
     setIsDescriptionExpanded(false);
-  }, [guidInput.setDir, guidInput.setFiles, guidInput.setInput, guidInput.setLoading, location.key, location.state]);
+  }, [
+    guidInput.setDir,
+    guidInput.setFiles,
+    guidInput.setInput,
+    guidInput.setLoading,
+    guidLocationState?.workspace,
+    location.key,
+  ]);
+
+  useEffect(() => {
+    focusPromptTextarea();
+  }, [focusPromptTextarea, location.key]);
+
+  useEffect(() => {
+    if (!keepPromptFocusAfterAgentCycleRef.current) return;
+    keepPromptFocusAfterAgentCycleRef.current = false;
+    focusPromptTextarea();
+  }, [focusPromptTextarea, agentSelection.selectedAgentKey]);
 
   // Clear resetAssistant from location.state after the hook has consumed it,
   // so that re-renders don't re-trigger the reset logic.

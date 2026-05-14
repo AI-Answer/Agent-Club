@@ -31,7 +31,12 @@ const isConversationTabShortcut = (event: KeyboardEvent): boolean => {
 };
 
 const isNewConversationShortcut = (event: KeyboardEvent): boolean => {
-  return (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 't';
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) {
+    return false;
+  }
+
+  const key = event.key.toLowerCase();
+  return key === 'n' || key === 't';
 };
 
 export const useConversationShortcuts = ({ navigate }: UseConversationShortcutsParams): void => {
@@ -65,7 +70,7 @@ export const useConversationShortcuts = ({ navigate }: UseConversationShortcutsP
 
       if (isNewConversationShortcut(event)) {
         event.preventDefault();
-        void navigate('/guid');
+        void navigate('/guid', { state: { resetAssistant: true } });
       }
     };
 
