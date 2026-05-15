@@ -304,7 +304,7 @@ tasks:
         - 'Fresh Agent Club restart launched @multica/web with Next.js 16.2.3 Turbopack.'
         - 'Prewarm log: common Local Agent Manager screens prewarmed (12/12, failed=0).'
         - 'Fresh post-warm timing: boot 0.138s, agents 0.054s, goals 0.062s, issues 0.058s, planner 0.070s, projects 0.073s, runtimes 0.108s, skills 0.107s, inbox 0.111s, my-issues 0.066s, autopilots 0.073s, squads 0.073s.'
-        - 'Headless Chrome visual smoke opened http://localhost:3330/agent-club/planner in 2618ms and captured tmp/planner-smoke.png with the Month Map screen rendered.'
+        - 'Headless Chrome visual smoke opened http://localhost:3330/agent-club/planner in 2618ms and confirmed the Month Map screen rendered with May 2026, stats, day cells, entries, objectives, and notes.'
       notes:
         - 'A bounded turbopack.root attempt was backed out because it broke existing CSS resolution; the warning remains harmless in this dev setup.'
         - 'The previous Planner route hung beyond the 20s smoke threshold under Turbopack because it pulled in the full @multica/views/planner surface.'
