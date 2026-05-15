@@ -396,6 +396,38 @@ tasks:
       - "Slack or Discord credentials are unavailable."
     receipt: null
 
+  - id: T010
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Prune the Channels settings list so Lark, DingTalk, and WeCom are hidden while WeChat remains visible."
+    allowed_files:
+      - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      - "docs/goals/hermes-apps-channels-mcp-dashboard"
+    verify:
+      - "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      - "bunx tsc --noEmit -p tsconfig.json"
+      - "Electron CDP smoke confirms visible channel IDs include weixin and exclude lark, dingtalk, and wecom."
+    stop_if:
+      - "The edit would remove backend channel support instead of only pruning the visible settings surface."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      summary: "Added a hidden-channel filter at the final Channels settings list composition layer. Lark, DingTalk, and WeCom are no longer rendered in the Channels settings page, while WeChat stays visible and backend support remains untouched."
+      commands:
+        - cmd: "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+          status: pass
+        - cmd: "bunx tsc --noEmit -p tsconfig.json"
+          status: pass
+        - cmd: "Electron CDP smoke at /settings/webui channels tab"
+          status: pass
+      verification:
+        - "Visible channel IDs after smoke: telegram, weixin, slack, discord, imessage"
+        - "Confirmed WeChat remained visible and Lark, DingTalk, and WeCom were absent from visible channel rows."
+      screenshot: "/tmp/agent-club-channels-pruned.png"
+
   - id: T999
     type: judge
     assignee: Judge
@@ -425,6 +457,7 @@ tasks:
         - "Dashboard Hermes Apps + Channels widget renders from real local MCP/channel/cron sources."
         - "Composio Tool Router setup surface has marketplace cards and a scrollable attach modal."
         - "Channels settings includes visible Hermes-only Slack, Discord, and iMessage setup-gated cards."
+        - "Channels settings hides Lark, DingTalk, and WeCom while keeping WeChat visible."
         - "Slack and Discord native plugins are registered and pass local lint/typecheck plus UI smoke."
         - "Scheduled Tasks page tracks Hermes-owned cron jobs through useAllCronJobs, with filter and badges."
       missing_evidence:
@@ -437,8 +470,8 @@ checks:
   dirty_fingerprint: unknown
   last_verification:
     result: passed_with_blocked_live_channel_smoke
-    task: T008
+    task: T010
     commands:
-      - "bun run lint -- src/process/channels src/process/bridge/channelBridge.ts src/renderer/components/settings/SettingsModal/contents/channels"
+      - "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
       - "bunx tsc --noEmit -p tsconfig.json"
-      - "Electron CDP smoke: /settings/webui channels"
+      - "Electron CDP smoke: /settings/webui channels visible IDs telegram,weixin,slack,discord,imessage"

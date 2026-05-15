@@ -49,6 +49,7 @@ type HermesNativeChannelId = 'slack' | 'discord' | 'imessage';
 type HermesNativeChannelFields = Record<HermesNativeChannelId, Record<string, string>>;
 
 const HERMES_NATIVE_CHANNEL_IDS = new Set<HermesNativeChannelId>(['slack', 'discord', 'imessage']);
+const HIDDEN_CHANNEL_SETTING_IDS = new Set(['lark', 'dingtalk', 'wecom']);
 const BUILTIN_CHANNEL_TYPES = new Set([
   'telegram',
   'lark',
@@ -1143,7 +1144,7 @@ const ChannelModalContent: React.FC = () => {
       ...extensionChannels,
       ...hermesNativeChannels,
       ...comingSoonChannels,
-    ];
+    ].filter((channelConfig) => !HIDDEN_CHANNEL_SETTING_IDS.has(String(channelConfig.id).toLowerCase()));
   }, [
     pluginStatus,
     larkPluginStatus,
