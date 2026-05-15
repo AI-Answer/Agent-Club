@@ -107,12 +107,14 @@ function withUiTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 const DEFAULT_CONTEXT_PROMPT =
   "Use Honcho as Sam's source of truth, but prioritize these current focus lanes: 1) prepare the webinar until Monday, May 18, 2026, 2) build the AI operating systems course video, 3) make Agent Club demo-ready as the resource I can show people. Rebuild into three concrete next moves and what an agent can take off my plate.";
 
+let dashboardSnapshotCache: DashboardSnapshot | null = null;
+
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const layout = useLayoutContext();
   const isMobile = layout?.isMobile ?? false;
-  const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(() => dashboardSnapshotCache);
+  const [loading, setLoading] = useState(() => !dashboardSnapshotCache);
   const [loadingSlow, setLoadingSlow] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,28 +133,40 @@ const DashboardPage: React.FC = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const rememberSnapshot = useCallback((next: DashboardSnapshot) => {
+    dashboardSnapshotCache = next;
+    setSnapshot(next);
+  }, []);
+
   const loadSnapshot = useCallback(async () => {
-    setLoading(true);
+    const hasCachedSnapshot = Boolean(dashboardSnapshotCache);
+    if (!hasCachedSnapshot) {
+      setLoading(true);
+    }
     setLoadError(null);
     try {
       const next = await withUiTimeout(ipcBridge.dashboard.getSnapshot.invoke({ reason: 'initial' }), 18000);
-      setSnapshot(next);
+      rememberSnapshot(next);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setLoadError(message);
-      Message.error(`Dashboard failed to load: ${message}`);
+      if (!hasCachedSnapshot) {
+        Message.error(`Dashboard failed to load: ${message}`);
+      } else {
+        console.warn('[Dashboard] Cached dashboard stayed visible after load failure:', error);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [rememberSnapshot]);
 
   useEffect(() => {
     void loadSnapshot();
     const unsubscribe = ipcBridge.dashboard.snapshotUpdated.on((next) => {
-      setSnapshot(next);
+      rememberSnapshot(next);
     });
     return () => unsubscribe();
-  }, [loadSnapshot]);
+  }, [loadSnapshot, rememberSnapshot]);
 
   useEffect(() => {
     if (!loading || snapshot) {
@@ -182,7 +196,7 @@ const DashboardPage: React.FC = () => {
     setRefreshing(true);
     try {
       const next = await ipcBridge.dashboard.runHeartbeat.invoke();
-      setSnapshot(next);
+      rememberSnapshot(next);
       Message.success('Dashboard refreshed');
     } catch (error) {
       Message.error(`Refresh failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -196,7 +210,7 @@ const DashboardPage: React.FC = () => {
     setLoadError(null);
     try {
       const next = await withUiTimeout(ipcBridge.dashboard.hardRefresh.invoke({}), 20000);
-      setSnapshot(next);
+      rememberSnapshot(next);
       setLoading(false);
       Message.success('Dashboard hard refreshed');
     } catch (error) {
@@ -206,7 +220,7 @@ const DashboardPage: React.FC = () => {
     } finally {
       setHardRefreshing(false);
     }
-  }, []);
+  }, [rememberSnapshot]);
 
   const handleContextSubmit = useCallback(
     async (event?: React.FormEvent) => {
@@ -221,7 +235,7 @@ const DashboardPage: React.FC = () => {
       setLoadError(null);
       try {
         const next = await withUiTimeout(ipcBridge.dashboard.rebuildWithContext.invoke({ context }), 20000);
-        setSnapshot(next);
+        rememberSnapshot(next);
         setContextInput(DEFAULT_CONTEXT_PROMPT);
         setContextPanelOpen(false);
         setLoading(false);
@@ -234,23 +248,27 @@ const DashboardPage: React.FC = () => {
         setThinking(false);
       }
     },
-    [contextInput]
+    [contextInput, rememberSnapshot]
   );
 
   const persistLayout = useCallback(async (layout: DashboardWidgetLayout[]) => {
     layoutRef.current = layout;
     setSavingLayout(true);
-    setSnapshot((current) => (current ? { ...current, widgetLayout: layout } : current));
+    setSnapshot((current) => {
+      const next = current ? { ...current, widgetLayout: layout } : current;
+      dashboardSnapshotCache = next;
+      return next;
+    });
     try {
       const next = await ipcBridge.dashboard.updateLayout.invoke({ layout });
-      setSnapshot(next);
+      rememberSnapshot(next);
     } catch (error) {
       Message.error(`Layout save failed: ${error instanceof Error ? error.message : String(error)}`);
       void loadSnapshot();
     } finally {
       setSavingLayout(false);
     }
-  }, [loadSnapshot]);
+  }, [loadSnapshot, rememberSnapshot]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -313,7 +331,7 @@ const DashboardPage: React.FC = () => {
       setCustomizing(true);
       try {
         const next = await ipcBridge.dashboard.createCustomWidget.invoke({ prompt });
-        setSnapshot(next);
+        rememberSnapshot(next);
         Message.success('Custom dashboard widget added');
       } catch (error) {
         Message.error(`Widget creation failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -321,7 +339,7 @@ const DashboardPage: React.FC = () => {
         setCustomizing(false);
       }
     },
-    [customPrompt]
+    [customPrompt, rememberSnapshot]
   );
 
   const revealContextPanel = useCallback(() => {
@@ -350,13 +368,13 @@ const DashboardPage: React.FC = () => {
         navigate(result.route);
       }
       if (result.snapshot) {
-        setSnapshot(result.snapshot);
+        rememberSnapshot(result.snapshot);
       }
       if (result.message) {
         (result.success ? Message.success : Message.warning)(result.message);
       }
     },
-    [handleHardRefresh, handleRefresh, navigate]
+    [handleHardRefresh, handleRefresh, navigate, rememberSnapshot]
   );
 
   const handleRelevantLink = useCallback(

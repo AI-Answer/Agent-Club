@@ -33,6 +33,7 @@ import type { IWorkerTaskManager } from '@process/task/IWorkerTaskManager';
 import { ProcessConfig } from '@process/utils/initStorage';
 
 const SNAPSHOT_HISTORY_LIMIT = 30;
+const INITIAL_REFRESH_THROTTLE_MS = 45 * 1000;
 const FIFTEEN_MINUTES = 15;
 const TEN_MINUTES = 10;
 const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
@@ -207,14 +208,83 @@ function displayDay(value: string): string {
 
 export class DashboardService {
   private morningTimer: ReturnType<typeof setTimeout> | null = null;
-  private morningSnapshotEmitter: ((snapshot: DashboardSnapshot) => void) | null = null;
+  private snapshotEmitter: ((snapshot: DashboardSnapshot) => void) | null = null;
+  private latestSnapshot: DashboardSnapshot | null = null;
+  private initialRefreshPromise: Promise<void> | null = null;
+  private lastInitialRefreshStartedAt = 0;
 
   constructor(private readonly workerTaskManager: IWorkerTaskManager) {}
 
   async getSnapshot(request: DashboardSnapshotRequest = {}): Promise<DashboardSnapshot> {
+    if (request.reason === 'initial') {
+      const cachedSnapshot = await this.getCachedSnapshot();
+      if (cachedSnapshot) {
+        this.refreshInitialSnapshotInBackground(request);
+        return cachedSnapshot;
+      }
+    }
+
+    return this.buildAndPersistSnapshot(request);
+  }
+
+  private async buildAndPersistSnapshot(request: DashboardSnapshotRequest = {}): Promise<DashboardSnapshot> {
     const snapshot = await this.buildSnapshot(request);
+    this.latestSnapshot = snapshot;
     await this.persistSnapshot(snapshot);
     return snapshot;
+  }
+
+  private async getCachedSnapshot(): Promise<DashboardSnapshot | null> {
+    if (this.latestSnapshot) {
+      return this.latestSnapshot;
+    }
+
+    try {
+      const stored = ((await ProcessConfig.get('dashboard.snapshots')) as DashboardSnapshot[] | undefined) || [];
+      const cachedSnapshot = stored.find((item) => this.isUsableSnapshot(item)) || null;
+      if (cachedSnapshot) {
+        this.latestSnapshot = cachedSnapshot;
+      }
+      return cachedSnapshot;
+    } catch (error) {
+      console.warn('[Dashboard] Failed to read cached snapshot:', error);
+      return null;
+    }
+  }
+
+  private isUsableSnapshot(value: unknown): value is DashboardSnapshot {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const snapshot = value as Partial<DashboardSnapshot>;
+    return Boolean(
+      typeof snapshot.id === 'string' &&
+        typeof snapshot.generatedAt === 'number' &&
+        snapshot.summary &&
+        snapshot.metrics &&
+        Array.isArray(snapshot.widgetLayout) &&
+        Array.isArray(snapshot.sources)
+    );
+  }
+
+  private refreshInitialSnapshotInBackground(request: DashboardSnapshotRequest): void {
+    const now = Date.now();
+    if (this.initialRefreshPromise || now - this.lastInitialRefreshStartedAt < INITIAL_REFRESH_THROTTLE_MS) {
+      return;
+    }
+
+    this.lastInitialRefreshStartedAt = now;
+    this.initialRefreshPromise = this.buildAndPersistSnapshot({ ...request, reason: 'initial' })
+      .then((snapshot) => {
+        this.snapshotEmitter?.(snapshot);
+      })
+      .catch((error) => {
+        console.warn('[Dashboard] Background refresh failed:', error);
+      })
+      .finally(() => {
+        this.initialRefreshPromise = null;
+      });
   }
 
   async runHeartbeat(): Promise<DashboardSnapshot> {
@@ -222,6 +292,7 @@ export class DashboardService {
   }
 
   async hardRefresh(request: DashboardHardRefreshRequest = {}): Promise<DashboardSnapshot> {
+    this.latestSnapshot = null;
     await ProcessConfig.set('dashboard.snapshots', []);
     return this.getSnapshot({ reason: 'hard_refresh', context: request.context });
   }
@@ -271,7 +342,7 @@ export class DashboardService {
   }
 
   startMorningRefresh(emitSnapshot: (snapshot: DashboardSnapshot) => void): void {
-    this.morningSnapshotEmitter = emitSnapshot;
+    this.snapshotEmitter = emitSnapshot;
     if (this.morningTimer) {
       return;
     }
@@ -1265,7 +1336,7 @@ export class DashboardService {
     try {
       await this.updateLastMorningRefreshAt(Date.now());
       const snapshot = await this.getSnapshot({ reason: 'heartbeat' });
-      this.morningSnapshotEmitter?.(snapshot);
+      this.snapshotEmitter?.(snapshot);
     } catch (error) {
       console.warn('[Dashboard] Morning refresh failed:', error);
     } finally {

@@ -1,0 +1,231 @@
+# GoalBuddy v2 state.yaml
+version: 2
+
+goal:
+  title: "Dashboard Fast Return"
+  slug: "dashboard-fast-return"
+  kind: specific
+  tranche: "Measure and improve dashboard load, responsiveness, and return-to-tab behavior until the dashboard no longer reloads unnecessarily."
+  status: done
+  intake:
+    original_request: "Let's make sure our dashboard is optimized and loads a lot faster; it is slow/laggy and reloads when returning from another tab."
+    interpreted_outcome: "The Agent Club dashboard loads quickly, stays responsive, and shows cached content immediately when revisited instead of replaying the full slow loading path."
+    input_shape: specific
+    audience: "Sam using Agent Club"
+    authority: requested
+    proof_type: metric
+    completion_proof: "Before/after measurements and live app verification show faster dashboard load and no unnecessary full reload when navigating away and back."
+    likely_misfire: "Hide loading UI or add superficial caching while expensive dashboard generation still repeats and the page remains laggy."
+    blind_spots_considered:
+      - "React route remounting, IPC calls, dashboard service snapshot generation, Honcho calls, and Agent Manager calls may each contribute."
+      - "A cached snapshot should appear immediately if available, with refresh work moved into the background."
+      - "Fixes must not break Month Map, Local Agent Manager, or dashboard source accuracy."
+    existing_plan_facts:
+      - "Use a local live GoalBuddy board."
+      - "The user specifically notices reload when switching away and returning."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/dashboard-fast-return/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/dashboard-fast-return"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Measure and map the dashboard load/return lag path before edits."
+    inputs:
+      - "User report: dashboard is slow/laggy and reloads when returning from another tab."
+      - "Running Agent Club app when available."
+      - "Dashboard route, dashboard service, IPC bridge, and tab/router lifecycle files."
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Gather concrete evidence: timing, duplicate calls, route remounts, expensive source calls, or loading-state behavior."
+      - "Avoid broad repo scans unrelated to dashboard performance."
+    expected_output:
+      - "Observed reproduction steps."
+      - "Baseline timing or event evidence."
+      - "Likely root causes ranked by impact/confidence."
+      - "Candidate Worker slices with file paths and verification ideas."
+    receipt:
+      result: done
+      summary: "Mapped the dashboard remount path and captured a live baseline: Dashboard -> Month Map -> Dashboard shows loading immediately and takes ~10.2s to become usable."
+      note: "notes/T001-dashboard-lag-map.md"
+      evidence:
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the largest safe useful dashboard performance slice from Scout evidence."
+    inputs:
+      - "T001 receipt."
+      - "Current dashboard code paths and baseline measurements."
+    constraints:
+      - "Do not implement."
+      - "Pick a slice that improves observable user experience, not just internal structure."
+      - "Require allowed_files, verify commands, and live-app proof."
+    expected_output:
+      - "Decision."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify."
+      - "stop_if."
+      - "Deferred follow-up tasks if needed."
+    receipt:
+      result: done
+      decision: "Implement stale-while-revalidate for initial Dashboard loads, using persisted/in-memory snapshots for immediate return and a deduped background refresh for freshness."
+      full_outcome_complete: false
+      rationale: "This is the largest safe useful slice because it addresses the observed route-return lag without changing dashboard data sources or IPC contracts."
+      worker_objective: "Make Dashboard route returns show cached content immediately while fresh snapshot generation happens in the background."
+      allowed_files:
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "docs/goals/dashboard-fast-return/notes/**"
+        - "docs/goals/dashboard-fast-return/state.yaml"
+      verify:
+        - "bunx tsc --noEmit"
+        - "Playwright/CDP live timing for Dashboard -> Month Map -> Dashboard"
+      stop_if:
+        - "Need IPC contract changes outside the allowed files."
+        - "Cached content hides hard refresh, heartbeat, or context rebuild failures."
+        - "Return path still shows the loading state for cached dashboards."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Make Dashboard route returns show cached content immediately while fresh snapshot generation happens in the background."
+    allowed_files:
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      - "docs/goals/dashboard-fast-return/notes/**"
+      - "docs/goals/dashboard-fast-return/state.yaml"
+    verify:
+      - "bunx tsc --noEmit"
+      - "Playwright/CDP live timing for Dashboard -> Month Map -> Dashboard"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Root cause conflicts with Scout evidence."
+      - "Verification fails twice."
+      - "Change would remove dashboard functionality rather than optimize it."
+    receipt:
+      result: done
+      changed_files:
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "docs/goals/dashboard-fast-return/notes/T003-T004-live-verification.md"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "Playwright/CDP live timing for Dashboard -> Month Map -> Dashboard"
+          status: pass
+      summary: "Implemented stale-while-revalidate cached Dashboard return behavior; live return timing improved from ~10.2s with visible loading to 7ms ready with no visible loading."
+      note: "notes/T003-T004-live-verification.md"
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Run live app verification for dashboard return behavior and record before/after proof."
+    allowed_files:
+      - "docs/goals/dashboard-fast-return/notes/**"
+    verify:
+      - "Use Browser or equivalent local app inspection to navigate to dashboard, switch routes/tabs, return, and observe whether cached content appears without a full reload."
+      - "Record timing or observable evidence in a note if too long for receipt."
+    stop_if:
+      - "The app cannot run locally."
+      - "Browser verification tooling is unavailable."
+      - "Observed behavior still reloads fully after the implementation slice."
+    receipt:
+      result: done
+      changed_files:
+        - "docs/goals/dashboard-fast-return/notes/T003-T004-live-verification.md"
+      commands:
+        - cmd: "Playwright/CDP live timing for Dashboard -> Month Map -> Dashboard"
+          status: pass
+      summary: "Verified the live Agent Club Dashboard return path: no loading copy appeared on return and Dashboard content was ready in ~7ms."
+      note: "notes/T003-T004-live-verification.md"
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether dashboard load and return behavior now satisfy the user's original performance complaint."
+    inputs:
+      - "All done task receipts."
+      - "Before/after timing or live verification notes."
+      - "Current dirty diff."
+    constraints:
+      - "Do not implement."
+      - "Reject completion if the dashboard still reloads unnecessarily on return."
+      - "Reject completion if proof is only type checks with no live behavior evidence."
+    expected_output:
+      - "complete | not_complete."
+      - "full_outcome_complete: true | false."
+      - "Proof summary."
+      - "Missing evidence."
+      - "Next task if not complete."
+    receipt:
+      result: done
+      decision: "complete"
+      full_outcome_complete: true
+      rationale: "The original complaint was dashboard lag and full reload on return. The live route now keeps cached content visible, avoids the loading state, refreshes in the background, and passed both typecheck and route timing verification."
+      proof:
+        - "Before: Dashboard -> Month Map -> Dashboard showed loading immediately and took ~10.2s to become usable."
+        - "After: the same route return showed no loading copy and content was ready in ~7ms."
+        - "bunx tsc --noEmit passed."
+        - "git diff --check passed."
+      missing_evidence: []
+
+checks:
+  dirty_fingerprint: "product files changed: DashboardService.ts, DashboardPage.tsx; goal notes/state added under docs/goals/dashboard-fast-return"
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "bunx tsc --noEmit"
+      - "Playwright/CDP live timing for Dashboard -> Month Map -> Dashboard"
+      - "git diff --check"
