@@ -1,10 +1,81 @@
 # Agent Club
 
-Agent Club is a local AI agent workspace for hands-on work with your tools, files, automations, planners, and assistants.
+Agent Club is a desktop workspace for running AI agents, planning work, and keeping track of what those agents are doing.
 
-The app is being whitelabeled around the Agent Club experience. Product-facing docs, metadata, settings, and help surfaces should use Agent Club branding and route users to the Claude Club community:
+It brings chat, local agents, tasks, goals, schedules, tools, and a personal planner into one app so you can work with agents like a small team instead of juggling separate terminal windows, browser tabs, and notes.
 
-https://www.skool.com/claude
+## What Agent Club Is For
+
+Agent Club is built for people who want to delegate real work to AI agents and still stay in control.
+
+Use it to:
+
+- Chat with different AI agents from one desktop app
+- Create goals, projects, and tasks that agents can work on
+- Track what agents are doing and what still needs attention
+- Plan your month and daily priorities in a visual planner
+- Connect tools, skills, MCP servers, and local capabilities
+- Run recurring or scheduled agent workflows
+- Keep agent work tied to the files, prompts, and context that matter
+
+## Why It Is Useful
+
+Most agent workflows get messy fast. You might have one task in a chat, another in a terminal, notes in a document, and progress hidden inside logs.
+
+Agent Club gives you a shared operating space for that work:
+
+- **One place to start work**: create a goal, task, or chat without switching tools.
+- **One place to monitor agents**: see running work, completed work, and stuck work.
+- **One planner for priorities**: use the month map to organize what matters today and across the month.
+- **Local-first control**: run the desktop app on your machine and connect local tools when needed.
+- **Agent-readable context**: planner entries, goals, and tasks can become context that agents use while working.
+- **Simple installation**: download the app, drag it into Applications, and start using it.
+
+## What the App Can Do
+
+Agent Club includes:
+
+- AI chat workspace with support for multiple agent and model backends
+- Local Agent Manager for projects, goals, issues, task queues, and agent activity
+- Month Map planner for daily priorities, notes, objectives, and agent-updatable planning context
+- Scheduled task and automation surfaces
+- Skills and assistant presets
+- MCP tool setup for extending what agents can access
+- Voice, image generation, and file-oriented workflows where configured
+- Remote/WebUI settings for accessing or pairing agent workflows from other surfaces
+- Desktop packaging for a normal macOS app install
+
+## Screenshots
+
+### Chat Workspace
+
+Start a chat, pick an agent, attach files, select models, and use assistant presets from one home screen.
+
+![Agent Club chat workspace](docs/assets/readme/agent-club-chat.jpg)
+
+### Month Map Planner
+
+Plan daily priorities across the month. Tasks, notes, and main objectives can become context for agents.
+
+![Agent Club Month Map planner](docs/assets/readme/agent-club-month-map.jpg)
+
+### Local Agent Manager Boards
+
+Track projects, goals, issues, priorities, and agent work in the embedded Local Agent Manager board.
+
+![Agent Club Local Agent Manager board](docs/assets/readme/agent-club-agent-manager-board.jpg)
+
+### Scheduled Tasks
+
+Create recurring agent tasks and keep scheduled work visible. This screenshot shows the empty state when no tasks are configured yet.
+
+![Agent Club scheduled tasks](docs/assets/readme/agent-club-scheduled-tasks.jpg)
+
+### Teams
+
+Run multiple agents together in a team workspace with shared files and per-agent chat lanes.
+
+![Agent Club team workspace](docs/assets/readme/agent-club-teams.jpg)
 
 ## Install Agent Club
 
@@ -16,7 +87,7 @@ For Apple Silicon Macs, download the latest file ending in `mac-arm64.dmg`, open
 
 Right now the published desktop installer is for Apple Silicon Macs. Intel Mac, Windows, and Linux builds can be added from the same packaging setup once release signing and CI are configured for those platforms.
 
-### Copy-Paste Setup Prompt
+### Copy-Paste Install Prompt
 
 If you use Codex, ChatGPT, Claude Code, or another assistant that can access your local terminal, paste this prompt and let it do the setup for you:
 
@@ -51,15 +122,11 @@ Use terminal commands where possible instead of making me do manual steps.
 
 If macOS says the app is from an unidentified developer, right-click `AgentClub.app`, choose Open, then approve the prompt. This happens because local releases are currently ad-hoc signed and not notarized with an Apple Developer ID yet.
 
-## What It Includes
+## Community
 
-- Local desktop workspace for AI agent conversations
-- Support for multiple agent backends and model providers
-- Skills, MCP tools, image generation, speech-to-text, and remote WebUI settings
-- Scheduled task and automation surfaces
-- Settings pages for agents, assistants, capabilities, hooks, display, remote access, system preferences, and about/help
-- Help button in the sidebar that opens the Claude Club community directly
-- Cmd/Ctrl+N shortcut for starting a new chat
+For support, discussion, and updates, join Claude Club:
+
+https://www.skool.com/claude
 
 ## Developer Setup
 
@@ -95,61 +162,22 @@ Build a local macOS DMG and ZIP:
 bun run dist:mac
 ```
 
-## Main Project Areas
+## Project Structure
 
-- `src/renderer/` - desktop and WebUI renderer screens, routes, settings, and UI components
-- `src/process/` - main-process services, agents, extensions, channels, and background work
-- `src/preload.ts` - bridge between renderer and main-process APIs
+- `src/renderer/` - desktop UI, routes, settings, and pages
+- `src/process/` - main-process services, agents, channels, and background work
 - `src/common/` - shared config, types, and IPC contracts
-- `docs/` - implementation notes, product specs, and architecture references
-- `resources/` - packaged images, icons, and app resources
-
-## Settings Surfaces
-
-Agent Club settings are routed under `/settings`.
-
-- `/settings/gemini` - model and provider setup
-- `/settings/agent` - local and remote agent setup
-- `/settings/model` - model platform configuration
-- `/settings/assistants` - assistant presets and skills
-- `/settings/capabilities` - skills, MCP tools, voice, and related capabilities
-- `/settings/hooks` - extension lifecycle hook reference
-- `/settings/display` - theme and visual preferences
-- `/settings/webui` - remote access and channels
-- `/settings/system` - application preferences
-- `/settings/about` - about, updates, and support links
-
-## Hook Support
-
-Agent Club supports extension lifecycle hooks through extension manifests. The built-in Hooks settings page documents the supported lifecycle names:
-
-- `onInstall`
-- `onActivate`
-- `onDeactivate`
-
-Backend hook execution behavior lives in the extension runtime. The settings page is the visible product surface for users and builders.
-
-## Whitelabel Rules
-
-- Product-facing copy should say Agent Club.
-- Help and community links should point to https://www.skool.com/claude.
-- New visible UI text should use i18n keys.
-- Preserve legally required license attribution until it is reviewed explicitly.
-- Avoid broad blind renames of internal protocol names, event names, or compatibility identifiers.
-- Keep top-level docs English-first unless a localized documentation strategy is intentionally added later.
+- `src/preload/` - bridge code between the renderer and main process
+- `apps/agent-manager/` - embedded Local Agent Manager / Multica workspace
+- `resources/` - packaged icons, images, and app resources
+- `docs/` - product notes, implementation plans, and architecture references
 
 ## Verification
 
-Useful checks for the current whitelabel work:
+Useful checks while developing:
 
 ```bash
 bun run lint
 bun run build:renderer:web
 node scripts/check-i18n.js
-```
-
-For GoalBuddy tracking, the active board is:
-
-```text
-docs/goals/agent-club-whitelabel
 ```
