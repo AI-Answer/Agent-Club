@@ -1,0 +1,261 @@
+# GoalBuddy v2 state.yaml
+version: 2
+
+goal:
+  title: "Accessibility Permission Prompts"
+  slug: "accessibility-permission-prompts"
+  kind: specific
+  tranche: "Make Agent Club trigger the macOS Accessibility permission flow when Sam clicks the app's permission button."
+  status: done
+  intake:
+    original_request: "Make the popups happen for accessibility permissions when I click the button so I can very easily grant permissions."
+    interpreted_outcome: "Clicking the relevant Agent Club permission button triggers the native macOS Accessibility prompt or an exact System Settings fallback, then refreshes visible permission status."
+    input_shape: specific
+    audience: "Sam using Agent Club on macOS"
+    authority: requested
+    proof_type: demo
+    completion_proof: "Live app or focused integration verification proves the button invokes the macOS Accessibility permission request/fallback and status refreshes afterward."
+    likely_misfire: "Show custom instructions or a generic settings page without actually requesting macOS Accessibility authorization from the button."
+    blind_spots_considered:
+      - "macOS may only show the Accessibility prompt once; after denial or dismissal the app may need to open System Settings directly."
+      - "Electron may already expose a native API for Accessibility trust prompting, but the implementation must verify the current app version and main-process bridge shape."
+      - "Packaged app identity can affect macOS privacy prompts differently from dev mode, so verification should separate callable behavior from first-run OS state."
+      - "The correct button/surface must be discovered in the app rather than guessed."
+    existing_plan_facts:
+      - "This is an Agent Club feature request."
+      - "The user wants the prompt to happen from a button click, not through manual terminal commands."
+      - "GoalBuddy should be used as the planning/execution board."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/accessibility-permission-prompts/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/accessibility-permission-prompts"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the current Agent Club permission UI and the correct macOS Accessibility prompt API path."
+    inputs:
+      - "User wants the Accessibility permission popup to appear when clicking the app's button."
+      - "Agent Club repo at /Users/saminyasar/Agent-Club."
+      - "Existing settings, permissions, shell/app bridge, and Electron main-process code."
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Do not trigger or reset real macOS privacy permissions during Scout unless the PM explicitly allows live verification later."
+      - "Identify the exact UI button/surface before proposing code changes."
+      - "Separate what can be verified in dev mode from what requires a packaged app or fresh macOS permission state."
+    expected_output:
+      - "Files and components that own the permission button."
+      - "Existing IPC/app bridge methods for permissions and settings."
+      - "Best macOS Accessibility prompt mechanism for the current Electron version."
+      - "Risks and fallback behavior for already-dismissed prompts."
+      - "Candidate Worker slice with allowed_files and verification commands."
+    receipt:
+      result: done
+      summary: "Mapped the Peekaboo setup card, existing MCP bridge, and Electron macOS Accessibility prompt API."
+      note: "notes/T001-accessibility-permission-map.md"
+      evidence:
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/mcpBridge.ts"
+        - "node_modules/electron/electron.d.ts"
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the largest safe implementation slice for Accessibility permission prompting."
+    inputs:
+      - "T001 Scout receipt."
+      - "Current Agent Club permission UI and IPC/native API evidence."
+    constraints:
+      - "Do not implement."
+      - "Require a native OS prompt or exact System Settings fallback, not only copy changes."
+      - "Require allowed_files, verify commands, and a live or focused app proof plan."
+      - "Call out any behavior that cannot be fully verified because macOS only prompts once."
+    expected_output:
+      - "Decision."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify."
+      - "stop_if."
+      - "Deferred follow-up tasks if packaged-app verification is needed."
+    receipt:
+      result: done
+      decision: "Implement a native Peekaboo desktop-control permission bridge and wire it into the existing setup card."
+      full_outcome_complete: false
+      rationale: "This is the largest safe slice because it reaches the exact button Sam is using, invokes Electron's real macOS Accessibility prompt API, provides System Settings fallbacks, and can be verified with a focused DOM test plus typecheck."
+      worker_objective: "Wire the Peekaboo setup card so clicking its permission/setup buttons calls the native macOS Accessibility prompt path and provides exact System Settings fallbacks."
+      allowed_files:
+        - "src/common/types/peekaboo.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/mcpBridge.ts"
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+        - "tests/unit/PeekabooMcpSetup.dom.test.tsx"
+        - "tests/unit/peekabooPermissions.test.ts"
+        - "docs/goals/accessibility-permission-prompts/**"
+      verify:
+        - "bunx vitest run tests/unit/PeekabooMcpSetup.dom.test.tsx"
+        - "bunx tsc --noEmit"
+      stop_if:
+        - "Need files outside allowed_files."
+        - "The implementation cannot call systemPreferences.isTrustedAccessibilityClient(true)."
+        - "The UI only shows instructions without invoking the bridge."
+        - "Verification fails twice."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Wire the Peekaboo setup card so clicking its permission/setup buttons calls the native macOS Accessibility prompt path and provides exact System Settings fallbacks."
+    allowed_files:
+      - "src/common/types/peekaboo.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/mcpBridge.ts"
+      - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "tests/unit/PeekabooMcpSetup.dom.test.tsx"
+      - "tests/unit/peekabooPermissions.test.ts"
+      - "docs/goals/accessibility-permission-prompts/**"
+    verify:
+      - "bunx vitest run tests/unit/PeekabooMcpSetup.dom.test.tsx"
+      - "bunx tsc --noEmit"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Cannot identify the real permission button/surface."
+      - "Implementation would fake or bypass macOS permission state."
+      - "Verification fails twice."
+      - "The correct behavior depends on owner action in macOS System Settings before code can be safely verified."
+    receipt:
+      result: done
+      changed_files:
+        - "src/common/types/peekaboo.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/mcpBridge.ts"
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+        - "tests/unit/PeekabooMcpSetup.dom.test.tsx"
+        - "tests/unit/peekabooPermissions.test.ts"
+        - "docs/goals/accessibility-permission-prompts/notes/T003-T004-permission-verification.md"
+      commands:
+        - cmd: "bunx vitest run tests/unit/PeekabooMcpSetup.dom.test.tsx tests/unit/peekabooPermissions.test.ts"
+          status: pass
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      summary: "Added native Peekaboo desktop-control permission bridge providers and wired the setup card to request macOS Accessibility permission before enabling packaged Peekaboo."
+      note: "notes/T003-T004-permission-verification.md"
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Verify the Accessibility permission button behavior in the running app and document any macOS prompt limitations."
+    allowed_files:
+      - "docs/goals/accessibility-permission-prompts/notes/**"
+    verify:
+      - "Use the running app or focused bridge tests to click/call the permission action."
+      - "Confirm the app invokes the Accessibility request path or opens the exact System Settings fallback."
+      - "Confirm visible permission status refreshes after the action when possible."
+    stop_if:
+      - "The app cannot run locally."
+      - "macOS permission state prevents observing a fresh popup and no callable fallback can be verified."
+      - "Browser/computer-use verification tooling is unavailable."
+    receipt:
+      result: done
+      changed_files:
+        - "docs/goals/accessibility-permission-prompts/notes/T003-T004-permission-verification.md"
+      commands:
+        - cmd: "Playwright/CDP live spot check for /settings/capabilities?tab=tools"
+          status: pass
+      summary: "Verified the running settings tools page shows Grant Accessibility, Open Accessibility Settings, Open Screen Recording, and the packaged Peekaboo setup button."
+      note: "notes/T003-T004-permission-verification.md"
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the Accessibility permission flow now satisfies the user's button-click popup request."
+    inputs:
+      - "All done task receipts."
+      - "Live or focused verification evidence."
+      - "Current dirty diff."
+    constraints:
+      - "Do not implement."
+      - "Reject completion if the button only shows instructions and does not call the native prompt/fallback path."
+      - "Reject completion if verification ignores macOS one-prompt privacy limitations."
+    expected_output:
+      - "complete | not_complete."
+      - "full_outcome_complete: true | false."
+      - "Proof summary."
+      - "Missing evidence."
+      - "Next task if not complete."
+    receipt:
+      result: done
+      decision: "complete"
+      full_outcome_complete: true
+      rationale: "The Peekaboo setup card now contains a button that calls Electron's native macOS Accessibility prompt API, and the primary setup action requests Accessibility before enabling packaged Peekaboo. Exact System Settings fallbacks are present for Accessibility and Screen Recording."
+      proof:
+        - "Node bridge test proves requestPeekabooDesktopControlPermissions calls systemPreferences.isTrustedAccessibilityClient(true)."
+        - "DOM test proves Grant Accessibility calls the permission request provider."
+        - "DOM test proves Enable Packaged Peekaboo MCP requests Accessibility before saving."
+        - "Follow-up correction verified the modern macOS 26 Accessibility settings URL and made Grant Accessibility open that pane automatically from the button click, even when native status already looks granted."
+        - "Live verification moved System Settings to Screen & System Audio Recording, clicked Grant Accessibility from the app, and confirmed System Settings landed on Accessibility with the control-permission list visible."
+        - "Live app spot check found Grant Accessibility, Open Accessibility Settings, Open Screen Recording, and Packaged Peekaboo MCP controls on /settings/capabilities?tab=tools."
+        - "bunx vitest run tests/unit/PeekabooMcpSetup.dom.test.tsx tests/unit/peekabooPermissions.test.ts passed."
+        - "bunx tsc --noEmit passed."
+        - "git diff --check passed."
+      missing_evidence:
+        - "A fresh macOS popup was not force-clicked during verification because that privacy prompt requires owner action and may change local system permission state."
+      note: "notes/T999-settings-url-correction.md"
+
+checks:
+  dirty_fingerprint: "Peekaboo permission bridge/UI/tests plus accessibility-permission-prompts GoalBuddy board files"
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "bunx vitest run tests/unit/PeekabooMcpSetup.dom.test.tsx tests/unit/peekabooPermissions.test.ts"
+      - "bunx tsc --noEmit"
+      - "git diff --check"
+      - "Playwright/CDP live spot check for /settings/capabilities?tab=tools"
+      - "Computer Use verified System Settings window: Accessibility"

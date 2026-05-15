@@ -22,7 +22,12 @@ import type {
 } from '../update/updateTypes';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
-import type { PeekabooDesktopControlSetupResult } from '../types/peekaboo';
+import type {
+  PeekabooDesktopControlPermissionPane,
+  PeekabooDesktopControlPermissionRequestResult,
+  PeekabooDesktopControlPermissionStatus,
+  PeekabooDesktopControlSetupResult,
+} from '../types/peekaboo';
 import type {
   AgentManagerChatGoalCommandRequest,
   AgentManagerGoalCommandResult,
@@ -695,6 +700,18 @@ export const mcpService = {
   getPeekabooDesktopControlSetup: bridge.buildProvider<IBridgeResponse<PeekabooDesktopControlSetupResult>, void>(
     'mcp.peekaboo.get-desktop-control-setup'
   ),
+  getPeekabooDesktopControlPermissions: bridge.buildProvider<
+    IBridgeResponse<PeekabooDesktopControlPermissionStatus>,
+    void
+  >('mcp.peekaboo.get-desktop-control-permissions'),
+  requestPeekabooDesktopControlPermissions: bridge.buildProvider<
+    IBridgeResponse<PeekabooDesktopControlPermissionRequestResult>,
+    void
+  >('mcp.peekaboo.request-desktop-control-permissions'),
+  openPeekabooPermissionSettings: bridge.buildProvider<
+    IBridgeResponse<PeekabooDesktopControlPermissionStatus>,
+    { pane: PeekabooDesktopControlPermissionPane }
+  >('mcp.peekaboo.open-permission-settings'),
   // OAuth 相关接口
   checkOAuthStatus: bridge.buildProvider<
     IBridgeResponse<{ isAuthenticated: boolean; needsLogin: boolean; error?: string }>,
