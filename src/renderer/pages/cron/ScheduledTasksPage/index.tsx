@@ -5,7 +5,7 @@
  */
 
 import classNames from 'classnames';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Button, Switch, Message, Empty, Spin, Tooltip } from '@arco-design/web-react';
@@ -37,6 +37,24 @@ function getJobAgentMeta(job: ICronJob): { name?: string; logo?: string | null }
   };
 }
 
+function isHermesCronJob(job: ICronJob): boolean {
+  const agentConfig = job.metadata.agentConfig;
+  const backend = agentConfig?.backend || normalizeAgentBackend(job.metadata.agentType) || '';
+  const haystack = [
+    backend,
+    agentConfig?.name,
+    job.name,
+    job.description,
+    job.metadata.conversationTitle,
+    job.target.payload.text,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return haystack.includes('hermes') || haystack.includes('chief of staff') || haystack.includes('chief-of-staff');
+}
+
 const ScheduledTasksPage: React.FC = () => {
   const layout = useLayoutContext();
   const isMobile = layout?.isMobile ?? false;
@@ -45,6 +63,16 @@ const ScheduledTasksPage: React.FC = () => {
   const { jobs, loading, pauseJob, resumeJob } = useAllCronJobs();
   const [createDialogVisible, setCreateDialogVisible] = useState(false);
   const [keepAwake, setKeepAwake] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'hermes'>('all');
+  const hermesJobs = useMemo(() => jobs.filter(isHermesCronJob), [jobs]);
+  const visibleJobs = taskFilter === 'hermes' ? hermesJobs : jobs;
+  const nextHermesJob = useMemo(
+    () =>
+      hermesJobs
+        .filter((job) => job.enabled && job.state.nextRunAtMs)
+        .toSorted((a, b) => (a.state.nextRunAtMs ?? Number.MAX_SAFE_INTEGER) - (b.state.nextRunAtMs ?? Number.MAX_SAFE_INTEGER))[0],
+    [hermesJobs]
+  );
 
   useEffect(() => {
     systemSettings.getKeepAwake
@@ -148,13 +176,55 @@ const ScheduledTasksPage: React.FC = () => {
           </div>
         </div>
 
+        <div className='grid w-full box-border grid-cols-[minmax(0,1fr)_auto] items-center gap-x-14px gap-y-12px rounded-14px border border-solid border-[rgba(var(--primary-6),0.16)] bg-[rgba(var(--primary-6),0.045)] px-14px py-12px sm:px-16px max-[620px]:grid-cols-1'>
+          <div className='min-w-0'>
+            <div className='mb-2px flex flex-wrap items-center gap-8px'>
+              <span className='text-13px font-semibold leading-19px text-t-primary'>
+                {t('cron.page.hermesScheduledWork', 'Hermes scheduled work')}
+              </span>
+              <span className='rounded-999px bg-[rgba(var(--primary-6),0.12)] px-8px py-2px text-11px font-medium leading-16px text-[rgb(var(--primary-6))]'>
+                {hermesJobs.length} {t('cron.page.hermesTasks', 'Hermes tasks')}
+              </span>
+            </div>
+            <p className='m-0 text-12px leading-18px text-t-secondary'>
+              {hermesJobs.length
+                ? nextHermesJob
+                  ? `${t('cron.nextRun')} ${formatNextRun(nextHermesJob.state.nextRunAtMs)} · ${nextHermesJob.name}`
+                  : t('cron.page.hermesTrackedNoNext', 'Hermes jobs are tracked here, with no upcoming enabled run yet.')
+                : t(
+                    'cron.page.hermesTrackedEmpty',
+                    'No Hermes-owned cron jobs yet. When Hermes schedules chief-of-staff work, it will appear in this same Scheduled Tasks list.'
+                  )}
+            </p>
+          </div>
+          <div className='flex shrink-0 items-center gap-6px justify-self-end rounded-999px border border-solid border-[var(--color-border-2)] bg-fill-1 p-3px max-[620px]:justify-self-start'>
+            <Button size='small' shape='round' type={taskFilter === 'all' ? 'primary' : 'text'} onClick={() => setTaskFilter('all')}>
+              {t('common.all', 'All')} {jobs.length}
+            </Button>
+            <Button
+              size='small'
+              shape='round'
+              type={taskFilter === 'hermes' ? 'primary' : 'text'}
+              onClick={() => setTaskFilter('hermes')}
+            >
+              Hermes {hermesJobs.length}
+            </Button>
+          </div>
+        </div>
+
         {loading ? (
           <div className='flex min-h-220px items-center justify-center rounded-16px border border-dashed border-border-2 bg-fill-1'>
             <Spin />
           </div>
-        ) : jobs.length === 0 ? (
+        ) : visibleJobs.length === 0 ? (
           <div className='flex min-h-220px items-center justify-center rounded-16px border border-dashed border-border-2 bg-fill-1'>
-            <Empty description={t('cron.noTasks')} />
+            <Empty
+              description={
+                taskFilter === 'hermes'
+                  ? t('cron.page.noHermesTasks', 'No Hermes scheduled tasks yet')
+                  : t('cron.noTasks')
+              }
+            />
           </div>
         ) : (
           <div
@@ -163,8 +233,9 @@ const ScheduledTasksPage: React.FC = () => {
               isMobile ? '' : 'sm:grid-cols-2 lg:grid-cols-3'
             )}
           >
-            {jobs.map((job) => {
+            {visibleJobs.map((job) => {
               const agentMeta = getJobAgentMeta(job);
+              const hermesOwned = isHermesCronJob(job);
               const isManualOnly = job.schedule.kind === 'cron' && !job.schedule.expr;
               const executionModeLabel =
                 job.target.executionMode === 'new_conversation'
@@ -189,6 +260,11 @@ const ScheduledTasksPage: React.FC = () => {
                     >
                       {job.name}
                     </span>
+                    {hermesOwned ? (
+                      <span className='shrink-0 rounded-999px bg-[rgba(var(--primary-6),0.1)] px-7px py-2px text-11px font-medium leading-16px text-[rgb(var(--primary-6))]'>
+                        Hermes
+                      </span>
+                    ) : null}
                     <CronStatusTag job={job} />
                   </div>
 

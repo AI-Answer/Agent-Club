@@ -39,6 +39,10 @@ import type {
   DashboardActivityOverview,
   DashboardCustomWidgetSpec,
   DashboardFocusItem,
+  DashboardHermesChannel,
+  DashboardHermesControlCenter,
+  DashboardHermesItemStatus,
+  DashboardHermesMcpApp,
   DashboardInsight,
   DashboardRelevantLink,
   DashboardSnapshot,
@@ -84,11 +88,20 @@ function tagColorForSource(state: DashboardSourceState): string {
   return 'gray';
 }
 
+function tagColorForHermesStatus(status: DashboardHermesItemStatus): string {
+  if (status === 'connected') return 'green';
+  if (status === 'ready') return 'blue';
+  if (status === 'blocked') return 'red';
+  return 'orange';
+}
+
 function iconForSource(sourceId: DashboardSourceId): React.ReactNode {
   const iconProps = { theme: 'outline' as const, size: 18, fill: 'currentColor' };
   if (sourceId === 'honcho') return <Memory {...iconProps} />;
   if (sourceId === 'scheduled_tasks') return <AlarmClock {...iconProps} />;
   if (sourceId === 'agent_manager') return <DashboardOne {...iconProps} />;
+  if (sourceId === 'mcp') return <LinkOut {...iconProps} />;
+  if (sourceId === 'channels') return <ListCheckbox {...iconProps} />;
   if (sourceId === 'manual_context') return <MagicWand {...iconProps} />;
   if (sourceId === 'email') return <Mail {...iconProps} />;
   if (sourceId === 'calendar') return <Calendar {...iconProps} />;
@@ -251,16 +264,16 @@ const DashboardPage: React.FC = () => {
     [contextInput, rememberSnapshot]
   );
 
-  const persistLayout = useCallback(async (layout: DashboardWidgetLayout[]) => {
-    layoutRef.current = layout;
+  const persistLayout = useCallback(async (nextWidgetLayout: DashboardWidgetLayout[]) => {
+    layoutRef.current = nextWidgetLayout;
     setSavingLayout(true);
     setSnapshot((current) => {
-      const next = current ? { ...current, widgetLayout: layout } : current;
+      const next = current ? { ...current, widgetLayout: nextWidgetLayout } : current;
       dashboardSnapshotCache = next;
       return next;
     });
     try {
-      const next = await ipcBridge.dashboard.updateLayout.invoke({ layout });
+      const next = await ipcBridge.dashboard.updateLayout.invoke({ layout: nextWidgetLayout });
       rememberSnapshot(next);
     } catch (error) {
       Message.error(`Layout save failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -306,7 +319,9 @@ const DashboardPage: React.FC = () => {
       if (!currentLayout.length) {
         return;
       }
-      void persistLayout(currentLayout.map((widget) => (widget.id === widgetId ? { ...widget, hidden } : widget)));
+      void persistLayout(
+        currentLayout.map((widget) => (widget.id === widgetId ? Object.assign({}, widget, { hidden }) : widget))
+      );
     },
     [persistLayout, snapshot]
   );
@@ -316,7 +331,7 @@ const DashboardPage: React.FC = () => {
     if (!currentLayout.length) {
       return;
     }
-    void persistLayout(currentLayout.map((widget) => ({ ...widget, hidden: false })));
+    void persistLayout(currentLayout.map((widget) => Object.assign({}, widget, { hidden: false })));
   }, [persistLayout, snapshot]);
 
   const handleCustomWidgetSubmit = useCallback(
@@ -431,6 +446,14 @@ const DashboardPage: React.FC = () => {
               <FocusItem key={item.id} item={item} sourceMap={sourceMap} />
             ))}
           </div>
+        );
+      }
+
+      if (widget.kind === 'hermes_control') {
+        return snapshot.hermesControl ? (
+          <HermesControlCenter data={snapshot.hermesControl} onNavigate={navigateMaybe} />
+        ) : (
+          <Empty description='Hermes control data will appear after a hard refresh' />
         );
       }
 
@@ -673,7 +696,6 @@ const DashboardPage: React.FC = () => {
                 <SortableDashboardWidget
                   key={widget.id}
                   widget={widget}
-                  saving={savingLayout}
                   onHide={() => setWidgetHidden(widget.id, true)}
                 >
                   {renderWidget(widget)}
@@ -732,10 +754,9 @@ const WidgetControls: React.FC<{
 
 const SortableDashboardWidget: React.FC<{
   widget: DashboardWidgetLayout;
-  saving: boolean;
   onHide: () => void;
   children: React.ReactNode;
-}> = ({ widget, saving, onHide, children }) => {
+}> = ({ widget, onHide, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: widget.id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -796,6 +817,149 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, detail, route, on
     <div className='mt-5px min-w-0 break-words text-19px font-700 leading-24px text-t-primary'>{value}</div>
     <div className='mt-3px min-w-0 break-words text-12px leading-17px text-t-secondary'>{detail}</div>
   </button>
+);
+
+const HermesControlCenter: React.FC<{
+  data: DashboardHermesControlCenter;
+  onNavigate: (route?: string) => void;
+}> = ({ data, onNavigate }) => (
+  <div className='grid grid-cols-1 gap-10px xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.9fr)]'>
+    <div className='min-w-0'>
+      <div className='mb-8px flex flex-wrap items-start justify-between gap-8px'>
+        <div className='min-w-0'>
+          <div className='text-13px font-700 leading-19px text-t-primary'>{data.title}</div>
+          <div className='mt-2px max-w-760px text-12px leading-17px text-t-secondary'>{data.subtitle}</div>
+        </div>
+        <Button size='small' type='primary' onClick={() => onNavigate(data.primaryCtaRoute)}>
+          {data.primaryCtaLabel}
+        </Button>
+      </div>
+      <div className='-mx-2px flex max-h-284px gap-8px overflow-x-auto px-2px pb-2px'>
+        {data.mcpApps.map((app) => (
+          <HermesMcpAppCard key={app.id} app={app} onNavigate={onNavigate} />
+        ))}
+      </div>
+    </div>
+
+    <div className='grid min-w-0 grid-cols-1 gap-10px md:grid-cols-2 xl:grid-cols-1'>
+      <div className='rounded-8px border border-solid border-[var(--color-border-2)] bg-1 p-10px'>
+        <div className='mb-8px flex items-center justify-between gap-8px'>
+          <div className='text-13px font-700 leading-19px text-t-primary'>Hermes channels</div>
+          <Tag>Hermes only</Tag>
+        </div>
+        <div className='grid grid-cols-1 gap-7px'>
+          {data.channels.map((channel) => (
+            <HermesChannelRow key={channel.id} channel={channel} onNavigate={onNavigate} />
+          ))}
+        </div>
+      </div>
+      <HermesScheduledWorkPanel data={data} onNavigate={onNavigate} />
+    </div>
+  </div>
+);
+
+const HermesMcpAppCard: React.FC<{
+  app: DashboardHermesMcpApp;
+  onNavigate: (route?: string) => void;
+}> = ({ app, onNavigate }) => (
+  <button
+    type='button'
+    className='w-236px shrink-0 rounded-8px border border-solid border-[var(--color-border-2)] bg-1 p-10px text-left transition-colors hover:border-[var(--color-border-3)]'
+    onClick={() => onNavigate(app.route)}
+  >
+    <div className='flex items-start justify-between gap-8px'>
+      <div className='min-w-0'>
+        <div className='truncate text-13px font-700 leading-19px text-t-primary'>{app.title}</div>
+        <div className='mt-3px text-11px leading-16px text-t-secondary'>{app.authLabel}</div>
+      </div>
+      <Tag color={tagColorForHermesStatus(app.status)}>{app.status === 'setup_required' ? 'setup' : app.status}</Tag>
+    </div>
+    <p className='m-0 mt-7px h-50px overflow-hidden text-12px leading-17px text-t-secondary'>{app.description}</p>
+    <div className='mt-8px grid grid-cols-2 gap-6px'>
+      <div className='rounded-7px bg-fill-2 px-7px py-5px'>
+        <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>Tools</div>
+        <div className='text-15px font-700 leading-20px text-t-primary'>{app.toolCount}</div>
+      </div>
+      <div className='rounded-7px bg-fill-2 px-7px py-5px'>
+        <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>Triggers</div>
+        <div className='text-15px font-700 leading-20px text-t-primary'>{app.triggerCount}</div>
+      </div>
+    </div>
+    <div className='mt-8px flex items-center justify-between gap-8px'>
+      <div className='flex min-w-0 flex-wrap gap-4px'>
+        {app.tags.slice(0, 2).map((tag) => (
+          <span key={tag} className='rounded-6px bg-fill-2 px-6px py-2px text-10px leading-14px text-t-secondary'>
+            {tag}
+          </span>
+        ))}
+      </div>
+      <span className='shrink-0 text-11px font-600 leading-16px text-primary'>{app.ctaLabel}</span>
+    </div>
+  </button>
+);
+
+const HermesChannelRow: React.FC<{
+  channel: DashboardHermesChannel;
+  onNavigate: (route?: string) => void;
+}> = ({ channel, onNavigate }) => (
+  <button
+    type='button'
+    className='w-full rounded-8px bg-fill-2 px-9px py-8px text-left transition-colors hover:bg-fill-3'
+    onClick={() => onNavigate(channel.route)}
+  >
+    <div className='flex items-start justify-between gap-8px'>
+      <div className='min-w-0'>
+        <div className='truncate text-12px font-700 leading-18px text-t-primary'>{channel.title}</div>
+        <div className='mt-2px text-11px leading-16px text-t-secondary'>{channel.description}</div>
+      </div>
+      <Tag color={tagColorForHermesStatus(channel.status)}>
+        {channel.status === 'setup_required' ? 'setup' : channel.status}
+      </Tag>
+    </div>
+    <div className='mt-6px line-clamp-2 text-11px leading-16px text-t-secondary'>{channel.detail}</div>
+  </button>
+);
+
+const HermesScheduledWorkPanel: React.FC<{
+  data: DashboardHermesControlCenter;
+  onNavigate: (route?: string) => void;
+}> = ({ data, onNavigate }) => (
+  <div className='rounded-8px border border-solid border-[var(--color-border-2)] bg-1 p-10px'>
+    <div className='mb-8px flex items-center justify-between gap-8px'>
+      <div className='text-13px font-700 leading-19px text-t-primary'>Hermes scheduled work</div>
+      <Button size='mini' type='outline' onClick={() => onNavigate('/scheduled')}>
+        Scheduled Tasks
+      </Button>
+    </div>
+    <div className='grid grid-cols-2 gap-6px'>
+      <div className='rounded-7px bg-fill-2 px-8px py-6px'>
+        <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>Hermes</div>
+        <div className='text-16px font-700 leading-21px text-t-primary'>{data.scheduledWork.hermesScheduledTasks}</div>
+      </div>
+      <div className='rounded-7px bg-fill-2 px-8px py-6px'>
+        <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>All Tasks</div>
+        <div className='text-16px font-700 leading-21px text-t-primary'>{data.scheduledWork.totalScheduledTasks}</div>
+      </div>
+    </div>
+    <p className='m-0 mt-7px text-11px leading-16px text-t-secondary'>{data.scheduledWork.detail}</p>
+    {data.scheduledWork.items.length ? (
+      <div className='mt-8px grid grid-cols-1 gap-6px'>
+        {data.scheduledWork.items.map((item) => (
+          <button
+            key={item.id}
+            type='button'
+            className='rounded-7px bg-fill-2 px-8px py-6px text-left transition-colors hover:bg-fill-3'
+            onClick={() => onNavigate(item.route)}
+          >
+            <div className='truncate text-12px font-700 leading-17px text-t-primary'>{item.name}</div>
+            <div className='mt-2px truncate text-11px leading-16px text-t-secondary'>
+              {item.nextRunAtMs ? `Next ${formatDateTime(item.nextRunAtMs)}` : item.description || 'Manual trigger'}
+            </div>
+          </button>
+        ))}
+      </div>
+    ) : null}
+  </div>
 );
 
 const ActivityOverview: React.FC<{ activity: DashboardActivityOverview }> = ({ activity }) => {
@@ -859,13 +1023,6 @@ const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
   <div className='flex items-center justify-between gap-10px'>
     <h2 className='m-0 text-15px font-700 leading-22px text-t-primary'>{title}</h2>
   </div>
-);
-
-const DashboardSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <section className='rounded-12px border border-solid border-[var(--color-border-2)] bg-fill-1 p-16px'>
-    <SectionHeader title={title} />
-    <div className='mt-12px'>{children}</div>
-  </section>
 );
 
 const FocusItem: React.FC<{

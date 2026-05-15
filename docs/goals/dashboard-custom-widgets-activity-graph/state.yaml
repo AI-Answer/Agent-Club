@@ -1,0 +1,303 @@
+version: 2
+goal:
+  title: "Dashboard Custom Widgets And Activity Graph"
+  slug: "dashboard-custom-widgets-activity-graph"
+  status: done
+  created_at: "2026-05-14"
+  updated_at: "2026-05-14"
+  mode: open_ended
+  authority: requested
+  proof_type: demo
+  completion_proof: "Running Agent Club dashboard shows a source-grounded activity graph, relevant links, draggable persisted widgets, and a safe prompt-driven custom widget section verified by checks and live smoke."
+  likely_misfire: "Building a generic analytics page or unsafe arbitrary codegen instead of a composable, source-grounded chief-of-staff dashboard workspace."
+visual_board:
+  type: local
+  url: "http://goalbuddy.localhost:41737/dashboard-custom-widgets-activity-graph/"
+  note: "GoalBuddy is the execution board only; Agent Club remains the product surface."
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+active_task: null
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    objective: "Map the current dashboard implementation, available local activity sources, source-link surfaces, and safe widget extension points."
+    inputs:
+      - "User request for activity graph, relevant links, draggable widgets, and live custom dashboard sections."
+      - "Existing Agent Club dashboard implementation."
+      - "Honcho as source of truth for personal relevance."
+    constraints:
+      - "Read-only."
+      - "Do not invent unavailable connector data."
+      - "Preserve current three focus priorities."
+    expected_output:
+      - "Current dashboard file/data-flow map."
+      - "Available truthful activity signals."
+      - "Candidate relevant-link source strategy."
+      - "Candidate widget architecture options."
+      - "Risks and first implementation slice recommendation."
+    receipt:
+      result: done
+      summary: "Mapped the current dashboard: renderer page is src/renderer/pages/dashboard/DashboardPage.tsx, snapshot/types are src/common/types/dashboard.ts, main-process data comes from src/process/services/dashboard/DashboardService.ts, and IPC is src/common/adapter/ipcBridge.ts plus src/process/bridge/dashboardBridge.ts. Available truthful signals are Honcho default/samin, scheduled tasks, Local Agent Manager summaries, current focus context, and persisted dashboard snapshots. @dnd-kit is already installed, so drag/reorder can use an existing dependency. Safe customization should be declarative widget specs persisted in dashboard config, not arbitrary runtime code."
+      evidence:
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "src/common/types/dashboard.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "package.json"
+      spawned_tasks:
+        - T003
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Choose the safest useful architecture for draggable widgets and prompt-customizable dashboard sections."
+    inputs:
+      - "T001 Scout findings."
+      - "User requirement for dashboard-only customization similar to live artifacts."
+    constraints:
+      - "Read-only."
+      - "Prefer existing app patterns and proven libraries when present."
+      - "Avoid arbitrary unsandboxed prompt-generated code execution."
+    expected_output:
+      - "Decision."
+      - "Widget data model and storage choice."
+      - "Draggable layout approach."
+      - "Custom widget boundary."
+      - "Largest safe Worker slice with allowed_files, verify, and stop_if."
+    receipt:
+      result: done
+      decision: "approved"
+      full_outcome_complete: false
+      rationale: "Use a persisted dashboard layout model that wraps existing widgets by id, adds hide/show controls, and renders custom widgets from safe declarative specs. Existing widgets stay visible by default. Use @dnd-kit sortable for reorder because it is already installed. Add source-grounded relevant links and an activity heatmap to the snapshot model. Implement prompt customization as a constrained spec generator instead of arbitrary code execution."
+      worker_objective: "Implement the unified dashboard widget-system tranche: preserve existing widgets by default, add activity graph, relevant links, custom widget specs, drag/reorder, hide/show, and persistence."
+      allowed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/common/config/storage.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      verify:
+        - "bunx tsc --noEmit"
+        - "bunx oxlint --quiet"
+        - "git diff --check"
+        - "Live dashboard smoke test at http://localhost:5173/#/dashboard"
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Implement the unified dashboard widget-system tranche: preserve existing widgets by default, add activity graph, relevant links, custom widget specs, drag/reorder, hide/show, and persistence."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/common/config/storage.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/dashboardBridge.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    inputs:
+      - "T002 Judge decision."
+    constraints:
+      - "Write only inside allowed_files once Judge populates them."
+      - "Keep dashboard compact and demoable."
+      - "Do not fake external connector data."
+    expected_output:
+      - "Implemented widget-system slice."
+      - "Activity graph visible on dashboard."
+      - "Widget order can be changed and persists."
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Live dashboard smoke test at http://localhost:5173/#/dashboard"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "A required activity data source is unavailable and no truthful fallback exists."
+      - "Drag/reorder requires a new dependency that materially changes install/runtime without PM approval."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+        - cmd: "Live CDP smoke at http://localhost:5173/#/dashboard"
+          status: pass
+      summary: "Implemented the unified widget system. Existing dashboard widgets remain visible by default, every widget has Drag and Hide controls, hidden widgets can be restored, layout persists through dashboard config, the Activity heatmap uses local/dashboard signals, Relevant Links surfaces focus/work/setup links without fake connector data, and Build A Widget creates safe dashboard-only custom widget specs such as the revenue dashboard preview."
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add a relevant-links widget that can surface high-priority source links with honest source health and setup states."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/dashboardBridge.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    inputs:
+      - "T001 source-link findings."
+      - "T002 architecture decision."
+    constraints:
+      - "No fabricated Gmail/calendar/todo links."
+      - "Use Honcho/context only to rank or explain relevance, not to pretend a connector returned data."
+      - "Prefer in-app deep links where the target lives inside Agent Club."
+    expected_output:
+      - "Relevant-links widget."
+      - "Source-grounded cards or setup prompts."
+      - "Clear empty/disconnected state."
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Live dashboard smoke test for relevant links."
+    stop_if:
+      - "Connector credentials or source APIs are required but unavailable."
+      - "Need files outside allowed_files."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+        - cmd: "Live CDP smoke for Relevant Links"
+          status: pass
+      summary: "Covered by T003. Relevant Links now includes current focus links, active work links, scheduled-task links when present, and setup-required email/calendar links instead of fabricated inbox data."
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Create the first safe prompt-driven custom widget section for dashboard-only generated widgets/specs."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/dashboardBridge.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    inputs:
+      - "T002 custom widget boundary."
+      - "User examples such as revenue dashboard widgets from MCP/connectors."
+    constraints:
+      - "No arbitrary unsandboxed runtime code execution."
+      - "Dashboard customization must be isolated from core product code."
+      - "Generated widgets must label unconnected data as setup/mock/preview rather than real."
+    expected_output:
+      - "Prompt box for dashboard customization."
+      - "Safe widget/spec persistence path."
+      - "At least one custom widget generated or updated from prompt input."
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Live dashboard smoke test for custom widget creation/update."
+    stop_if:
+      - "The selected architecture would allow unsafe arbitrary code execution."
+      - "Need files outside allowed_files."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+        - cmd: "Live CDP smoke for Build A Widget"
+          status: pass
+      summary: "Covered by T003. Build A Widget accepts a prompt and persists a safe declarative custom widget spec. The live smoke created a Revenue dashboard widget that labels disconnected revenue/source data as setup-required."
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Polish the dashboard interaction model and verify the full user flow end-to-end."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/process/bridge/dashboardBridge.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    inputs:
+      - "Completed Worker receipts."
+      - "Current running Agent Club app."
+    constraints:
+      - "Keep first screen compact."
+      - "Manual context/customization controls should be present but not dominate the dashboard."
+      - "Do not regress the existing morning refresh/hard refresh behavior."
+    expected_output:
+      - "Final visual polish."
+      - "End-to-end live smoke evidence."
+      - "Any residual risk documented."
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Live browser/Electron smoke test proves activity graph, relevant links, drag persistence, and custom widget flow."
+    stop_if:
+      - "Visual layout becomes too large or crowded for the dashboard first screen."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "src/process/services/dashboard/DashboardService.ts"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+        - cmd: "Live CDP smoke for preserve, hide, restore, activity, relevant links, custom widget"
+          status: pass
+      summary: "Polished and verified the interaction model. The live dashboard keeps the current widgets/screens, adds Activity, Relevant Links, and Build A Widget, supports hide/show persistence, and leaves Activity restored to visible after smoke testing."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Audit whether this dashboard customization tranche satisfies Sam's original request."
+    inputs:
+      - "All task receipts."
+      - "Final diff."
+      - "Final verification output."
+      - "Live dashboard smoke evidence."
+    constraints:
+      - "Read-only."
+      - "Do not mark complete if queued Worker tasks remain required for the original outcome."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Missing evidence or residual risks."
+      - "Next task if not complete."
+    receipt:
+      result: done
+      decision: "complete"
+      full_outcome_complete: true
+      summary: "The tranche satisfies Sam's clarified request: current widgets remain intact, widgets are hideable/restorable and draggable via the visible drag handles, an activity graph is present, source-grounded relevant links are present, and a safe dashboard-only prompt customization section can add widgets. Verification passed with tsc, oxlint, diff check, and live dashboard smoke."

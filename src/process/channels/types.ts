@@ -9,7 +9,15 @@
 /**
  * Built-in platform types for channel plugins.
  */
-export type BuiltinPluginType = 'telegram' | 'slack' | 'discord' | 'lark' | 'dingtalk' | 'weixin' | 'wecom';
+export type BuiltinPluginType =
+  | 'telegram'
+  | 'slack'
+  | 'discord'
+  | 'imessage'
+  | 'lark'
+  | 'dingtalk'
+  | 'weixin'
+  | 'wecom';
 
 /**
  * Supported platform types for plugins.
@@ -46,6 +54,13 @@ export interface IPluginCredentials {
   // DingTalk
   clientId?: string;
   clientSecret?: string;
+  // Slack Socket Mode
+  appToken?: string;
+  // Discord and Weixin both use botToken-shaped credentials
+  botToken?: string;
+  // BlueBubbles/iMessage bridge
+  serverUrl?: string;
+  guid?: string;
   // WeCom (Enterprise WeChat AI Bot callback)
   encodingAesKey?: string;
   // WeCom (Enterprise WeChat AI Bot websocket)
@@ -65,6 +80,9 @@ export function hasPluginCredentials(type: PluginType, credentials?: IPluginCred
   if (type === 'lark') return !!(credentials.appId && credentials.appSecret);
   if (type === 'dingtalk') return !!(credentials.clientId && credentials.clientSecret);
   if (type === 'telegram') return !!credentials.token;
+  if (type === 'slack') return !!(credentials.botToken && credentials.appToken);
+  if (type === 'discord') return !!credentials.botToken;
+  if (type === 'imessage') return !!(credentials.serverUrl && credentials.guid);
   if (type === 'weixin') return !!(credentials.accountId && credentials.botToken);
   if (type === 'wecom') {
     const key = credentials.encodingAesKey;

@@ -45,7 +45,45 @@ type ExtensionFieldSchema = {
 
 type ExtensionFieldValues = Record<string, Record<string, string | number | boolean>>;
 
-const BUILTIN_CHANNEL_TYPES = new Set(['telegram', 'lark', 'dingtalk', 'weixin', 'wecom', 'slack', 'discord']);
+type HermesNativeChannelId = 'slack' | 'discord' | 'imessage';
+type HermesNativeChannelFields = Record<HermesNativeChannelId, Record<string, string>>;
+
+const HERMES_NATIVE_CHANNEL_IDS = new Set<HermesNativeChannelId>(['slack', 'discord', 'imessage']);
+const BUILTIN_CHANNEL_TYPES = new Set([
+  'telegram',
+  'lark',
+  'dingtalk',
+  'weixin',
+  'wecom',
+  'slack',
+  'discord',
+  'imessage',
+]);
+
+const IMESSAGE_SETUP_DOC_LINKS = [
+  {
+    label: 'Hermes BlueBubbles setup',
+    href: 'https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/messaging/bluebubbles.md',
+    description: 'Hermes gateway steps, including the `hermes gateway setup` CLI path.',
+  },
+  {
+    label: 'BlueBubbles install',
+    href: 'https://bluebubbles.app/install/',
+    description: 'Install the macOS server that bridges Messages.app.',
+  },
+  {
+    label: 'BlueBubbles API + webhooks',
+    href: 'https://docs.bluebubbles.app/server/developer-guides/rest-api-and-webhooks',
+    description: 'Server URL, password/guid, REST API, and webhook setup.',
+  },
+  {
+    label: 'Private API helper',
+    href: 'https://docs.bluebubbles.app/private-api/installation',
+    description: 'Optional advanced iMessage features like reactions and faster sends.',
+  },
+];
+
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
  * Internal hook: wraps useGeminiModelSelection with ConfigStorage persistence
@@ -184,6 +222,19 @@ const ChannelModalContent: React.FC = () => {
   const [extensionStatuses, setExtensionStatuses] = useState<Record<string, IChannelPluginStatus>>({});
   const [extensionLoadingMap, setExtensionLoadingMap] = useState<Record<string, boolean>>({});
   const [extensionFieldValues, setExtensionFieldValues] = useState<ExtensionFieldValues>({});
+  const [hermesNativeStatuses, setHermesNativeStatuses] = useState<
+    Partial<Record<HermesNativeChannelId, IChannelPluginStatus>>
+  >({});
+  const [hermesNativeLoadingMap, setHermesNativeLoadingMap] = useState<Record<HermesNativeChannelId, boolean>>({
+    slack: false,
+    discord: false,
+    imessage: false,
+  });
+  const [hermesNativeFieldValues, setHermesNativeFieldValues] = useState<HermesNativeChannelFields>({
+    slack: {},
+    discord: {},
+    imessage: {},
+  });
   const [webuiStatus, setWebuiStatus] = useState<IWebUIStatus | null>(null);
 
   // Track the token entered in TelegramConfigForm so the toggle handler can use it
@@ -194,6 +245,7 @@ const ChannelModalContent: React.FC = () => {
     telegram: true, // Default to collapsed
     slack: true,
     discord: true,
+    imessage: true,
     lark: true,
     dingtalk: true,
     weixin: true,
@@ -217,6 +269,9 @@ const ChannelModalContent: React.FC = () => {
         const dingtalkPlugin = result.data.find((p) => p.type === 'dingtalk');
         const weixinPlugin = result.data.find((p) => p.type === 'weixin');
         const wecomPlugin = result.data.find((p) => p.type === 'wecom');
+        const hermesNativePlugins = result.data.filter((p) =>
+          HERMES_NATIVE_CHANNEL_IDS.has(p.type as HermesNativeChannelId)
+        );
         const extensionPlugins = result.data.filter((p) => !BUILTIN_CHANNEL_TYPES.has(p.type));
 
         setPluginStatus(telegramPlugin || null);
@@ -224,6 +279,13 @@ const ChannelModalContent: React.FC = () => {
         setDingtalkPluginStatus(dingtalkPlugin || null);
         setWeixinPluginStatus(weixinPlugin || null);
         setWecomPluginStatus(wecomPlugin || null);
+        setHermesNativeStatuses(() => {
+          const next: Partial<Record<HermesNativeChannelId, IChannelPluginStatus>> = {};
+          for (const nativePlugin of hermesNativePlugins) {
+            next[nativePlugin.type as HermesNativeChannelId] = nativePlugin;
+          }
+          return next;
+        });
         setExtensionStatuses(() => {
           const next: Record<string, IChannelPluginStatus> = {};
           for (const plugin of extensionPlugins) {
@@ -288,6 +350,11 @@ const ChannelModalContent: React.FC = () => {
         setWeixinPluginStatus(status);
       } else if (status.type === 'wecom') {
         setWecomPluginStatus(status);
+      } else if (HERMES_NATIVE_CHANNEL_IDS.has(status.type as HermesNativeChannelId)) {
+        setHermesNativeStatuses((prev) => ({
+          ...prev,
+          [status.type]: status,
+        }));
       } else if (!BUILTIN_CHANNEL_TYPES.has(status.type)) {
         setExtensionStatuses((prev) => ({
           ...prev,
@@ -346,8 +413,8 @@ const ChannelModalContent: React.FC = () => {
           Message.error(result.msg || t('settings.assistant.disableFailed', 'Failed to disable plugin'));
         }
       }
-    } catch (error: any) {
-      Message.error(error.message);
+    } catch (error) {
+      Message.error(getErrorMessage(error));
     } finally {
       setEnableLoading(false);
     }
@@ -388,8 +455,8 @@ const ChannelModalContent: React.FC = () => {
           Message.error(result.msg || t('settings.assistant.disableFailed', 'Failed to disable plugin'));
         }
       }
-    } catch (error: any) {
-      Message.error(error.message);
+    } catch (error) {
+      Message.error(getErrorMessage(error));
     } finally {
       setLarkEnableLoading(false);
     }
@@ -429,8 +496,8 @@ const ChannelModalContent: React.FC = () => {
           Message.error(result.msg || t('settings.dingtalk.disableFailed', 'Failed to disable DingTalk plugin'));
         }
       }
-    } catch (error: any) {
-      Message.error(error.message);
+    } catch (error) {
+      Message.error(getErrorMessage(error));
     } finally {
       setDingtalkEnableLoading(false);
     }
@@ -467,8 +534,8 @@ const ChannelModalContent: React.FC = () => {
           Message.error(result.msg || t('settings.weixin.disableFailed', 'Failed to disable WeChat plugin'));
         }
       }
-    } catch (error: any) {
-      Message.error(error.message);
+    } catch (error) {
+      Message.error(getErrorMessage(error));
     } finally {
       setWeixinEnableLoading(false);
     }
@@ -520,6 +587,93 @@ const ChannelModalContent: React.FC = () => {
       },
     }));
   }, []);
+
+  const updateHermesNativeFieldValue = useCallback((pluginType: HermesNativeChannelId, key: string, value: string) => {
+    setHermesNativeFieldValues((prev) => ({
+      ...prev,
+      [pluginType]: {
+        ...prev[pluginType],
+        [key]: value,
+      },
+    }));
+  }, []);
+
+  const handleToggleHermesNativePlugin = useCallback(
+    async (pluginType: HermesNativeChannelId, enabled: boolean) => {
+      const status = hermesNativeStatuses[pluginType];
+      setHermesNativeLoadingMap((prev) => ({ ...prev, [pluginType]: true }));
+
+      try {
+        if (enabled) {
+          const fieldValues = hermesNativeFieldValues[pluginType] || {};
+          const requiredKeys: Record<HermesNativeChannelId, string[]> = {
+            slack: ['botToken', 'appToken'],
+            discord: ['botToken'],
+            imessage: ['serverUrl', 'guid'],
+          };
+          const missingKey = requiredKeys[pluginType].find(
+            (key) => !status?.hasToken && !String(fieldValues[key] || '').trim()
+          );
+
+          if (missingKey) {
+            Message.warning(
+              t('settings.channels.hermes.requiredField', {
+                defaultValue: 'Please fill required Hermes channel credentials first.',
+              })
+            );
+            return;
+          }
+
+          const result = await channel.enablePlugin.invoke({
+            pluginId: `${pluginType}_default`,
+            config: Object.fromEntries(
+              Object.entries(fieldValues).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+            ),
+          });
+
+          if (result.success) {
+            Message.success(
+              t('settings.channels.hermes.enabled', {
+                defaultValue: 'Hermes channel enabled',
+              })
+            );
+            await loadPluginStatus();
+          } else {
+            Message.error(
+              result.msg ||
+                t('settings.channels.hermes.enableFailed', {
+                  defaultValue: 'Failed to enable Hermes channel',
+                })
+            );
+          }
+        } else {
+          const result = await channel.disablePlugin.invoke({
+            pluginId: status?.id || `${pluginType}_default`,
+          });
+          if (result.success) {
+            Message.success(
+              t('settings.channels.hermes.disabled', {
+                defaultValue: 'Hermes channel disabled',
+              })
+            );
+            await loadPluginStatus();
+          } else {
+            Message.error(
+              result.msg ||
+                t('settings.channels.hermes.disableFailed', {
+                  defaultValue: 'Failed to disable Hermes channel',
+                })
+            );
+          }
+        }
+      } catch (error) {
+        Message.error(getErrorMessage(error));
+      } finally {
+        setHermesNativeLoadingMap((prev) => ({ ...prev, [pluginType]: false }));
+      }
+    },
+    [hermesNativeStatuses, hermesNativeFieldValues, t, loadPluginStatus]
+  );
 
   const handleToggleExtensionPlugin = useCallback(
     async (pluginType: string, enabled: boolean) => {
@@ -588,8 +742,8 @@ const ChannelModalContent: React.FC = () => {
             );
           }
         }
-      } catch (error: any) {
-        Message.error(error.message || String(error));
+      } catch (error) {
+        Message.error(getErrorMessage(error));
       } finally {
         setExtensionLoadingMap((prev) => ({ ...prev, [pluginType]: false }));
       }
@@ -705,6 +859,69 @@ const ChannelModalContent: React.FC = () => {
       );
     },
     [extensionFieldValues, t, updateExtensionFieldValue, webuiStatus]
+  );
+
+  const renderHermesNativeConfigForm = useCallback(
+    (pluginType: HermesNativeChannelId, detail: string) => {
+      const status = hermesNativeStatuses[pluginType];
+      const fields = hermesNativeFieldValues[pluginType] || {};
+      const fieldSpecs: Record<
+        HermesNativeChannelId,
+        Array<{ key: string; label: string; type?: 'password' | 'text'; placeholder: string }>
+      > = {
+        slack: [
+          { key: 'botToken', label: 'Slack bot token', type: 'password', placeholder: 'xoxb-...' },
+          { key: 'appToken', label: 'Slack app-level token', type: 'password', placeholder: 'xapp-...' },
+        ],
+        discord: [{ key: 'botToken', label: 'Discord bot token', type: 'password', placeholder: 'Bot token' }],
+        imessage: [
+          { key: 'serverUrl', label: 'BlueBubbles server URL', placeholder: 'https://your-server.example.com' },
+          { key: 'guid', label: 'BlueBubbles server password/guid', type: 'password', placeholder: 'Server password' },
+        ],
+      };
+
+      return (
+        <div className='space-y-10px py-12px'>
+          <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-2 px-12px py-10px'>
+            <div className='mb-6px flex items-center gap-6px text-13px font-600 text-t-primary'>
+              <CheckOne theme='outline' size='14' className='text-[rgb(var(--primary-6))]' />
+              <span>Hermes Chief of Staff only</span>
+            </div>
+            <div className='text-12px leading-18px text-t-secondary'>{detail}</div>
+          </div>
+
+          <div className='grid grid-cols-1 gap-8px sm:grid-cols-3'>
+            {[
+              ['Scope', 'Personal chief-of-staff channel'],
+              ['Routing', 'Hermes agent only'],
+              ['Status', status?.connected ? 'Connected' : status?.hasToken ? 'Ready to enable' : 'Needs credentials'],
+            ].map(([label, value]) => (
+              <div key={`${pluginType}-${label}`} className='rounded-8px bg-fill-2 px-10px py-8px'>
+                <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>{label}</div>
+                <div className='mt-3px text-12px font-600 leading-17px text-t-primary'>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className='grid grid-cols-1 gap-10px sm:grid-cols-2'>
+            {fieldSpecs[pluginType].map((field) => (
+              <div key={`${pluginType}-${field.key}`} className='space-y-6px'>
+                <div className='text-13px text-t-primary'>{field.label}</div>
+                <Input
+                  value={fields[field.key] || ''}
+                  onChange={(value) => updateHermesNativeFieldValue(pluginType, field.key, value)}
+                  placeholder={status?.hasToken ? 'Saved. Enter a new value to replace.' : field.placeholder}
+                  type={field.type || 'text'}
+                />
+              </div>
+            ))}
+          </div>
+
+          {status?.error ? <div className='text-12px leading-18px text-red-500'>{status.error}</div> : null}
+        </div>
+      );
+    },
+    [hermesNativeStatuses, hermesNativeFieldValues, updateHermesNativeFieldValue]
   );
 
   // Build channel configurations
@@ -823,39 +1040,99 @@ const ChannelModalContent: React.FC = () => {
         content: renderExtensionConfigForm(status),
       }));
 
-    const extensionTypeSet = new Set(extensionChannels.map((channel) => String(channel.id).toLowerCase()));
-    const comingSoonChannels: ChannelConfig[] = [
+    const extensionTypeSet = new Set(extensionChannels.map((channelConfig) => String(channelConfig.id).toLowerCase()));
+    const hermesComingSoonContent = (channelName: string, detail: string) => (
+      <div className='space-y-10px py-12px'>
+        <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-2 px-12px py-10px'>
+          <div className='mb-6px flex items-center gap-6px text-13px font-600 text-t-primary'>
+            <CheckOne theme='outline' size='14' className='text-[rgb(var(--primary-6))]' />
+            <span>Hermes Chief of Staff only</span>
+          </div>
+          <div className='text-12px leading-18px text-t-secondary'>{detail}</div>
+        </div>
+        <div className='grid grid-cols-1 gap-8px sm:grid-cols-3'>
+          {[
+            ['Scope', 'Personal chief-of-staff channel'],
+            ['Routing', 'Hermes agent only'],
+            ['Status', 'Setup gated'],
+          ].map(([label, value]) => (
+            <div key={`${channelName}-${label}`} className='rounded-8px bg-fill-2 px-10px py-8px'>
+              <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>{label}</div>
+              <div className='mt-3px text-12px font-600 leading-17px text-t-primary'>{value}</div>
+            </div>
+          ))}
+        </div>
+        {channelName === 'iMessage' ? (
+          <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-1 px-12px py-10px'>
+            <div className='mb-8px text-12px font-600 uppercase leading-16px text-t-secondary'>Setup docs</div>
+            <div className='grid grid-cols-1 gap-8px sm:grid-cols-2'>
+              {IMESSAGE_SETUP_DOC_LINKS.map((doc) => (
+                <a
+                  key={doc.href}
+                  href={doc.href}
+                  target='_blank'
+                  rel='noreferrer'
+                  className='block rounded-8px border border-solid border-[var(--color-border-2)] bg-bg-1 px-10px py-8px no-underline transition hover:border-[rgb(var(--primary-5))] hover:bg-fill-2'
+                >
+                  <div className='text-12px font-600 leading-17px text-[rgb(var(--primary-6))]'>{doc.label}</div>
+                  <div className='mt-3px text-11px leading-16px text-t-secondary'>{doc.description}</div>
+                </a>
+              ))}
+            </div>
+            <div className='mt-8px rounded-8px bg-fill-2 px-10px py-8px text-11px leading-16px text-t-secondary'>
+              Install BlueBubbles Server first, copy its server URL and password/guid, then run the Hermes
+              <span className='mx-4px font-600 text-t-primary'>hermes gateway setup</span>
+              CLI step before Agent Club enables live iMessage traffic.
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+    const hermesNativeChannels: ChannelConfig[] = [
       {
         id: 'slack',
         title: t('settings.channels.slackTitle', 'Slack'),
-        description: t('settings.channels.slackDesc', 'Chat with Agent Club assistant via Slack'),
-        status: 'coming_soon' as const,
-        enabled: false,
-        disabled: true,
-        content: (
-          <div className='text-14px text-t-secondary py-12px'>
-            {t('settings.channels.comingSoonDesc', 'Support for {{channel}} is coming soon', {
-              channel: t('settings.channels.slackTitle', 'Slack'),
-            })}
-          </div>
+        description: 'Hermes-only Slack Socket Mode channel for team-message triage and routing.',
+        status: 'active' as const,
+        enabled: hermesNativeStatuses.slack?.enabled || false,
+        disabled: hermesNativeLoadingMap.slack,
+        isConnected: hermesNativeStatuses.slack?.connected || false,
+        botUsername: hermesNativeStatuses.slack?.botUsername,
+        content: renderHermesNativeConfigForm(
+          'slack',
+          'Uses Slack Socket Mode. Requires a bot token and an app-level token with connections:write; messages route into Hermes only after you enable this channel.'
         ),
       },
       {
         id: 'discord',
         title: t('settings.channels.discordTitle', 'Discord'),
-        description: t('settings.channels.discordDesc', 'Chat with Agent Club assistant via Discord'),
+        description: 'Hermes-only Discord bot channel for community or course-server attention.',
+        status: 'active' as const,
+        enabled: hermesNativeStatuses.discord?.enabled || false,
+        disabled: hermesNativeLoadingMap.discord,
+        isConnected: hermesNativeStatuses.discord?.connected || false,
+        botUsername: hermesNativeStatuses.discord?.botUsername,
+        content: renderHermesNativeConfigForm(
+          'discord',
+          'Uses the Discord Gateway and REST message API. Requires a bot token and Message Content intent for useful server-channel triage.'
+        ),
+      },
+    ].filter((channelConfig) => !extensionTypeSet.has(String(channelConfig.id).toLowerCase()));
+
+    const comingSoonChannels: ChannelConfig[] = [
+      {
+        id: 'imessage',
+        title: 'iMessage',
+        description: 'Mac-local Hermes channel for personal message triage.',
         status: 'coming_soon' as const,
         enabled: false,
         disabled: true,
-        content: (
-          <div className='text-14px text-t-secondary py-12px'>
-            {t('settings.channels.comingSoonDesc', 'Support for {{channel}} is coming soon', {
-              channel: t('settings.channels.discordTitle', 'Discord'),
-            })}
-          </div>
+        content: hermesComingSoonContent(
+          'iMessage',
+          'iMessage needs an approved local macOS Messages or BlueBubbles bridge before Agent Club reads or sends personal messages.'
         ),
       },
-    ].filter((channel) => !extensionTypeSet.has(String(channel.id).toLowerCase()));
+    ].filter((channelConfig) => !extensionTypeSet.has(String(channelConfig.id).toLowerCase()));
 
     return [
       telegramChannel,
@@ -864,6 +1141,7 @@ const ChannelModalContent: React.FC = () => {
       weixinChannel,
       wecomChannel,
       ...extensionChannels,
+      ...hermesNativeChannels,
       ...comingSoonChannels,
     ];
   }, [
@@ -872,6 +1150,8 @@ const ChannelModalContent: React.FC = () => {
     dingtalkPluginStatus,
     extensionStatuses,
     extensionLoadingMap,
+    hermesNativeStatuses,
+    hermesNativeLoadingMap,
     telegramModelSelection,
     larkModelSelection,
     dingtalkModelSelection,
@@ -886,6 +1166,7 @@ const ChannelModalContent: React.FC = () => {
     wecomModelSelection,
     webuiStatus,
     renderExtensionConfigForm,
+    renderHermesNativeConfigForm,
     t,
   ]);
 
@@ -896,6 +1177,11 @@ const ChannelModalContent: React.FC = () => {
     if (channelId === 'dingtalk') return handleToggleDingtalkPlugin;
     if (channelId === 'weixin') return handleToggleWeixinPlugin;
     if (channelId === 'wecom') return handleToggleWecomPlugin;
+    if (channelId === 'slack' || channelId === 'discord') {
+      return (enabled: boolean) => {
+        void handleToggleHermesNativePlugin(channelId, enabled);
+      };
+    }
     if (extensionStatuses[channelId]) {
       return (enabled: boolean) => {
         void handleToggleExtensionPlugin(channelId, enabled);
@@ -904,7 +1190,8 @@ const ChannelModalContent: React.FC = () => {
     return undefined;
   };
   const channelGuideText = t('settings.webui.featureChannelsDesc', {
-    defaultValue: 'Connect Telegram, Lark, and DingTalk to interact with Agent Club from IM apps.',
+    defaultValue:
+      'Connect channels to interact with Agent Club from IM apps. Slack, Discord, and iMessage are tracked here as Hermes-only chief-of-staff channels.',
   });
   const channelSetupSteps = [
     t('settings.channels.selectFirst', {
@@ -913,6 +1200,7 @@ const ChannelModalContent: React.FC = () => {
     t('settings.channels.enableAfterConfig', {
       defaultValue: 'Enable it and start chatting with your AI agent.',
     }),
+    'Keep Hermes channels scoped to Hermes Chief of Staff.',
   ];
 
   return (
@@ -921,6 +1209,10 @@ const ChannelModalContent: React.FC = () => {
         <h2 className='text-20px font-500 text-t-primary m-0'>{t('settings.channels.title', 'Channels')}</h2>
         <div className='space-y-8px mt-10px'>
           <div className='text-13px text-t-secondary leading-relaxed'>{channelGuideText}</div>
+          <div className='inline-flex flex-wrap items-center gap-6px rd-8px bg-fill-2 px-10px py-7px text-12px text-t-secondary leading-relaxed'>
+            <span className='font-500 text-t-primary'>Hermes Chief of Staff only:</span>
+            <span>Slack, Discord, and iMessage stay setup-gated here until each native channel can route through Hermes.</span>
+          </div>
           <div className='flex flex-wrap gap-x-12px gap-y-6px'>
             {channelSetupSteps.map((stepLabel, idx) => (
               <div key={stepLabel} className='inline-flex items-center gap-6px'>

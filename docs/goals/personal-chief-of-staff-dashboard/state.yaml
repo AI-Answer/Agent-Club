@@ -1,0 +1,376 @@
+version: 2
+
+goal:
+  title: "Personal Chief-of-Staff Dashboard"
+  slug: "personal-chief-of-staff-dashboard"
+  kind: broad_product_request
+  tranche: "Add dashboard daily morning refresh, hard refresh, context-driven rebuild, loading recovery, three-focus chief-of-staff view, and restart Agent Club so Sam can see it."
+  status: done
+  intake:
+    original_request: "Make a personal Dashboard under Search that acts as a personal chief of staff using memory, email, meetings, todo lists, active agent work, automations, queued tasks, completed tickets, AIOS time saved, and automation recommendations; create the plan, make it a /goal, spin up the board, and implement it."
+    interpreted_outcome: "Agent Club has a usable native /dashboard route and sidebar entry that shows grounded local chief-of-staff insights from available sources while honestly marking disconnected sources."
+    input_shape: broad_product_request
+    audience: "Sam using Agent Club as a local AIOS cockpit."
+    authority: requested
+    proof_type: local_app
+    completion_proof: "Dashboard tab is implemented under Search, /dashboard is routed, data loads from local services where available, disconnected sources are honest, checks pass, GoalBuddy board is live, daily morning refresh is registered, hard refresh and context rebuild controls are present, Sam's three current priorities are pinned as the main focus, and Agent Club is restarted."
+    likely_misfire: "A static mock dashboard, a plan-only artifact, or fabricated email/calendar/todo insights."
+    blind_spots_considered:
+      - "Honcho should be treated as the user's memory source only when configured and reachable."
+      - "Email, calendar, and todo data may not be connected yet."
+      - "Raw private content should not be persisted by default."
+      - "Dashboard must load quickly from the last local snapshot and refresh on demand."
+      - "The sidebar location matters: directly under Search."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_unrelated_changes: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/personal-chief-of-staff-dashboard/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/personal-chief-of-staff-dashboard"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map the exact renderer, IPC, service, Scheduled Tasks, Honcho memory, and Agent Manager surfaces needed for a native dashboard implementation."
+    inputs:
+      - "src/renderer/components/layout/Sider"
+      - "src/renderer/components/layout/Router.tsx"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/common/types/memory.ts"
+      - "src/process/services/memory"
+      - "src/process/services/cron"
+      - "src/process/services/agentManager"
+      - "src/renderer/pages/cron"
+      - "src/renderer/pages/AgentManagerPage.tsx"
+    constraints:
+      - "Read-only."
+      - "Prefer concrete file-path evidence."
+      - "Decide the smallest useful V1 that can ship locally."
+    expected_output:
+      - "Surface map."
+      - "Local data sources available now."
+      - "Missing connectors to represent honestly."
+      - "Recommended first Worker slice."
+    receipt:
+      result: done
+      note: "notes/T001-surface-map.md"
+      summary: "Mapped the sidebar, router, IPC, memory, cron, task, and Agent Manager surfaces. Recommended a local-first V1 that aggregates available sources and marks email/calendar/todos as disconnected."
+      evidence:
+        - "src/renderer/components/layout/Sider/index.tsx"
+        - "src/renderer/components/layout/Router.tsx"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/process/bridge/cronBridge.ts"
+        - "src/process/services/memory/HonchoMemoryService.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+      facts:
+        - "Dashboard nav belongs between Search and Scheduled Tasks."
+        - "Scheduled Tasks, Honcho memory, Agent Manager status, and running task count are locally available now."
+        - "Email, calendar, and todo sources are not dashboard-ready and must be shown as setup-needed."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Validate the V1 architecture and activate a safe Worker implementation slice with allowed files and verification."
+    inputs:
+      - "T001 receipt."
+      - "Goal charter."
+    constraints:
+      - "Do not implement."
+      - "Keep dashboard local-first and honest about disconnected sources."
+      - "Choose a slice that keeps the app runnable."
+    expected_output:
+      - "Decision."
+      - "Worker objective."
+      - "allowed_files."
+      - "verify."
+      - "stop_if."
+    receipt:
+      result: done
+      decision: approved
+      full_outcome_complete: false
+      note: "notes/T002-architecture.md"
+      summary: "Approved a local-first dashboard V1 with typed snapshot IPC, real available local sources, and honest disconnected connector health."
+      next_allowed_task: T003
+      allowed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/common/config/storage.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "src/process/bridge/index.ts"
+        - "src/process/utils/initBridgeStandalone.ts"
+        - "src/process/services/dashboard/**"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/components/layout/Sider/index.tsx"
+        - "src/renderer/components/layout/Sider/SiderNav/**"
+        - "src/renderer/components/layout/Router.tsx"
+        - "src/renderer/pages/dashboard/**"
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement the native dashboard tab, route, typed snapshot model, IPC bridge/service, and dashboard page using local Agent Club data sources."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/common/config/storage.ts"
+      - "src/process/bridge/dashboardBridge.ts"
+      - "src/process/bridge/index.ts"
+      - "src/process/utils/initBridgeStandalone.ts"
+      - "src/process/services/dashboard/**"
+      - "src/process/services/agentManager/AgentManagerService.ts"
+      - "src/renderer/components/layout/Sider/index.tsx"
+      - "src/renderer/components/layout/Sider/SiderNav/**"
+      - "src/renderer/components/layout/Router.tsx"
+      - "src/renderer/pages/dashboard/**"
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "local browser smoke for /dashboard"
+    stop_if:
+      - "The dashboard requires real Gmail, Calendar, or Todo credentials."
+      - "Agent Manager API failures would block all dashboard rendering instead of becoming a degraded source."
+      - "The implementation would persist raw private email, meeting, or todo content."
+    receipt:
+      result: done
+      note: "notes/T003-implementation.md"
+      summary: "Implemented the native dashboard tab, route, typed snapshot model, IPC bridge/service, local source aggregation, Agent Manager stats, snapshot persistence, and dashboard UI."
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/common/config/storage.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "src/process/bridge/index.ts"
+        - "src/process/utils/initBridgeStandalone.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/process/services/dashboard/index.ts"
+        - "src/process/services/agentManager/AgentManagerService.ts"
+        - "src/renderer/components/layout/Sider/index.tsx"
+        - "src/renderer/components/layout/Sider/SiderNav/SiderDashboardEntry.tsx"
+        - "src/renderer/components/layout/Sider/SiderNav/index.ts"
+        - "src/renderer/components/layout/Router.tsx"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      verification:
+        - "PASS: bunx tsc --noEmit"
+        - "PASS: bunx oxlint --quiet"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add dashboard actions, refresh/heartbeat behavior, automation recommendations, and source health polish."
+    allowed_files:
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+    stop_if:
+      - "External email/calendar/todo writes are required."
+    receipt:
+      result: done
+      note: "notes/T004-actions-polish.md"
+      summary: "Added refresh heartbeat, setup/navigation actions, source health, automation recommendations, AIOS time-saved estimate, and source timeouts."
+      changed_files:
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Run focused verification, smoke the local UI in the browser, and fix issues found."
+    allowed_files:
+      - "docs/goals/personal-chief-of-staff-dashboard/**"
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "bun run i18n:types"
+      - "node scripts/check-i18n.js"
+      - "git diff --check"
+    stop_if: []
+    receipt:
+      result: done
+      note: "notes/T005-verification.md"
+      summary: "TypeScript, oxlint, i18n, and diff whitespace checks pass. GoalBuddy board opened. Standalone dashboard browser smoke redirected to login as expected outside Electron."
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "bun run i18n:types"
+          status: pass
+        - cmd: "node scripts/check-i18n.js"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      changed_files:
+        - "docs/goals/personal-chief-of-staff-dashboard/notes/T005-verification.md"
+      caveat: "http://localhost:5173/#/dashboard redirects to /#/login in the in-app browser because that surface is unauthenticated and not Electron."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Final audit: prove the shipped dashboard matches the original request and record any honest limitations."
+    inputs:
+      - "All task receipts."
+      - "Verification results."
+    constraints:
+      - "Do not mark complete unless the Dashboard tab is implemented and visible."
+    expected_output:
+      - "full_outcome_complete."
+      - "Evidence map."
+      - "Residual risks."
+    receipt:
+      result: done
+      note: "notes/T999-final.md"
+      decision: complete
+      full_outcome_complete: true
+      summary: "Dashboard feature is implemented and verified locally, with email/calendar/todo extraction honestly deferred to future connector adapters."
+      residual_risks:
+        - "Agent Club may need reload/restart to register new main-process IPC bridge handlers."
+        - "Standalone browser smoke is blocked by login outside Electron."
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add 5am daily dashboard refresh, hard refresh, context-enter rebuild, and loading recovery to the dashboard."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/common/config/storage.ts"
+      - "src/process/bridge/dashboardBridge.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+    stop_if:
+      - "The implementation requires real Gmail, Calendar, or Todo credentials."
+      - "The daily refresh would perform external writes."
+      - "Dashboard rebuild would need raw private source data."
+    receipt:
+      result: done
+      note: "notes/T006-morning-refresh-context.md"
+      summary: "Added 5am daily dashboard refresh while the app is running, hard refresh IPC/UI, context-enter rebuild, source/context insights, and loading recovery."
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/common/config/storage.ts"
+        - "src/process/bridge/dashboardBridge.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Verify the dashboard follow-up, tighten the dashboard around Sam's three current priorities, run GoalBuddy checks, and restart Agent Club so the new bridge is active."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/process/services/memory/HonchoMemoryService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      - "docs/goals/personal-chief-of-staff-dashboard/**"
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs docs/goals/personal-chief-of-staff-dashboard/state.yaml"
+    stop_if: []
+    receipt:
+      result: done
+      note: "notes/T007-verification-restart.md"
+      summary: "Restarted Agent Club, verified the live dashboard, and tightened it around three current focus lanes: webinar prep, AIOS course video, and Agent Club demo-readiness."
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/process/services/memory/HonchoMemoryService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "docs/goals/personal-chief-of-staff-dashboard/state.yaml"
+        - "docs/goals/personal-chief-of-staff-dashboard/notes/T007-verification-restart.md"
+      commands:
+        - cmd: "bunx tsc --noEmit"
+          status: pass
+        - cmd: "bunx oxlint --quiet"
+          status: pass
+        - cmd: "git diff --check"
+          status: pass
+      live_smoke:
+        - "PASS: http://localhost:5173/#/dashboard rendered Focus This Week."
+        - "PASS: three focus cards rendered for webinar prep, AIOS course video, and Agent Club demo-readiness."
+        - "PASS: Honcho source health showed Source of truth: default/samin."
+        - "PASS: Daily at 5:00 AM and bottom Manual reorientation were visible."
+  - id: T008
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Final audit for the follow-up: daily refresh, hard refresh, context rebuild, loading recovery, three-focus view, and app restart."
+    inputs:
+      - "T006 receipt."
+      - "T007 receipt."
+      - "Verification results."
+    constraints:
+      - "Do not mark complete unless the follow-up behavior is implemented and Agent Club restart was attempted."
+    expected_output:
+      - "full_outcome_complete."
+      - "Evidence map."
+      - "Residual risks."
+    receipt:
+      result: done
+      note: "notes/T008-final-follow-up.md"
+      decision: complete
+      full_outcome_complete: true
+      summary: "Follow-up is complete: dashboard is live, compact, Honcho-backed, three-focus centered, scheduled for 5:00 AM refresh while running, and restarted."
+      residual_risks:
+        - "The 5:00 AM refresh runs while Agent Club is running and the machine is awake."
+        - "Email, calendar, and todo actions remain setup-gated until connector adapters are wired."
+        - "Pinned three-focus context should later become editable persisted preference or Honcho-backed focus state."

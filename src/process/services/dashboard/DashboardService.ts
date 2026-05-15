@@ -1,4 +1,5 @@
 import type { ICronJob } from '@/common/adapter/ipcBridge';
+import type { IMcpServer } from '@/common/config/storage';
 import type {
   DashboardAction,
   DashboardActionRequest,
@@ -12,6 +13,10 @@ import type {
   DashboardCustomWidgetSpec,
   DashboardHardRefreshRequest,
   DashboardFocusItem,
+  DashboardHermesChannel,
+  DashboardHermesControlCenter,
+  DashboardHermesItemStatus,
+  DashboardHermesMcpApp,
   DashboardInsight,
   DashboardLayoutUpdateRequest,
   DashboardMetrics,
@@ -29,6 +34,9 @@ import { AGENT_MANAGER_NAME } from '@/common/config/appBrand';
 import { cronService } from '@process/services/cron/cronServiceSingleton';
 import { honchoMemoryService } from '@process/services/memory/HonchoMemoryService';
 import { agentManagerService } from '@process/services/agentManager';
+import { getDatabase } from '@process/services/database';
+import type { IChannelPluginConfig } from '@process/channels/types';
+import { hasPluginCredentials } from '@process/channels/types';
 import type { IWorkerTaskManager } from '@process/task/IWorkerTaskManager';
 import { ProcessConfig } from '@process/utils/initStorage';
 
@@ -47,6 +55,7 @@ const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
 const DEFAULT_WIDGET_LAYOUT: DashboardWidgetLayout[] = [
   { id: 'metrics', kind: 'metrics', title: 'Metrics', size: 'full' },
   { id: 'focus', kind: 'focus', title: 'Focus This Week', size: 'wide' },
+  { id: 'hermes_control', kind: 'hermes_control', title: 'Hermes Apps + Channels', size: 'wide' },
   { id: 'activity', kind: 'activity', title: 'Activity', size: 'third' },
   { id: 'brief_sources', kind: 'brief_sources', title: "Today's Brief + Sources", size: 'half' },
   { id: 'actions', kind: 'actions', title: 'Action Required', size: 'half' },
@@ -57,6 +66,10 @@ const DEFAULT_WIDGET_LAYOUT: DashboardWidgetLayout[] = [
   { id: 'custom_lab', kind: 'custom_lab', title: 'Build A Widget', size: 'half' },
   { id: 'manual_context', kind: 'manual_context', title: 'Manual Reorientation', size: 'half' },
 ];
+
+const HERMES_AGENT_LABEL = 'Hermes Chief of Staff';
+const MCP_TOOLS_ROUTE = '/settings/capabilities?tab=tools';
+const CHANNELS_ROUTE = '/settings/webui';
 
 const CURRENT_FOCUS_CONTEXT =
   'Sam said the most important tasks for this and next week are webinar prep until Monday, May 18, 2026, building the AI operating systems course video, and making Agent Club useful as the resource/demo shown to people.';
@@ -150,6 +163,47 @@ function toScheduledTaskSummary(job: ICronJob): DashboardScheduledTaskSummary {
     nextRunAtMs: job.state.nextRunAtMs,
     route: `/scheduled/${job.id}`,
   };
+}
+
+function serverMatches(server: IMcpServer, tokens: string[]): boolean {
+  const haystack = [
+    server.name,
+    server.description,
+    server.originalJson,
+    ...(server.tools || []).map((tool) => `${tool.name} ${tool.description || ''}`),
+  ]
+    .join(' ')
+    .toLowerCase();
+  return tokens.some((token) => haystack.includes(token));
+}
+
+function countMatchingTools(server: IMcpServer | undefined, tokens: string[]): number {
+  if (!server?.tools?.length) {
+    return 0;
+  }
+  return server.tools.filter((tool) => tokens.some((token) => `${tool.name} ${tool.description || ''}`.toLowerCase().includes(token))).length;
+}
+
+function hermesStatusFromConfigured(value: boolean, enabled?: boolean): DashboardHermesItemStatus {
+  if (!value) {
+    return 'setup_required';
+  }
+  return enabled === false ? 'ready' : 'connected';
+}
+
+function isHermesCronJob(job: ICronJob): boolean {
+  const values = [
+    job.metadata.agentType,
+    job.metadata.agentConfig?.backend,
+    job.metadata.agentConfig?.name,
+    job.metadata.agentConfig?.customAgentId,
+    job.metadata.agentConfig?.presetAgentType,
+    job.name,
+    job.description,
+    job.target.payload.text,
+  ];
+  const haystack = values.filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes('hermes') || haystack.includes('chief of staff') || haystack.includes('chief-of-staff');
 }
 
 function activeCronWorkItems(jobs: ICronJob[]): DashboardWorkItem[] {
@@ -263,6 +317,7 @@ export class DashboardService {
         typeof snapshot.generatedAt === 'number' &&
         snapshot.summary &&
         snapshot.metrics &&
+        snapshot.hermesControl &&
         Array.isArray(snapshot.widgetLayout) &&
         Array.isArray(snapshot.sources)
     );
@@ -427,6 +482,10 @@ export class DashboardService {
     const enabledJobs = jobs.filter((job) => job.enabled);
     const nextScheduledTask = enabledJobs.toSorted(compareNextRun)[0];
     const completedScheduledRuns = countCompletedScheduledRuns(jobs);
+    const hermesControl = await this.buildHermesControlCenter(generatedAt, jobs);
+    const connectedHermesChannels = hermesControl.channels.filter((channel) => channel.status === 'connected').length;
+    const readyHermesChannels = hermesControl.channels.filter((channel) => channel.status === 'ready').length;
+    const composioApp = hermesControl.mcpApps.find((app) => app.id === 'composio-tool-router');
 
     sources.push(
       memoryResult.source,
@@ -434,6 +493,24 @@ export class DashboardService {
         ? sourceStatus('scheduled_tasks', 'Scheduled Tasks', 'connected', `${jobs.length} scheduled task${jobs.length === 1 ? '' : 's'} found.`)
         : sourceStatus('scheduled_tasks', 'Scheduled Tasks', 'connected', 'No scheduled tasks yet.'),
       agentManagerResult.source,
+      sourceStatus(
+        'mcp',
+        'MCP Apps',
+        composioApp?.status === 'connected' ? 'connected' : composioApp?.status === 'ready' ? 'degraded' : 'disconnected',
+        composioApp?.status === 'connected'
+          ? `Composio Tool Router is connected with ${composioApp.toolCount} visible tool${composioApp.toolCount === 1 ? '' : 's'}.`
+          : 'Connect Composio Tool Router to give Hermes app tools through MCP.',
+        { setupRoute: MCP_TOOLS_ROUTE }
+      ),
+      sourceStatus(
+        'channels',
+        'Hermes Channels',
+        connectedHermesChannels > 0 ? 'connected' : readyHermesChannels > 0 ? 'degraded' : 'disconnected',
+        connectedHermesChannels > 0
+          ? `${connectedHermesChannels} Hermes channel${connectedHermesChannels === 1 ? '' : 's'} connected.`
+          : 'Slack, Discord, and iMessage are tracked for Hermes setup, but no live channel is connected yet.',
+        { setupRoute: CHANNELS_ROUTE }
+      ),
       ...(userContext || focusItems.length
         ? [
             sourceStatus(
@@ -495,6 +572,32 @@ export class DashboardService {
         createdAt: generatedAt,
       }
     );
+
+    if (composioApp?.status !== 'connected') {
+      actions.push({
+        id: 'configure-hermes-mcp-apps',
+        title: 'Connect Hermes app tools',
+        description: 'Attach Composio Tool Router as MCP so Hermes can use connected apps from one controlled setup path.',
+        priority: 'medium',
+        sourceIds: ['mcp'],
+        ctaLabel: 'Open MCP',
+        action: { kind: 'setup_source', route: MCP_TOOLS_ROUTE, sourceId: 'mcp' },
+        createdAt: generatedAt,
+      });
+    }
+
+    if (!connectedHermesChannels) {
+      actions.push({
+        id: 'configure-hermes-channels',
+        title: 'Wire Hermes channels',
+        description: 'Track Slack, Discord, and iMessage as Hermes-only channels before making any of them live.',
+        priority: 'medium',
+        sourceIds: ['channels'],
+        ctaLabel: 'Open Channels',
+        action: { kind: 'setup_source', route: CHANNELS_ROUTE, sourceId: 'channels' },
+        createdAt: generatedAt,
+      });
+    }
 
     if (!memoryResult.configured) {
       actions.push({
@@ -736,6 +839,7 @@ export class DashboardService {
       summary,
       metrics,
       morningRefresh,
+      hermesControl,
       widgetLayout,
       focusItems,
       activity,
@@ -1015,6 +1119,215 @@ export class DashboardService {
     }
   }
 
+  private async buildHermesControlCenter(generatedAt: number, jobs: ICronJob[]): Promise<DashboardHermesControlCenter> {
+    const [mcpServers, channelPlugins] = await Promise.all([this.safeListMcpServers(), this.safeListChannelPlugins()]);
+    const composioServer = mcpServers.find((server) => server.name.toLowerCase() === 'composio');
+
+    return {
+      title: 'Hermes control center',
+      subtitle:
+        'Connect apps through MCP, keep Hermes-only channels honest, and make sure scheduled work stays in Scheduled Tasks.',
+      primaryCtaLabel: composioServer ? 'Manage MCP' : 'Connect Composio',
+      primaryCtaRoute: MCP_TOOLS_ROUTE,
+      mcpApps: this.buildHermesMcpApps(mcpServers, composioServer),
+      channels: this.buildHermesChannels(channelPlugins),
+      scheduledWork: this.buildHermesScheduledWork(jobs),
+      updatedAt: generatedAt,
+    };
+  }
+
+  private async safeListMcpServers(): Promise<IMcpServer[]> {
+    try {
+      const servers = (await ProcessConfig.get('mcp.config')) as IMcpServer[] | undefined;
+      return Array.isArray(servers) ? servers : [];
+    } catch (error) {
+      console.warn('[Dashboard] Failed to read MCP config:', error);
+      return [];
+    }
+  }
+
+  private async safeListChannelPlugins(): Promise<IChannelPluginConfig[]> {
+    try {
+      const db = await getDatabase();
+      const result = db.getChannelPlugins();
+      return result.success && Array.isArray(result.data) ? result.data : [];
+    } catch (error) {
+      console.warn('[Dashboard] Failed to read channel plugins:', error);
+      return [];
+    }
+  }
+
+  private buildHermesMcpApps(mcpServers: IMcpServer[], composioServer?: IMcpServer): DashboardHermesMcpApp[] {
+    const composioStatus = this.statusForMcpServer(composioServer);
+    const directServer = (tokens: string[]) =>
+      mcpServers.find((server) => server.name.toLowerCase() !== 'composio' && serverMatches(server, tokens));
+    const appCard = (
+      id: string,
+      title: string,
+      description: string,
+      authLabel: string,
+      tags: string[],
+      tokens: string[],
+      triggerCount = 0
+    ): DashboardHermesMcpApp => {
+      const server = directServer(tokens);
+      const toolCount = countMatchingTools(composioServer, tokens) + (server?.tools?.length || 0);
+      const installed = Boolean(server) || toolCount > 0;
+      const status = server ? this.statusForMcpServer(server) : hermesStatusFromConfigured(installed, composioServer?.enabled);
+
+      return {
+        id,
+        title,
+        description,
+        authLabel,
+        toolCount,
+        triggerCount,
+        tags,
+        status,
+        installed,
+        ctaLabel: installed ? 'Manage' : 'Attach',
+        route: MCP_TOOLS_ROUTE,
+        sourceIds: ['mcp'],
+      };
+    };
+
+    return [
+      {
+        id: 'composio-tool-router',
+        title: 'Composio Tool Router',
+        description: 'One Composio MCP server that can expose selected app actions to Hermes.',
+        authLabel: 'API key',
+        toolCount: composioServer?.tools?.length || 0,
+        triggerCount: 0,
+        tags: ['mcp', 'tool router', 'apps'],
+        status: composioStatus,
+        installed: Boolean(composioServer),
+        ctaLabel: composioServer ? 'Manage' : 'Connect',
+        route: MCP_TOOLS_ROUTE,
+        sourceIds: ['mcp'],
+      },
+      appCard('gmail', 'Gmail', 'Surface priority inbox threads and reply work once attached.', 'OAuth', ['email'], [
+        'gmail',
+        'google mail',
+      ]),
+      appCard('slack-app', 'Slack', 'Let Hermes read and route team-channel context after approval.', 'OAuth', [
+        'team chat',
+        'channels',
+      ], ['slack']),
+      appCard('google-calendar', 'Google Calendar', 'Turn meetings into prep, follow-ups, and time-protection tasks.', 'OAuth', [
+        'calendar',
+      ], ['calendar', 'google calendar']),
+      appCard('google-drive', 'Google Drive', 'Use Docs, Sheets, and Drive files as dashboard/action sources.', 'OAuth', [
+        'docs',
+        'files',
+      ], ['drive', 'docs', 'sheets']),
+      appCard('notion', 'Notion', 'Bring notes, docs, and lightweight tasks into the chief-of-staff loop.', 'OAuth', [
+        'notes',
+      ], ['notion']),
+      appCard('github', 'GitHub', 'Connect repositories, issues, and PRs when coding work should become visible.', 'OAuth', [
+        'developer tools',
+      ], ['github', 'pull request', 'issue']),
+    ];
+  }
+
+  private statusForMcpServer(server: IMcpServer | undefined): DashboardHermesItemStatus {
+    if (!server) {
+      return 'setup_required';
+    }
+    if (server.status === 'error') {
+      return 'blocked';
+    }
+    return server.enabled ? 'connected' : 'ready';
+  }
+
+  private buildHermesChannels(plugins: IChannelPluginConfig[]): DashboardHermesChannel[] {
+    const pluginByType = new Map(plugins.map((plugin) => [plugin.type, plugin]));
+    const channel = (
+      id: DashboardHermesChannel['id'],
+      title: string,
+      description: string,
+      emptyDetail: string
+    ): DashboardHermesChannel => {
+      const plugin = pluginByType.get(id === 'imessage' ? 'imessage' : id);
+      const status = this.statusForChannelPlugin(plugin);
+      const detail =
+        plugin && status === 'connected'
+          ? `${title} is running for channel messages. Keep it scoped to ${HERMES_AGENT_LABEL}.`
+          : plugin && status === 'ready'
+            ? `${title} has credentials saved, but is not running yet.`
+            : emptyDetail;
+
+      return {
+        id,
+        title,
+        description,
+        detail,
+        status,
+        hermesOnly: true,
+        ctaLabel: status === 'connected' ? 'Manage' : 'Set up',
+        route: CHANNELS_ROUTE,
+        sourceIds: ['channels'],
+      };
+    };
+
+    return [
+      channel(
+        'slack',
+        'Slack',
+        'Hermes can become the chief-of-staff lane for team messages.',
+        'Settings recognizes Slack, but the native Hermes channel setup is still waiting for credentials and implementation.'
+      ),
+      channel(
+        'discord',
+        'Discord',
+        'Route community or course-server questions to Hermes without making it a generic bot.',
+        'Settings recognizes Discord, but no live Hermes Discord channel is configured yet.'
+      ),
+      {
+        id: 'imessage',
+        title: 'iMessage',
+        description: 'Local personal-message triage needs a Mac-native bridge before Hermes can use it.',
+        detail: 'Needs a local macOS Messages or BlueBubbles-style bridge decision before any live messages are touched.',
+        status: 'setup_required',
+        hermesOnly: true,
+        ctaLabel: 'Plan bridge',
+        route: CHANNELS_ROUTE,
+        sourceIds: ['channels'],
+      },
+    ];
+  }
+
+  private statusForChannelPlugin(plugin: IChannelPluginConfig | undefined): DashboardHermesItemStatus {
+    if (!plugin) {
+      return 'setup_required';
+    }
+    if (plugin.status === 'error') {
+      return 'blocked';
+    }
+    if (plugin.enabled && plugin.status === 'running') {
+      return 'connected';
+    }
+    return hasPluginCredentials(plugin.type, plugin.credentials) ? 'ready' : 'setup_required';
+  }
+
+  private buildHermesScheduledWork(jobs: ICronJob[]): DashboardHermesControlCenter['scheduledWork'] {
+    const hermesJobs = jobs.filter(isHermesCronJob).toSorted(compareNextRun);
+    const nextHermesTask = hermesJobs.find((job) => job.enabled);
+    const detail = hermesJobs.length
+      ? `${hermesJobs.length} Hermes scheduled task${hermesJobs.length === 1 ? '' : 's'} are tracked in Scheduled Tasks.`
+      : jobs.length
+        ? `${jobs.length} Scheduled Tasks exist, but none are clearly owned by Hermes yet.`
+        : 'No Scheduled Tasks yet. Create the Hermes heartbeat here so it uses the app source of truth.';
+
+    return {
+      totalScheduledTasks: jobs.length,
+      hermesScheduledTasks: hermesJobs.length,
+      detail,
+      nextHermesTask: nextHermesTask ? toScheduledTaskSummary(nextHermesTask) : undefined,
+      items: hermesJobs.slice(0, 3).map(toScheduledTaskSummary),
+    };
+  }
+
   private safeRunningTaskCount(): number {
     try {
       return this.workerTaskManager.listTasks().length;
@@ -1140,6 +1453,8 @@ export class DashboardService {
       'setup-honcho-memory': '/settings/memory',
       'open-agent-manager': '/agent-manager',
       'create-chief-of-staff-heartbeat': '/scheduled',
+      'configure-hermes-mcp-apps': MCP_TOOLS_ROUTE,
+      'configure-hermes-channels': CHANNELS_ROUTE,
       'connect-work-sources': '/settings/capabilities',
     };
     return routes[actionId];

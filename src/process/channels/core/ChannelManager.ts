@@ -12,7 +12,9 @@ import { ActionExecutor } from '../gateway/ActionExecutor';
 import { PluginManager, registerPlugin } from '../gateway/PluginManager';
 import { PairingService } from '../pairing/PairingService';
 import { DingTalkPlugin } from '../plugins/dingtalk/DingTalkPlugin';
+import { DiscordPlugin } from '../plugins/discord/DiscordPlugin';
 import { LarkPlugin } from '../plugins/lark/LarkPlugin';
+import { SlackPlugin } from '../plugins/slack/SlackPlugin';
 import { TelegramPlugin } from '../plugins/telegram/TelegramPlugin';
 import { WeixinPlugin } from '../plugins/weixin/WeixinPlugin';
 import { WecomPlugin } from '../plugins/wecom/WecomPlugin';
@@ -50,6 +52,8 @@ export class ChannelManager {
     // Private constructor for singleton pattern
     // Register built-in plugins
     registerPlugin('telegram', TelegramPlugin);
+    registerPlugin('slack', SlackPlugin);
+    registerPlugin('discord', DiscordPlugin);
     registerPlugin('lark', LarkPlugin);
     registerPlugin('dingtalk', DingTalkPlugin);
     registerPlugin('weixin', WeixinPlugin);
@@ -185,7 +189,15 @@ export class ChannelManager {
     }
 
     const enabledPlugins = result.data.filter((p) => p.enabled);
-    const builtinStartableTypes = new Set<PluginType>(['telegram', 'lark', 'dingtalk', 'weixin', 'wecom']);
+    const builtinStartableTypes = new Set<PluginType>([
+      'telegram',
+      'slack',
+      'discord',
+      'lark',
+      'dingtalk',
+      'weixin',
+      'wecom',
+    ]);
     const extensionRegistry = ExtensionRegistry.getInstance();
 
     for (const plugin of enabledPlugins) {
@@ -270,6 +282,17 @@ export class ChannelManager {
       const clientSecret = config.clientSecret as string | undefined;
       if (clientId && clientSecret) {
         credentials = { clientId, clientSecret };
+      }
+    } else if (pluginType === 'slack') {
+      const botToken = config.botToken as string | undefined;
+      const appToken = config.appToken as string | undefined;
+      if (botToken && appToken) {
+        credentials = { botToken: botToken.trim(), appToken: appToken.trim() };
+      }
+    } else if (pluginType === 'discord') {
+      const botToken = config.botToken as string | undefined;
+      if (botToken) {
+        credentials = { botToken: botToken.trim() };
       }
     } else if (pluginType === 'weixin') {
       const accountId = config.accountId as string | undefined;
@@ -465,6 +488,7 @@ export class ChannelManager {
     if (pluginId.startsWith('telegram')) return 'telegram';
     if (pluginId.startsWith('slack')) return 'slack';
     if (pluginId.startsWith('discord')) return 'discord';
+    if (pluginId.startsWith('imessage')) return 'imessage';
     if (pluginId.startsWith('lark')) return 'lark';
     if (pluginId.startsWith('dingtalk')) return 'dingtalk';
     if (pluginId.startsWith('weixin')) return 'weixin';

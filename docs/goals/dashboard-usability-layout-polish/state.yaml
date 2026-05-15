@@ -1,0 +1,200 @@
+version: 2
+goal:
+  title: "Dashboard Usability Layout Polish"
+  slug: "dashboard-usability-layout-polish"
+  status: done
+  created_at: "2026-05-14"
+  updated_at: "2026-05-14"
+  mode: recovery
+  authority: requested
+  proof_type: demo
+  completion_proof: "Running dashboard is compact, responsive, preserves existing widgets, has a clear hidden-widget restore path, supports hiding/restoring multiple widgets, and passes type/lint/diff/live smoke checks."
+  likely_misfire: "Polishing visuals while leaving large empty space, unclear hide recovery, or untested drag/hide behavior."
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/dashboard-usability-layout-polish/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/dashboard-usability-layout-polish"
+  github_projects:
+    status: not_requested
+    url: null
+    missing: []
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+active_task: null
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    objective: "Measure the current dashboard layout, whitespace, widget sizing, and hide/restore behavior from the running app and source files."
+    inputs:
+      - "http://localhost:5173/#/dashboard"
+      - "User screenshots from 2026-05-14 at 17:12, 17:13, 17:20, and 17:21."
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/common/types/dashboard.ts"
+    constraints:
+      - "Read-only."
+      - "Do not assume screenshots are the whole problem; verify the actual running DOM."
+      - "Preserve existing useful dashboard widgets."
+    expected_output:
+      - "Evidence of where empty space is created."
+      - "Current widget size/layout map."
+      - "Current hide/restore failure modes."
+      - "Responsive risks."
+      - "Recommended first Worker slice."
+    receipt:
+      result: done
+      status: completed
+      summary: "Live Electron DOM measurement at http://localhost:5173/#/dashboard found the dashboard content capped at 1120px wide inside a 1728px viewport, leaving horizontal real estate unused. Activity rendered as a full-width widget with a 1901px section height because its heatmap used grid-flow columns, fractional auto columns, 7 fractional rows, and aspect-square cells. Persisted widget layout had Relevant Links and Today's Brief + Sources hidden, with a restore strip only appearing when hidden widgets exist. Source/brief, links, action, and active-work cards use roomy padding and full/half defaults, making sparse cards feel oversized. Recommended first Worker slice: compact built-in layout defaults, force built-in persisted sizes through those defaults, widen the page container, make Activity heatmap fixed-cell and tiny, add always-visible widget controls, and make hide/restore/drag use the latest layout state."
+      evidence:
+        - "CDP DOM measurement before patch: Activity 1120px wide and 1901px tall."
+        - "CDP DOM measurement before patch: content constrained to 1120px in a 1728px viewport."
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Choose the smallest complete dashboard usability repair that fixes layout density and hide/restore correctness."
+    inputs:
+      - "T001 Scout receipt."
+      - "User requirement to keep current widgets but make them hideable, draggable, collapsible/restorable, compact, and responsive."
+    constraints:
+      - "Read-only."
+      - "Prefer one coherent Worker slice over tiny cosmetic edits."
+      - "Do not approve removal of useful existing widgets."
+    expected_output:
+      - "Decision."
+      - "Exact Worker objective."
+      - "allowed_files"
+      - "verify commands."
+      - "Live smoke criteria."
+    receipt:
+      result: done
+      status: completed
+      decision: "Proceed with one coherent Worker patch in DashboardService.ts and DashboardPage.tsx. Keep all existing widgets and data surfaces, but change presentation density and layout state handling only."
+      worker_objective: "Implement compact responsive dashboard layout, tiny Activity monitor, always-visible hidden-widget restore controls, and robust multiple hide/restore/reorder state updates."
+      allowed_files:
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      verify:
+        - "bunx tsc --noEmit"
+        - "bunx oxlint --quiet"
+        - "git diff --check"
+        - "Live CDP smoke for visible widgets, activity height, hide two widgets, restore both, and drag handles."
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Implement the dashboard layout density and hide/restore repair chosen by Judge."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    inputs:
+      - "T001 Scout evidence."
+      - "T002 Judge decision."
+    constraints:
+      - "Preserve existing useful widgets and dashboard data."
+      - "Make Activity compact/tiny."
+      - "Use responsive grid sizing that fills horizontal space without giant blank cards."
+      - "Make hidden widgets obvious and restorable."
+      - "Fix hiding/restoring multiple widgets, not just a single happy path."
+    expected_output:
+      - "Dashboard layout is more compact and responsive."
+      - "Activity monitor is tiny/compact."
+      - "Multiple widgets can be hidden and restored."
+      - "Restore/collapse surface is obvious."
+    verify:
+      - "bunx tsc --noEmit"
+      - "bunx oxlint --quiet"
+      - "git diff --check"
+      - "Live dashboard smoke: existing widgets visible, activity compact, hide two widgets, restore both, drag/reorder still works, no giant blank first-screen area."
+    stop_if:
+      - "Need files outside allowed_files."
+      - "A layout change would remove a current useful widget."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      status: completed
+      summary: "Implemented the dashboard usability repair in the dashboard service and renderer. Built-in widget defaults now use denser sizes: Focus wide, Activity third, Brief/Sources half, Automations/Build Widget/Manual Context half. Normalization now forces built-in persisted widgets back to current built-in sizes while preserving hidden state and custom widget sizing. The page container now uses a wider 1760px max, tighter padding/gaps, an items-start responsive grid, and self-start widgets so short widgets are not stretched to match tall neighbors. Added an always-visible sticky Widget controls bar with visible/hidden counts and restore buttons. Hide/show/reorder state now uses a layout ref so multiple rapid hide/restore actions work from the latest layout. Activity was reduced to a tiny monitor with four micro-stats, secondary inline stats, fixed 7px heatmap cells, and a clipped footnote."
+      files_changed:
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      changed_files:
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      commands:
+        - command: "bunx tsc --noEmit"
+          status: pass
+        - command: "bunx oxlint --quiet"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+      verification:
+        - "bunx tsc --noEmit: pass"
+        - "bunx oxlint --quiet: pass with existing warnings and 0 errors"
+        - "git diff --check: pass"
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    objective: "Add or refine automated/live smoke coverage for dashboard layout and hide/restore behavior."
+    allowed_files:
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      - "docs/goals/dashboard-usability-layout-polish/notes/*"
+    inputs:
+      - "T003 implementation."
+      - "Live dashboard route."
+    constraints:
+      - "Do not add brittle screenshot-only assertions."
+      - "Verify behavior with DOM checks and layout measurements where possible."
+    expected_output:
+      - "Durable smoke evidence or notes covering layout density, hidden restore, and interaction behavior."
+    verify:
+      - "Live CDP smoke script output recorded in receipt or note."
+      - "GoalBuddy state checker passes."
+    stop_if:
+      - "Need unsupported browser tooling."
+      - "Smoke cannot reach running app."
+    receipt:
+      result: done
+      status: completed
+      summary: "Recorded live smoke evidence in docs/goals/dashboard-usability-layout-polish/notes/live-smoke.md. CDP/DOM checks verified the compact layout, always-visible widget controls, Activity at 351x293px, all existing widgets present, hiding Metrics and Activity together, restoring both, and the app restarted cleanly. Native drag gesture automation was blocked by pending macOS Computer Use permissions, but drag handles remained present on visible widgets."
+      evidence:
+        - "docs/goals/dashboard-usability-layout-polish/notes/live-smoke.md"
+      changed_files:
+        - "docs/goals/dashboard-usability-layout-polish/notes/live-smoke.md"
+      commands:
+        - command: "CDP live DOM smoke for layout, Activity size, and hide/restore"
+          status: pass
+      caveat: "Computer Use native drag verification was blocked by pending macOS permissions."
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    objective: "Audit whether the dashboard usability repair satisfies Sam's screenshots and notes."
+    inputs:
+      - "All task receipts."
+      - "Final diff."
+      - "Verification output."
+      - "Live dashboard evidence."
+    constraints:
+      - "Read-only."
+      - "Do not mark complete unless the live dashboard proof covers layout density and hide/restore behavior."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "Residual risks."
+      - "Next task if not complete."
+    receipt:
+      result: done
+      status: completed
+      decision: complete
+      full_outcome_complete: true
+      summary: "The dashboard repair satisfies the requested layout and usability goals: no more full-width Activity bloat, the grid uses available app width, existing widgets are preserved, hide/restore supports multiple widgets, and the restore surface is obvious. The app was restarted and static/live checks passed."
+      residual_risks:
+        - "Native pointer drag reorder was not fully automated because Computer Use permissions stayed pending and raw CDP drag gestures were unreliable in Electron. The drag handles are still present and dnd-kit wiring remains in place."

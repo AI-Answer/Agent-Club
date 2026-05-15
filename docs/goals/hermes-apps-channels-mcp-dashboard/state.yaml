@@ -1,0 +1,444 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Hermes Apps, Channels, and Scheduled Work Dashboard"
+  slug: "hermes-apps-channels-mcp-dashboard"
+  kind: specific
+  tranche: "Complete successive safe verified slices until Agent Club has a demoable Hermes apps/MCP widget, Hermes channel setup UI, and Scheduled Tasks tracking for Hermes work."
+  status: active
+  intake:
+    original_request: "Add a Composio-style MCP app widget, Hermes Slack/Discord/iMessage channels UI, and make Hermes cron jobs and scheduled tasks show in Scheduled Tasks."
+    interpreted_outcome: "Agent Club exposes a polished Hermes control surface for connecting apps as MCP tools, configuring Hermes channels, and monitoring Hermes scheduled work from the real Scheduled Tasks surface."
+    input_shape: specific
+    audience: "Sam and future Agent Club users who want Hermes to act as a personal chief of staff."
+    authority: requested
+    proof_type: demo
+    completion_proof: "A live Agent Club demo shows the app/MCP widget and attach modal, Hermes-only Slack/Discord/iMessage channel controls, Hermes scheduled work in Scheduled Tasks, and passing verification commands."
+    likely_misfire: "Shipping a polished mock marketplace or generic channels page that does not use real Composio/MCP, Hermes, or scheduled-task data paths."
+    blind_spots_considered:
+      - "Composio's current official Tool Router MCP flow must be verified before implementation."
+      - "OAuth/API-key credentials and secrets must not be created, sent, or stored unsafely."
+      - "iMessage likely has local macOS/native constraints that differ from Slack and Discord."
+      - "Discord and Slack may require different connector/auth/status semantics."
+      - "Hermes cron jobs and Scheduled Tasks need one source of truth to avoid drift."
+      - "The UI should be compact and scrollable, not a large empty marketplace."
+    existing_plan_facts:
+      - "Screenshot reference: App Marketplace grid with cards, install buttons, auth badges, tool and trigger counts, tags, and an installed-app count."
+      - "Build an embedded/widget-like app/MCP browser and a Composio attach modal."
+      - "Apps should be attachable as MCPs that Hermes can use."
+      - "Add Slack, Discord, and iMessage channels only for Hermes Chief of Staff."
+      - "Track Hermes cron jobs and scheduled tasks in the Scheduled Tasks page."
+      - "Prior memory points to Composio Tool Router MCP over HTTP with an x-api-key header, not an old guessed stdio recipe."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/hermes-apps-channels-mcp-dashboard/"
+    command: "npx goalbuddy board docs/goals/hermes-apps-channels-mcp-dashboard"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T009
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Map existing Agent Club surfaces and data paths for MCP/App Marketplace, Composio, Hermes, channels, and Scheduled Tasks."
+    inputs:
+      - "User screenshot and request."
+      - "Agent Club repo, especially renderer settings/navigation, dashboard surfaces, MCP config, Composio-related code, Hermes agent config, channel services, cron/scheduled task services, and Local Agent Manager integration."
+      - "Prior memory note that Composio should use Tool Router MCP HTTP plus x-api-key."
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Do not connect external accounts or call external app APIs."
+      - "Prefer current file-path evidence and concrete data flow over product guesses."
+    expected_output:
+      - "Relevant existing files and routes for app/MCP marketplace or MCP settings."
+      - "Relevant existing Hermes and channel integration files."
+      - "Relevant scheduled-task/cron source-of-truth files and APIs."
+      - "Current Composio integration reality and gaps."
+      - "Recommended vertical implementation slices with likely allowed_files and verification commands."
+    receipt:
+      result: done
+      summary: "Mapped the existing seams: dashboard snapshot/types/rendering already support draggable widgets; MCP config is stored in agent.config mcp.config; Composio uses Tool Router session creation through mcpBridge and a stdio proxy with COMPOSIO_MCP_URL plus x-api-key-backed API key; channels already expose plugin status and include Slack/Discord types, but settings still treats them as coming soon and iMessage has no native plugin; Scheduled Tasks already lists CronService jobs through useAllCronJobs and dashboard summaries read cronService.listJobs."
+      note: "Read-only repo evidence from dashboard, MCP, channels, database, and cron source files."
+      key_files:
+        - "src/common/types/dashboard.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+        - "src/process/bridge/mcpBridge.ts"
+        - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+        - "src/process/bridge/channelBridge.ts"
+        - "src/process/services/cron/CronService.ts"
+        - "src/renderer/pages/cron/ScheduledTasksPage/index.tsx"
+      gaps:
+        - "Slack and Discord are recognized channel types but not fully implemented as native channel plugins in settings."
+        - "iMessage needs a truthful local/native bridge decision before real send/receive behavior."
+        - "Hermes scheduled work is trackable when created as CronService jobs; Local Agent Manager autopilot schedules are a separate future bridge."
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Turn Scout evidence into the largest safe useful first implementation slice."
+    inputs:
+      - "T001 receipt."
+      - "Original request and completion proof."
+    constraints:
+      - "Do not implement."
+      - "Avoid approving a purely mocked marketplace unless Scout proves no local integration seam exists."
+      - "Pick a slice that moves toward the full owner outcome and can be verified locally."
+    expected_output:
+      - "Decision: approved implementation slice or blocked."
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify commands."
+      - "stop_if conditions."
+      - "Whether the first Worker should target MCP/Composio UI, Hermes channels, or Scheduled Tasks integration."
+    receipt:
+      result: done
+      decision: "Start dashboard-first: add a Hermes Control Center widget to the existing draggable dashboard. It should truthfully surface Composio/MCP app setup, Hermes-scoped Slack/Discord/iMessage channel readiness, and Hermes scheduled work using existing local config/cron sources, with routes to the real setup pages. This gives the user a live dashboard surface now while deeper Slack/Discord/iMessage implementation remains queued."
+      worker_objective: "Implement the Hermes dashboard control widget and snapshot data model without external account mutation."
+      allowed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      verify:
+        - "bun run lint -- src/common/types/dashboard.ts src/process/services/dashboard/DashboardService.ts src/renderer/pages/dashboard/DashboardPage.tsx"
+        - "bunx tsc --noEmit -p tsconfig.json"
+      stop_if:
+        - "Need external credentials, OAuth, message sending, or files outside allowed_files."
+        - "Need to claim Slack/Discord/iMessage is live without a real plugin or bridge."
+        - "Need to duplicate scheduled tasks outside CronService."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Implement a Hermes Control Center dashboard widget that surfaces Composio/MCP app setup, Hermes-only Slack/Discord/iMessage channel readiness, and Hermes scheduled work from existing local sources."
+    allowed_files:
+      - "src/common/types/dashboard.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/renderer/pages/dashboard/DashboardPage.tsx"
+    verify:
+      - "bun run lint -- src/common/types/dashboard.ts src/process/services/dashboard/DashboardService.ts src/renderer/pages/dashboard/DashboardPage.tsx"
+      - "bunx tsc --noEmit -p tsconfig.json"
+    stop_if:
+      - "Need files outside Judge-approved allowed_files."
+      - "Composio, channel, or scheduled-task behavior is ambiguous enough to risk a fake implementation."
+      - "Need external credentials, OAuth, production access, or message-sending approval."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "src/common/types/dashboard.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/renderer/pages/dashboard/DashboardPage.tsx"
+      summary: "Added a new draggable Hermes Apps + Channels dashboard widget backed by a typed hermesControl snapshot. The process service now reads local MCP config, local channel plugin config, and CronService jobs to truthfully show Composio/MCP app setup, Hermes-only Slack/Discord/iMessage readiness, and Hermes scheduled work without external account mutation."
+      commands:
+        - cmd: "bun run lint -- src/common/types/dashboard.ts src/process/services/dashboard/DashboardService.ts src/renderer/pages/dashboard/DashboardPage.tsx"
+          status: pass
+        - cmd: "bunx tsc --noEmit -p tsconfig.json"
+          status: pass
+        - cmd: "Electron CDP smoke at /dashboard"
+          status: pass
+      verification:
+        - "bun run lint -- src/common/types/dashboard.ts src/process/services/dashboard/DashboardService.ts src/renderer/pages/dashboard/DashboardPage.tsx: passed with 0 warnings and 0 errors"
+        - "bunx tsc --noEmit -p tsconfig.json: passed"
+        - "Electron CDP smoke at http://localhost:5173/#/dashboard: found Hermes Apps + Channels, Hermes control center, Composio Tool Router, Hermes channels, and Hermes scheduled work"
+      screenshot: "/tmp/agent-club-hermes-dashboard.png"
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Polish the Composio MCP setup surface into a compact marketplace-style app connection widget while keeping the existing Tool Router attach flow truthful."
+    allowed_files:
+      - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+    verify:
+      - "bun run lint -- src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+      - "bunx tsc --noEmit -p tsconfig.json"
+    stop_if:
+      - "Scout/Judge has not identified the current MCP config surface and Composio data flow."
+      - "Need real credentials or account connection to verify beyond local UI state."
+      - "Need files outside allowed_files."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+      summary: "Turned the existing Composio MCP setup block into a compact app-marketplace surface with curated app cards, tool/trigger counts, setup state tags, a Browse apps button, and a scrollable modal. The underlying connect/update path remains the existing Composio Tool Router session flow."
+      commands:
+        - cmd: "bun run lint -- src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+          status: pass
+        - cmd: "bunx tsc --noEmit -p tsconfig.json"
+          status: pass
+        - cmd: "Electron CDP smoke at /settings/capabilities?tab=tools"
+          status: pass
+      verification:
+        - "bun run lint -- src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx: passed with 0 warnings and 0 errors"
+        - "bunx tsc --noEmit -p tsconfig.json: passed"
+        - "Electron CDP smoke at /settings/capabilities?tab=tools: found App marketplace, Browse apps, Attach apps through Composio MCP, Gmail, and Slack"
+      screenshot: "/tmp/agent-club-composio-marketplace.png"
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add truthful Hermes-only channel setup cards for Slack, Discord, and iMessage in the existing Channels settings surface, without enabling fake native channel behavior."
+    allowed_files:
+      - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+    verify:
+      - "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      - "bunx tsc --noEmit -p tsconfig.json"
+    stop_if:
+      - "Hermes ownership/routing semantics are not clear."
+      - "Slack, Discord, or iMessage native channel implementation cannot be represented truthfully without credentials or local setup."
+      - "Need files outside allowed_files."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      summary: "Added visible Hermes-only channel setup guidance and setup-gated Slack, Discord, and iMessage cards in the existing Channels settings surface. The UI is explicit that these channels are scoped to Hermes Chief of Staff and remain gated until native channel routing exists."
+      commands:
+        - cmd: "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+          status: pass
+        - cmd: "bunx tsc --noEmit -p tsconfig.json"
+          status: pass
+        - cmd: "Electron CDP smoke at /settings/webui channels tab"
+          status: pass
+      verification:
+        - "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx: passed with 0 warnings and 0 errors"
+        - "bunx tsc --noEmit -p tsconfig.json: passed"
+        - "Electron CDP smoke at /settings/webui channels tab: found Channels, Hermes Chief of Staff only, Hermes scope step, Slack, Discord, and iMessage"
+      screenshot: "/tmp/agent-club-hermes-channels.png"
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Make Hermes cron jobs and scheduled tasks visible through the Scheduled Tasks source of truth."
+    allowed_files:
+      - "src/renderer/pages/cron/ScheduledTasksPage/index.tsx"
+    verify:
+      - "bun run lint -- src/renderer/pages/cron/ScheduledTasksPage/index.tsx"
+      - "bunx tsc --noEmit -p tsconfig.json"
+    stop_if:
+      - "Scheduled Tasks source of truth is not identified."
+      - "Need to mutate real scheduled jobs without explicit owner approval."
+      - "Need files outside allowed_files."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/cron/ScheduledTasksPage/index.tsx"
+      summary: "Added a compact Hermes scheduled-work lens to the real Scheduled Tasks page. The page still uses useAllCronJobs as its source of truth, now with a Hermes count/filter, next Hermes run summary, and Hermes badges on matching cron jobs."
+      commands:
+        - cmd: "bun run lint -- src/renderer/pages/cron/ScheduledTasksPage/index.tsx"
+          status: pass
+        - cmd: "bunx tsc --noEmit -p tsconfig.json"
+          status: pass
+        - cmd: "Electron CDP smoke at /scheduled"
+          status: pass
+      verification:
+        - "bun run lint -- src/renderer/pages/cron/ScheduledTasksPage/index.tsx: passed with 0 warnings and 0 errors"
+        - "bunx tsc --noEmit -p tsconfig.json: passed"
+        - "Electron CDP smoke at /scheduled: found Scheduled Tasks, Hermes scheduled work, Hermes filter, All filter, and no-Hermes/Badge state"
+      screenshot: "/tmp/agent-club-hermes-scheduled-tasks.png"
+
+  - id: T007
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review the integrated UX for truthfulness, source-of-truth alignment, and whether the UI is compact and useful."
+    inputs:
+      - "Worker receipts from T003-T006."
+      - "Last verification output."
+      - "Current dirty diff."
+    constraints:
+      - "Do not implement."
+      - "Reject if the implementation is only a mock or if Hermes scheduled work is duplicated outside Scheduled Tasks."
+    expected_output:
+      - "approved | needs_followup"
+      - "UX and data-truth risks."
+      - "Next Worker task if needed."
+    receipt:
+      result: done
+      decision: "The integrated local UX is useful and truth-aligned: dashboard data comes from MCP config, channel plugin config, and CronService; Composio setup uses the existing Tool Router flow; Scheduled Tasks remains the cron source of truth. The channel backend is not complete because Slack/Discord/iMessage native plugins are not present and would need credentials plus a native bridge decision."
+      risks:
+        - "Slack, Discord, and iMessage are currently setup-gated UI cards, not live message ingestion/reply channels."
+        - "Composio app cards are a curated setup surface over the existing Tool Router connection path; per-app OAuth is not performed by this patch."
+        - "Hermes schedule detection is metadata/name based until Hermes-owned jobs carry an explicit owner tag."
+      verification:
+        - "Combined lint over all changed implementation files: passed with 0 warnings and 0 errors"
+        - "bunx tsc --noEmit -p tsconfig.json: passed"
+        - "Electron CDP smoke at /dashboard: found Hermes Apps + Channels, Composio Tool Router, Hermes channels, and Hermes scheduled work"
+      screenshot: "/tmp/agent-club-hermes-dashboard-final.png"
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: blocked
+    reasoning_hint: default
+    objective: "Implement real native Slack, Discord, and iMessage channel plugins for Hermes message ingestion and replies."
+    allowed_files:
+      - "src/process/channels"
+      - "src/process/bridge/channelBridge.ts"
+      - "src/renderer/components/settings/SettingsModal/contents/channels"
+      - "src/process/services/database/migrations.ts"
+    verify:
+      - "bun run lint -- src/process/channels src/process/bridge/channelBridge.ts src/renderer/components/settings/SettingsModal/contents/channels"
+      - "bunx tsc --noEmit -p tsconfig.json"
+      - "Manual smoke with real Slack/Discord/iMessage credentials or a local message bridge"
+    stop_if:
+      - "No owner approval for Slack/Discord credentials, iMessage bridge permissions, or local Messages/BlueBubbles access."
+      - "Need to send or read real external messages without explicit approval."
+      - "Native platform API choice is unresolved."
+    receipt:
+      result: blocked
+      changed_files:
+        - "src/process/channels/plugins/slack/SlackPlugin.ts"
+        - "src/process/channels/plugins/slack/index.ts"
+        - "src/process/channels/plugins/discord/DiscordPlugin.ts"
+        - "src/process/channels/plugins/discord/index.ts"
+        - "src/process/channels/types.ts"
+        - "src/process/channels/core/ChannelManager.ts"
+        - "src/process/channels/plugins/index.ts"
+        - "src/process/channels/index.ts"
+        - "src/process/bridge/channelBridge.ts"
+        - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      summary: "Implemented native Slack Socket Mode and Discord Gateway channel plugins for Hermes-capable message ingestion and replies, registered them in ChannelManager, exposed Slack/Discord credential forms in Channels settings, and left iMessage bridge-gated with setup documentation instead of touching personal Messages without approval."
+      completed:
+        - "Slack plugin validates bot/app tokens, opens Socket Mode, ACKs envelopes, ingests app mentions/DMs, and sends/edits messages through Slack Web API."
+        - "Discord plugin validates bot token, opens Gateway v10, sends identify/heartbeats, ingests DMs and bot mentions, and sends/edits messages through Discord REST."
+        - "Channel settings can configure Slack app token plus bot token and Discord bot token through the existing channel enable flow."
+        - "iMessage setup card links to Hermes BlueBubbles setup, BlueBubbles install, BlueBubbles API/webhooks, Private API helper, and names the `hermes gateway setup` CLI step."
+      blocked_on:
+        - "Live Slack smoke needs owner-approved Slack bot/app tokens and workspace install."
+        - "Live Discord smoke needs owner-approved Discord bot token, enabled intents, and a test server/DM."
+        - "iMessage needs an approved local bridge choice, most likely BlueBubbles server URL/password plus webhook routing, before Agent Club reads or sends personal messages."
+      commands:
+        - cmd: "bun run lint -- src/process/channels src/process/bridge/channelBridge.ts src/renderer/components/settings/SettingsModal/contents/channels"
+          status: pass_with_existing_warnings
+        - cmd: "bunx tsc --noEmit -p tsconfig.json"
+          status: pass
+        - cmd: "Electron CDP smoke at /settings/webui channels tab"
+          status: pass
+        - cmd: "Electron CDP smoke for iMessage docs links at /settings/webui channels tab"
+          status: pass
+      verification:
+        - "bun run lint -- src/process/channels src/process/bridge/channelBridge.ts src/renderer/components/settings/SettingsModal/contents/channels: passed with warnings in existing channel files and no errors"
+        - "bunx tsc --noEmit -p tsconfig.json: passed"
+        - "Electron CDP smoke at http://localhost:5173/#/settings/webui: found Channels, Hermes, Slack Socket Mode setup, Discord Gateway setup, and iMessage bridge-gated copy"
+        - "Electron CDP smoke at http://localhost:5173/#/settings/webui: found visible Hermes BlueBubbles setup, BlueBubbles install, BlueBubbles API + webhooks, Private API helper, and hermes gateway setup"
+        - "Manual live Slack/Discord/iMessage message smoke: blocked by missing approved credentials/bridge access"
+      screenshot: "/tmp/agent-club-imessage-doc-links.png"
+
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: default
+    objective: "Resolve the owner-approved iMessage bridge path and perform live channel smoke tests for Slack, Discord, and iMessage."
+    allowed_files:
+      - "src/process/channels"
+      - "src/process/bridge/channelBridge.ts"
+      - "src/renderer/components/settings/SettingsModal/contents/channels"
+      - "docs/goals/hermes-apps-channels-mcp-dashboard"
+    verify:
+      - "Owner approves the Slack, Discord, and iMessage test credentials or local bridge access."
+      - "Live Slack inbound/outbound smoke succeeds without leaking secrets."
+      - "Live Discord inbound/outbound smoke succeeds without leaking secrets."
+      - "Chosen iMessage bridge can receive and send a test message safely."
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-apps-channels-mcp-dashboard/state.yaml"
+    stop_if:
+      - "Owner does not approve credential use or local Messages/BlueBubbles access."
+      - "The iMessage bridge would require reading or sending personal messages before an explicit test target is chosen."
+      - "Slack or Discord credentials are unavailable."
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the full Hermes apps, channels, and scheduled work outcome is complete."
+    inputs:
+      - "All done task receipts."
+      - "Last verification."
+      - "Current dirty diff."
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if app/MCP, channels, or Scheduled Tasks only work as disconnected mocks."
+      - "Reject stopping only because a slice needs credentials; block that slice and keep completing local truthful UI and data-path work."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence."
+      - "next task if not complete."
+    receipt:
+      result: done
+      decision: not_complete
+      full_outcome_complete: false
+      summary: "The demoable dashboard/control-surface outcome is live. Slack and Discord native channel code paths now exist and verify locally, but the full native-channel outcome is not complete until owner-approved Slack/Discord live smokes and an approved iMessage bridge are completed."
+      completed_evidence:
+        - "Dashboard Hermes Apps + Channels widget renders from real local MCP/channel/cron sources."
+        - "Composio Tool Router setup surface has marketplace cards and a scrollable attach modal."
+        - "Channels settings includes visible Hermes-only Slack, Discord, and iMessage setup-gated cards."
+        - "Slack and Discord native plugins are registered and pass local lint/typecheck plus UI smoke."
+        - "Scheduled Tasks page tracks Hermes-owned cron jobs through useAllCronJobs, with filter and badges."
+      missing_evidence:
+        - "No owner-approved real Slack native plugin smoke test."
+        - "No owner-approved real Discord native plugin smoke test."
+        - "No approved iMessage or BlueBubbles/local Messages bridge smoke test."
+      next_task: T009
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: passed_with_blocked_live_channel_smoke
+    task: T008
+    commands:
+      - "bun run lint -- src/process/channels src/process/bridge/channelBridge.ts src/renderer/components/settings/SettingsModal/contents/channels"
+      - "bunx tsc --noEmit -p tsconfig.json"
+      - "Electron CDP smoke: /settings/webui channels"

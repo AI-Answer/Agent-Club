@@ -4,6 +4,8 @@ export type DashboardSourceId =
   | 'honcho'
   | 'scheduled_tasks'
   | 'agent_manager'
+  | 'mcp'
+  | 'channels'
   | 'manual_context'
   | 'email'
   | 'calendar'
@@ -83,6 +85,7 @@ export interface DashboardAutomationIdea {
 export type DashboardWidgetKind =
   | 'metrics'
   | 'focus'
+  | 'hermes_control'
   | 'activity'
   | 'brief_sources'
   | 'actions'
@@ -154,6 +157,35 @@ export interface DashboardCustomWidgetSpec {
   updatedAt: number;
 }
 
+export type DashboardHermesItemStatus = 'connected' | 'ready' | 'setup_required' | 'blocked';
+
+export interface DashboardHermesMcpApp {
+  id: string;
+  title: string;
+  description: string;
+  authLabel: string;
+  toolCount: number;
+  triggerCount: number;
+  tags: string[];
+  status: DashboardHermesItemStatus;
+  installed: boolean;
+  ctaLabel: string;
+  route: string;
+  sourceIds: DashboardSourceId[];
+}
+
+export interface DashboardHermesChannel {
+  id: 'slack' | 'discord' | 'imessage';
+  title: string;
+  description: string;
+  detail: string;
+  status: DashboardHermesItemStatus;
+  hermesOnly: boolean;
+  ctaLabel: string;
+  route: string;
+  sourceIds: DashboardSourceId[];
+}
+
 export interface DashboardScheduledTaskSummary {
   id: string;
   name: string;
@@ -179,6 +211,25 @@ export interface DashboardScheduleStatus {
   nextRunAtMs?: number;
   lastRunAtMs?: number;
   label: string;
+}
+
+export interface DashboardHermesScheduledWork {
+  totalScheduledTasks: number;
+  hermesScheduledTasks: number;
+  detail: string;
+  nextHermesTask?: DashboardScheduledTaskSummary;
+  items: DashboardScheduledTaskSummary[];
+}
+
+export interface DashboardHermesControlCenter {
+  title: string;
+  subtitle: string;
+  primaryCtaLabel: string;
+  primaryCtaRoute: string;
+  mcpApps: DashboardHermesMcpApp[];
+  channels: DashboardHermesChannel[];
+  scheduledWork: DashboardHermesScheduledWork;
+  updatedAt: number;
 }
 
 export interface DashboardConfig {
@@ -213,6 +264,7 @@ export interface DashboardSnapshot {
   };
   metrics: DashboardMetrics;
   morningRefresh: DashboardScheduleStatus;
+  hermesControl: DashboardHermesControlCenter;
   widgetLayout: DashboardWidgetLayout[];
   focusItems: DashboardFocusItem[];
   activity: DashboardActivityOverview;
