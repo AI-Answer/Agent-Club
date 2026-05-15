@@ -26,6 +26,7 @@
         "@office-ai/aioncli-core": "^0.30.6",
         "@office-ai/platform": "^0.3.16",
         "@sentry/electron": "^7.10.0",
+        "@steipete/peekaboo": "3.1.2",
         "@types/bcryptjs": "^2.4.6",
         "@types/jsonwebtoken": "^9.0.10",
         "@uiw/codemirror-extensions-langs": "^4.25.1",
@@ -1244,6 +1245,8 @@
     "@smithy/uuid": ["@smithy/uuid@1.1.2", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-O/IEdcCUKkubz60tFbGA7ceITTAJsty+lBjNoorP4Z6XRqaFb/OjQjZODophEcuq68nKm6/0r+6/lLQ+XVpk8g=="],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+
+    "@steipete/peekaboo": ["@steipete/peekaboo@3.1.2", "", { "os": "darwin", "cpu": [ "x64", "arm64", ], "bin": { "peekaboo": "peekaboo", "peekaboo-mcp": "peekaboo-mcp.js" } }, "sha512-WXoI/pdDV6VPoYVM3iGHYqlzhi3+T7Akd3yrVJeVpjs/cY73QSV5ALATP+s2tfErwbppVUeuRtj3NJ51UaLVmg=="],
 
     "@szmarczak/http-timer": ["@szmarczak/http-timer@4.0.6", "", { "dependencies": { "defer-to-connect": "^2.0.0" } }, "sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w=="],
 

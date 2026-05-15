@@ -50,6 +50,8 @@ files:
   # tree-sitter WASM dependencies
   - node_modules/web-tree-sitter/**/*
   - node_modules/tree-sitter-bash/**/*
+  # Bundled Hermes desktop-control MCP runner
+  - node_modules/@steipete/peekaboo/**/*
   # CRITICAL: Exclude ALL tree-sitter native binaries to prevent signing issues
   - '!**/node_modules/tree-sitter-*/prebuilds/**'
   - '!**/node_modules/tree-sitter-*/build/**'
@@ -120,12 +122,12 @@ extraResources:
   - from: apps/agent-manager
     to: agent-manager
     filter:
-      - "**/*"
-      - "!node_modules/**"
-      - "!**/node_modules/**"
-      - "!.git/**"
-      - "!.git"
-      - "!.agent-club/**"
+      - '**/*'
+      - '!node_modules/**'
+      - '!**/node_modules/**'
+      - '!.git/**'
+      - '!.git'
+      - '!.agent-club/**'
 win:
   target:
     - nsis
@@ -201,6 +203,7 @@ buildDependenciesFromSource: false
 nodeGypRebuild: false
 
 asarUnpack:
+  - 'out/main/builtin-mcp-*.js'
   - '**/node_modules/better-sqlite3/**/*'
   - '**/node_modules/bcrypt/**/*'
   - '**/node_modules/node-pty/**/*'
@@ -218,6 +221,8 @@ asarUnpack:
   # tree-sitter WASM files need to be unpacked for fs.readFile access
   - '**/node_modules/web-tree-sitter/**/*'
   - '**/node_modules/tree-sitter-bash/**/*'
+  # Peekaboo ships a native macOS binary that external MCP node processes launch.
+  - '**/node_modules/@steipete/peekaboo/**/*'
   # skills/ and assistant/ no longer need asarUnpack:
   # initStorage copies them from asar to config/builtin-skills/ and config/assistants/
   # at startup, so all runtime reads go through the user directory, not asar.

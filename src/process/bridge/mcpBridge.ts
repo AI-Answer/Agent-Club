@@ -11,6 +11,8 @@ import { getPlatformServices } from '@/common/platform';
 import path from 'path';
 
 const COMPOSIO_TOOL_ROUTER_SESSION_URL = 'https://backend.composio.dev/api/v3.1/tool_router/session';
+const PEEKABOO_PACKAGE_NAME = '@steipete/peekaboo';
+const PEEKABOO_PACKAGE_VERSION = '3.1.2';
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -41,7 +43,10 @@ const validateComposioMcpUrl = (urlValue: unknown): string => {
 
 const parseComposioError = async (response: Response): Promise<string> => {
   try {
-    const payload = (await response.json()) as { error?: { message?: string; suggested_fix?: string }; message?: string };
+    const payload = (await response.json()) as {
+      error?: { message?: string; suggested_fix?: string };
+      message?: string;
+    };
     return payload.error?.suggested_fix || payload.error?.message || payload.message || response.statusText;
   } catch {
     return response.statusText;
@@ -140,6 +145,24 @@ export function initMcpBridge(): void {
           mcpType: 'http',
           proxyScriptPath: getBuiltinMcpScriptPath('builtin-mcp-composio-tool-router'),
           toolRouterTools: Array.isArray(payload.tool_router_tools) ? payload.tool_router_tools : [],
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        msg: errorMessage(error),
+      };
+    }
+  });
+
+  ipcBridge.mcpService.getPeekabooDesktopControlSetup.provider(async () => {
+    try {
+      return {
+        success: true,
+        data: {
+          proxyScriptPath: getBuiltinMcpScriptPath('builtin-mcp-peekaboo'),
+          packageName: PEEKABOO_PACKAGE_NAME,
+          packageVersion: PEEKABOO_PACKAGE_VERSION,
         },
       };
     } catch (error) {

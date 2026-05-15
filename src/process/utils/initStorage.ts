@@ -40,8 +40,13 @@ import {
   BUILTIN_IMAGE_GEN_ID,
   BUILTIN_IMAGE_GEN_LEGACY_NAMES,
   BUILTIN_IMAGE_GEN_NAME,
+  BUILTIN_PEEKABOO_ID,
+  BUILTIN_PEEKABOO_NAME,
 } from '../resources/builtinMcp/constants';
-import { applyAgentVaultToProcessEnv, getAgentVaultRuntimeStateSync } from '@process/services/security/agentVaultRuntime';
+import {
+  applyAgentVaultToProcessEnv,
+  getAgentVaultRuntimeStateSync,
+} from '@process/services/security/agentVaultRuntime';
 // Platform and architecture types (moved from deleted updateConfig)
 type PlatformType = 'win32' | 'darwin' | 'linux';
 type ArchitectureType = 'x64' | 'arm64' | 'ia32' | 'arm';
@@ -865,6 +870,65 @@ const ensureBuiltinMcpServers = async (): Promise<void> => {
       }
     } else {
       mcpServers.push(vaultServer);
+      changed = true;
+    }
+
+    const peekabooScriptPath = getBuiltinMcpScriptPath('builtin-mcp-peekaboo');
+    const peekabooOriginalJson = JSON.stringify(
+      {
+        mcpServers: {
+          [BUILTIN_PEEKABOO_NAME]: {
+            command: 'node',
+            args: [peekabooScriptPath],
+          },
+        },
+      },
+      null,
+      2
+    );
+    const peekabooIdx = mcpServers.findIndex(
+      (server) => server.id === BUILTIN_PEEKABOO_ID || server.name.toLowerCase() === BUILTIN_PEEKABOO_NAME
+    );
+    const existingPeekaboo = peekabooIdx >= 0 ? mcpServers[peekabooIdx] : undefined;
+    const peekabooServer: IMcpServer = {
+      id: existingPeekaboo?.id || BUILTIN_PEEKABOO_ID,
+      name: BUILTIN_PEEKABOO_NAME,
+      description: 'Built-in Peekaboo desktop control MCP packaged with Agent Club for supervised Hermes sessions.',
+      enabled: existingPeekaboo?.enabled ?? false,
+      builtin: true,
+      status: existingPeekaboo?.status || 'disconnected',
+      transport: {
+        type: 'stdio',
+        command: 'node',
+        args: [peekabooScriptPath],
+      },
+      tools: existingPeekaboo?.tools,
+      createdAt: existingPeekaboo?.createdAt || now,
+      updatedAt: now,
+      originalJson: peekabooOriginalJson,
+    };
+
+    if (peekabooIdx >= 0) {
+      const existing = mcpServers[peekabooIdx];
+      const existingArgs = existing.transport.type === 'stdio' ? existing.transport.args || [] : [];
+      const needsUpdate =
+        existing.name !== peekabooServer.name ||
+        existing.builtin !== true ||
+        existing.description !== peekabooServer.description ||
+        existing.transport.type !== 'stdio' ||
+        existing.transport.command !== 'node' ||
+        JSON.stringify(existingArgs) !== JSON.stringify([peekabooScriptPath]) ||
+        existing.originalJson !== peekabooOriginalJson;
+
+      if (needsUpdate) {
+        mcpServers[peekabooIdx] = {
+          ...existing,
+          ...peekabooServer,
+        };
+        changed = true;
+      }
+    } else {
+      mcpServers.push(peekabooServer);
       changed = true;
     }
 

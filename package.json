@@ -97,6 +97,7 @@
     "@office-ai/aioncli-core": "^0.30.6",
     "@office-ai/platform": "^0.3.16",
     "@sentry/electron": "^7.10.0",
+    "@steipete/peekaboo": "3.1.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@uiw/codemirror-extensions-langs": "^4.25.1",

@@ -1247,8 +1247,8 @@ export class DashboardService {
       appCard(
         'peekaboo-desktop-control',
         'Peekaboo Desktop Control',
-        'Let Hermes observe and control the Mac through supervised Peekaboo runs after permissions are approved.',
-        'Local MCP',
+        'Packaged with Agent Club so Hermes can observe and control the Mac through supervised Peekaboo runs after permissions are approved.',
+        'Packaged MCP',
         ['desktop control', 'macOS', 'supervised'],
         ['peekaboo', 'desktop control', 'screen recording']
       ),

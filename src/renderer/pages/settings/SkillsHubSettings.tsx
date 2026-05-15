@@ -541,15 +541,16 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                     Hermes Desktop Control
                   </span>
                   <span className='bg-[rgba(var(--success-6),0.08)] text-[rgb(var(--success-6))] text-12px px-10px py-2px rd-[100px] font-medium'>
-                    MCP powered
+                    packaged MCP
                   </span>
                   <span className='bg-fill-2 text-t-secondary text-12px px-10px py-2px rd-[100px] font-medium'>
                     owner supervised
                   </span>
                 </div>
                 <Typography.Text className='text-13px text-t-secondary block max-w-3xl leading-relaxed'>
-                  Add Peekaboo as the desktop-control capability for Hermes. Setup lives in MCP so the app can verify
-                  command, tool, and permission readiness before any visible Slack, Discord, or iMessage run starts.
+                  Enable the Agent Club-packaged Peekaboo desktop-control capability for Hermes. Setup lives in MCP so
+                  the app can verify command, tool, and permission readiness before any visible Slack, Discord, or
+                  iMessage run starts.
                 </Typography.Text>
                 <div className='flex flex-wrap gap-6px'>
                   {[

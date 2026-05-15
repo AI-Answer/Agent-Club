@@ -62,7 +62,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T006
+active_task: T010
 
 tasks:
   - id: T001
@@ -270,7 +270,7 @@ tasks:
   - id: T006
     type: pm
     assignee: PM
-    status: active
+    status: done
     reasoning_hint: default
     objective: "Wait for owner approval and local Peekaboo readiness before attempting any live Hermes desktop-control smoke test."
     constraints:
@@ -281,7 +281,17 @@ tasks:
       - "Owner-selected app for the harmless smoke test."
       - "Confirmation that Peekaboo is installed and permissions are ready."
       - "Exact approved action, stop boundary, and no-send/no-mutate constraints."
-    receipt: null
+    receipt:
+      result: done
+      summary: "Owner approved proceeding with the gated path by saying 'lets do all these'. Scope is still no-send/no-mutate for Slack/Desktop smoke unless explicitly expanded."
+      approved_actions:
+        - "Install or verify Peekaboo using official docs."
+        - "Check macOS Screen Recording and Accessibility readiness."
+        - "Run a harmless supervised desktop smoke only if permissions are ready."
+      source_evidence:
+        - "https://peekaboo.sh/install.html"
+        - "https://peekaboo.sh/MCP.html"
+        - "https://peekaboo.sh/permissions.html"
 
   - id: T007
     type: worker
@@ -321,13 +331,151 @@ tasks:
           status: pass
       summary: "Formatted the touched product files and reran the final format, lint, and type gates."
 
+  - id: T008
+    type: pm
+    assignee: PM
+    status: done
+    reasoning_hint: default
+    objective: "Install or verify Peekaboo CLI/MCP locally, then check permissions without mutating Slack or other apps."
+    constraints:
+      - "Use official Peekaboo docs."
+      - "Do not send Slack messages or mutate real app state."
+      - "If Screen Recording or Accessibility is missing and requires owner action, open the grant flow and stop for the owner."
+      - "Record exact commands and readiness result."
+    expected_output:
+      - "Peekaboo version or install failure."
+      - "MCP launch/help sanity result."
+      - "Permission status for Screen Recording and Accessibility."
+      - "Next active task: smoke test if ready, otherwise owner permission grant."
+    receipt:
+      result: done
+      summary: "Peekaboo 3.1.2 is reachable on this Mac through the npm package path. Homebrew native install was blocked by outdated Xcode Command Line Tools, but the packaged npm binary works, MCP help works, app listing works, permissions are ready, and a read-only screen observation smoke succeeded without mutating Slack or other apps."
+      commands:
+        - cmd: "brew install steipete/tap/peekaboo"
+          status: blocked
+          note: "Homebrew found Peekaboo 3.1.2 but stopped because Command Line Tools are outdated and need the Apple-provided CLT update."
+        - cmd: "npx -y @steipete/peekaboo --version"
+          status: pass
+          output: "Peekaboo 3.1.2 (main/3f1ea6dd, built: 2026-05-11T06:50:44+01:00)"
+        - cmd: "npx -y @steipete/peekaboo mcp --help"
+          status: pass
+          output: "MCP server help printed successfully."
+        - cmd: "npx -y @steipete/peekaboo tools --json"
+          status: pass
+          output: "Returned 25 Peekaboo MCP tools."
+        - cmd: "npx -y @steipete/peekaboo list apps --json"
+          status: pass
+          output: "Returned visible/running macOS apps including Slack without controlling them."
+        - cmd: "npx -y @steipete/peekaboo permissions status --json"
+          status: pass
+          output: "Screen Recording granted, Accessibility granted, Event Synthesizing granted."
+        - cmd: "npx -y @steipete/peekaboo see --mode screen --screen-index 0 --no-remote --capture-engine cg --json"
+          status: pass
+          output: "Read-only screen observation succeeded with 406 accessibility elements."
+
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Package Peekaboo with Agent Club so the Hermes desktop-control MCP setup uses a built-in bundled runner instead of a raw npx command."
+    allowed_files:
+      - "package.json"
+      - "bun.lock"
+      - "electron-builder.yml"
+      - "scripts/build-mcp-servers.js"
+      - "src/common/adapter/ipcBridge.ts"
+      - "src/common/types/peekaboo.ts"
+      - "src/process/bridge/mcpBridge.ts"
+      - "src/process/resources/builtinMcp/constants.ts"
+      - "src/process/resources/builtinMcp/peekabooProxy.ts"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "src/process/utils/initStorage.ts"
+      - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+      - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    verify:
+      - "node scripts/build-mcp-servers.js"
+      - "node out/main/builtin-mcp-peekaboo.js --version"
+      - "node out/main/builtin-mcp-peekaboo.js permissions status --json"
+      - "bunx oxfmt --check electron-builder.yml scripts/build-mcp-servers.js src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "bunx oxlint src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "bunx tsc --noEmit --pretty false"
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    stop_if:
+      - "Need to send messages or mutate Slack, Discord, iMessage, or another app."
+      - "Packaged runner cannot resolve the installed Peekaboo binary."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      changed_files:
+        - "package.json"
+        - "bun.lock"
+        - "electron-builder.yml"
+        - "scripts/build-mcp-servers.js"
+        - "src/common/adapter/ipcBridge.ts"
+        - "src/common/types/peekaboo.ts"
+        - "src/process/bridge/mcpBridge.ts"
+        - "src/process/resources/builtinMcp/constants.ts"
+        - "src/process/resources/builtinMcp/peekabooProxy.ts"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "src/process/utils/initStorage.ts"
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      commands:
+        - cmd: "bun add @steipete/peekaboo@3.1.2"
+          status: pass
+          note: "Dependency and lockfile updated; repo postinstall attempted a native rebuild and hit stale Xcode Command Line Tools on node-pty."
+        - cmd: "node scripts/build-mcp-servers.js"
+          status: pass
+        - cmd: "node out/main/builtin-mcp-peekaboo.js --version"
+          status: pass
+          output: "Peekaboo 3.1.2 (main/3f1ea6dd, built: 2026-05-11T06:50:44+01:00)"
+        - cmd: "node out/main/builtin-mcp-peekaboo.js permissions status --json"
+          status: pass
+          output: "Screen Recording, Accessibility, and Event Synthesizing are granted."
+        - cmd: "node out/main/builtin-mcp-peekaboo.js tools --json"
+          status: pass
+          output: "Returned 25 tools through the packaged runner."
+        - cmd: "bunx oxfmt --check electron-builder.yml scripts/build-mcp-servers.js src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+          status: pass
+        - cmd: "bunx oxlint src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+          status: pass
+          note: "Only pre-existing warnings in shared ipcBridge/initStorage surfaces; no lint errors."
+        - cmd: "bunx tsc --noEmit --pretty false"
+          status: pass
+        - cmd: "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+          status: pass
+      summary: "Packaged Peekaboo with Agent Club as a built-in MCP runner. The setup card now saves node out/main/builtin-mcp-peekaboo.js instead of npx, app startup ensures/migrates a built-in peekaboo server, electron-builder includes and unpacks the native Peekaboo package, Skills Hub and dashboard copy call it packaged, and the packaged runner resolves the local binary successfully."
+
+  - id: T010
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: default
+    objective: "Run or schedule the first harmless supervised Hermes desktop-control smoke through the packaged Peekaboo runner."
+    constraints:
+      - "Use the packaged Agent Club Peekaboo runner, not raw npx."
+      - "No sending messages."
+      - "No deleting, posting, purchasing, or mutating user data."
+      - "Prefer visible observe/list/focus-level smoke unless the owner explicitly approves a stronger action."
+      - "Record the exact app and stop boundary before any app-control action."
+    expected_output:
+      - "A harmless live desktop-control smoke receipt, or a clear blocker if the app/UI supervision path is not ready."
+      - "Decision on whether the full goal is complete or needs a product-level supervised run button next."
+    receipt: null
+
 checks:
   dirty_fingerprint: "Implemented Peekaboo MCP setup, Hermes dashboard signal, Skills Hub discovery card, and GoalBuddy state updates; unrelated untracked docs/goals/month-map-planner-agent-dispatch left untouched."
   last_verification:
     result: pass
-    task: T006
+    task: T009
     commands:
-      - "bunx oxfmt --check src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
-      - "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+      - "node scripts/build-mcp-servers.js"
+      - "node out/main/builtin-mcp-peekaboo.js --version"
+      - "node out/main/builtin-mcp-peekaboo.js permissions status --json"
+      - "node out/main/builtin-mcp-peekaboo.js tools --json"
+      - "bunx oxfmt --check electron-builder.yml scripts/build-mcp-servers.js src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "bunx oxlint src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
       - "bunx tsc --noEmit --pretty false"
       - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"

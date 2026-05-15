@@ -22,6 +22,7 @@ import type {
 } from '../update/updateTypes';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
 import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
+import type { PeekabooDesktopControlSetupResult } from '../types/peekaboo';
 import type {
   AgentManagerChatGoalCommandRequest,
   AgentManagerGoalCommandResult,
@@ -470,18 +471,17 @@ export const fs = {
   installJourneyKit: bridge.buildProvider<IBridgeResponse<JourneyKitsInstallResult>, JourneyKitsInstallRequest>(
     'journey-kits.install'
   ),
-  getJourneyKitsConfig: bridge.buildProvider<IBridgeResponse<JourneyKitsConfigPublic>, void>(
-    'journey-kits.config.get'
-  ),
+  getJourneyKitsConfig: bridge.buildProvider<IBridgeResponse<JourneyKitsConfigPublic>, void>('journey-kits.config.get'),
   saveJourneyKitsConfig: bridge.buildProvider<IBridgeResponse<JourneyKitsConfigPublic>, JourneyKitsConfigSaveRequest>(
     'journey-kits.config.save'
   ),
   listJourneyKitsOwned: bridge.buildProvider<IBridgeResponse<JourneyKitsOwnKitsResult>, JourneyKitsOwnKitsRequest>(
     'journey-kits.owned.list'
   ),
-  publishJourneyKitSkill: bridge.buildProvider<IBridgeResponse<JourneyKitsPublishResult>, JourneyKitsPublishSkillRequest>(
-    'journey-kits.skill.publish'
-  ),
+  publishJourneyKitSkill: bridge.buildProvider<
+    IBridgeResponse<JourneyKitsPublishResult>,
+    JourneyKitsPublishSkillRequest
+  >('journey-kits.skill.publish'),
   deleteJourneyKitOwned: bridge.buildProvider<IBridgeResponse, JourneyKitsDeleteRequest>('journey-kits.owned.delete'),
 };
 
@@ -692,6 +692,9 @@ export const mcpService = {
     IBridgeResponse<ComposioToolRouterSetupResult>,
     ComposioToolRouterSetupRequest
   >('mcp.composio.create-tool-router-session'),
+  getPeekabooDesktopControlSetup: bridge.buildProvider<IBridgeResponse<PeekabooDesktopControlSetupResult>, void>(
+    'mcp.peekaboo.get-desktop-control-setup'
+  ),
   // OAuth 相关接口
   checkOAuthStatus: bridge.buildProvider<
     IBridgeResponse<{ isAuthenticated: boolean; needsLogin: boolean; error?: string }>,
