@@ -1,79 +1,95 @@
 # Agent Club
 
-Agent Club is a desktop workspace for running AI agents, planning work, and keeping track of what those agents are doing.
+Agent Club is a desktop workspace for managing an AI workforce.
 
-It brings chat, local agents, tasks, goals, schedules, tools, and a personal planner into one app so you can work with agents like a small team instead of juggling separate terminal windows, browser tabs, and notes.
+It brings chat, local agents, tasks, goals, schedules, channels, memory, skills, and a personal planner into one app so you can see what every agent is doing, where work is stuck, what matters today, and which channels are connected.
 
-## What Agent Club Is For
+## Your AI Workforce Control Center
 
-Agent Club is built for people who want to delegate real work to AI agents and still stay in control.
+Agent work gets fragmented fast. One assistant is in a browser chat, another is running in a terminal, a third is connected to Discord or Slack, and the actual priorities live somewhere else entirely.
 
-Use it to:
+Agent Club is built to make that manageable. The Dashboard is the first place to check the whole system: current focus, active work, scheduled signals, memory context, channels, and quick actions. It is still early, but the direction is clear: one chief-of-staff surface for the AI workforce you are building.
+
+![Agent Club dashboard](docs/assets/readme/agent-club-dashboard.jpg)
+
+Use Agent Club when you want to manage agents like a team:
 
 - Chat with different AI agents from one desktop app
 - Create goals, projects, and tasks that agents can work on
-- Track what agents are doing and what still needs attention
-- Plan your month and daily priorities in a visual planner
+- Track running work, completed work, and stuck work
+- Plan your month and daily priorities visually
+- See work across local agents, remote agents, schedules, and messaging channels
 - Connect tools, skills, MCP servers, and local capabilities
-- Run recurring or scheduled agent workflows
+- Run scheduled or recurring agent workflows
 - Keep agent work tied to the files, prompts, and context that matter
 
 ## Why It Is Useful
 
-Most agent workflows get messy fast. You might have one task in a chat, another in a terminal, notes in a document, and progress hidden inside logs.
+Most agent workflows break down because the work is scattered. Tasks live in chat threads, project context lives in notes, progress lives in logs, and remote channels become their own little islands.
 
-Agent Club gives you a shared operating space for that work:
+Agent Club gives your AI workforce a shared operating layer:
 
-- **One place to start work**: create a goal, task, or chat without switching tools.
-- **One place to monitor agents**: see running work, completed work, and stuck work.
-- **One planner for priorities**: use the month map to organize what matters today and across the month.
-- **Local-first control**: run the desktop app on your machine and connect local tools when needed.
-- **Agent-readable context**: planner entries, goals, and tasks can become context that agents use while working.
+- **One command center**: start chats, goals, tasks, and scheduled work from the same app.
+- **One visibility layer**: see priorities, running work, agent activity, and work that needs review.
+- **One planner for priorities**: use the Month Map to show agents what matters today and what is coming later.
+- **One channel hub**: connect WebUI and messaging surfaces so work can come from the places you already use.
+- **One context layer**: planner entries, goals, tasks, memory, and skills can become context that agents use while working.
+- **Less fragmentation**: fewer disconnected chats, terminals, spreadsheets, and forgotten task lists.
 - **Simple installation**: download the app, drag it into Applications, and start using it.
 
-## What the App Can Do
+## Plan The Month
 
-Agent Club includes:
+The Month Map is a Google-Sheets-style planner for your current month. You can write tasks directly into days, drag tasks from one day to another, mark work done, highlight days with colors, and keep notes and main objectives under the calendar.
 
-- AI chat workspace with support for multiple agent and model backends
-- Local Agent Manager for projects, goals, issues, task queues, and agent activity
-- Month Map planner for daily priorities, notes, objectives, and agent-updatable planning context
-- Scheduled task and automation surfaces
-- Skills and assistant presets
-- MCP tool setup for extending what agents can access
-- Voice, image generation, and file-oriented workflows where configured
-- Remote/WebUI settings for accessing or pairing agent workflows from other surfaces
-- Desktop packaging for a normal macOS app install
-
-## Screenshots
-
-### Chat Workspace
-
-Start a chat, pick an agent, attach files, select models, and use assistant presets from one home screen.
-
-![Agent Club chat workspace](docs/assets/readme/agent-club-chat.jpg)
-
-### Month Map Planner
-
-Plan daily priorities across the month. Tasks, notes, and main objectives can become context for agents.
+The important part is that this is not just a pretty calendar. It is planning context your agents can read and update, so "my top three today are..." can become actual planner entries instead of disappearing into a chat thread.
 
 ![Agent Club Month Map planner](docs/assets/readme/agent-club-month-map.jpg)
 
-### Local Agent Manager Boards
+## Track Agent Work
 
-Track projects, goals, issues, priorities, and agent work in the embedded Local Agent Manager board.
+The Local Agent Manager is where projects, goals, issues, and agent runs become visible. This is the board view for work that should not stay trapped inside a terminal session.
+
+When you turn a task into agent work, the board gives you a place to see what exists, what is active, what needs review, and what is already done.
 
 ![Agent Club Local Agent Manager board](docs/assets/readme/agent-club-agent-manager-board.jpg)
 
-### Scheduled Tasks
+## Reach It From Anywhere
 
-Create recurring agent tasks and keep scheduled work visible. This screenshot shows the empty state when no tasks are configured yet.
+Channels and WebUI are the bridge out of the desktop. Run Agent Club on one host machine, enable the WebUI, and a browser on another computer can become a control surface for the same workspace.
+
+![Agent Club WebUI settings](docs/assets/readme/agent-club-webui.jpg)
+
+Channels are where supported messaging routes live. Telegram, WeChat, Slack, Discord, iMessage, and Hermes-style routes can be configured or setup-gated from one place, so agent work can eventually be started and monitored from the surfaces you already use.
+
+![Agent Club channels settings](docs/assets/readme/agent-club-channels.jpg)
+
+## Give Agents Memory
+
+Memory is where Agent Club connects long-term context to agent work. The current memory surface is built around Honcho, with room for other providers as the app grows.
+
+The goal is simple: agents should not have to rediscover who you are, what matters, or what context they should carry between conversations.
+
+![Agent Club memory settings](docs/assets/readme/agent-club-memory.jpg)
+
+## Add Skills And Tools
+
+Skills turn repeated workflows into reusable instructions and capabilities. The Skills and MCP setup area is where Agent Club can package local desktop control, install JourneyKits, and connect extra tools agents can use.
+
+This is how the app becomes more than chat: you can keep adding new abilities without rebuilding the whole workflow from scratch.
+
+![Agent Club skills and capabilities](docs/assets/readme/agent-club-skills.jpg)
+
+## Chat, Schedule, And Work In Teams
+
+The chat workspace is the everyday entry point. Start a conversation, pick an agent, attach files, select models, and use assistant presets from one home screen.
+
+![Agent Club chat workspace](docs/assets/readme/agent-club-chat.jpg)
+
+Scheduled Tasks keep recurring agent work visible. This is where regular check-ins, future runs, and recurring workflows can live.
 
 ![Agent Club scheduled tasks](docs/assets/readme/agent-club-scheduled-tasks.jpg)
 
-### Teams
-
-Run multiple agents together in a team workspace with shared files and per-agent chat lanes.
+Teams let multiple agents work in the same space with shared files and per-agent chat lanes.
 
 ![Agent Club team workspace](docs/assets/readme/agent-club-teams.jpg)
 
