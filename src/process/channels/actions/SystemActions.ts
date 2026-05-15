@@ -46,7 +46,7 @@ import type { ChannelAgentType, PluginType } from '../types';
 import type { ActionHandler, IRegisteredAction } from './types';
 import { SystemActionNames, createErrorResponse, createSuccessResponse } from './types';
 import { GOOGLE_AUTH_PROVIDER_ID } from '@/common/config/constants';
-import { buildChannelConversationExtra } from '../utils';
+import { buildChannelConversationExtra, resolveChannelAgentPreference } from '../utils';
 
 /**
  * Get the default model for Channel assistant (Telegram/Lark)
@@ -242,43 +242,16 @@ export const handleSessionNew: ActionHandler = async (context) => {
   await sessionManager.clearSession(context.channelUser.id, context.chatId);
 
   const platform = context.platform;
-  const source =
-    platform === 'lark'
-      ? 'lark'
-      : platform === 'dingtalk'
-        ? 'dingtalk'
-        : platform === 'weixin'
-          ? 'weixin'
-          : platform === 'wecom'
-            ? 'wecom'
-            : 'telegram';
+  const source = platform;
 
-  // Selected agent (defaults to Gemini)
+  // Selected agent. Hermes-native channels default to Hermes instead of Gemini.
   let savedAgent: unknown = undefined;
   try {
-    savedAgent = await (platform === 'lark'
-      ? ProcessConfig.get('assistant.lark.agent')
-      : platform === 'dingtalk'
-        ? ProcessConfig.get('assistant.dingtalk.agent')
-        : platform === 'weixin'
-          ? ProcessConfig.get('assistant.weixin.agent')
-          : platform === 'wecom'
-            ? ProcessConfig.get('assistant.wecom.agent')
-            : ProcessConfig.get('assistant.telegram.agent'));
+    savedAgent = await ProcessConfig.get(`assistant.${platform}.agent` as Parameters<typeof ProcessConfig.get>[0]);
   } catch {
     // ignore
   }
-  const backend = (
-    savedAgent && typeof savedAgent === 'object' && typeof (savedAgent as any).backend === 'string'
-      ? (savedAgent as any).backend
-      : 'gemini'
-  ) as string;
-  const customAgentId =
-    savedAgent && typeof savedAgent === 'object'
-      ? ((savedAgent as any).customAgentId as string | undefined)
-      : undefined;
-  const agentName =
-    savedAgent && typeof savedAgent === 'object' ? ((savedAgent as any).name as string | undefined) : undefined;
+  const { backend, customAgentId, name: agentName } = resolveChannelAgentPreference(savedAgent, platform);
 
   // Provider model is required by typing; ACP/Codex will ignore it.
   const model = await getChannelDefaultModel(platform);

@@ -33,7 +33,13 @@ import { escapeHtml, markdownToTelegramHtml } from '../plugins/telegram/Telegram
 import { stripHtml } from '../plugins/weixin/WeixinAdapter';
 import type { ChannelAgentType, IUnifiedIncomingMessage, IUnifiedOutgoingMessage, PluginType } from '../types';
 import type { PluginManager } from './PluginManager';
-import { buildChannelConversationExtra, resolveChannelSendProtocol } from '../utils';
+import {
+  buildChannelConversationExtra,
+  isChannelConversationForAgent,
+  isHermesNativeChannel,
+  resolveChannelAgentPreference,
+  resolveChannelSendProtocol,
+} from '../utils';
 import i18n from '@process/services/i18n';
 
 // ==================== Platform-specific Helpers ====================
@@ -120,6 +126,22 @@ function formatTextForPlatform(text: string, platform: PluginType): string {
 
 function isWeixinPlatform(platform: PluginType): boolean {
   return platform === 'weixin' || platform === 'wecom';
+}
+
+function sanitizeChannelErrorText(error: string, platform: PluginType): string {
+  const cleaned = error
+    .replace(/^Error:\s*/i, '')
+    .replace(/^\[?API Error:\s*/i, '')
+    .replace(/\]$/g, '')
+    .trim();
+
+  if (/requested entity was not found/i.test(cleaned)) {
+    return isHermesNativeChannel(platform)
+      ? 'Hermes was not reached because this channel was pointed at an unavailable model. Agent Club reset this channel to Hermes; send the message again.'
+      : 'The selected model or session was not found. Start a new session and try again.';
+  }
+
+  return cleaned || error;
 }
 
 function canFlushTextDraft(plugin: unknown): plugin is { flushTextDraft: (chatId: string) => Promise<void> } {
@@ -224,7 +246,11 @@ function convertTMessageToOutgoing(
 
     case 'tips': {
       const icon = message.content.type === 'error' ? '❌' : message.content.type === 'success' ? '✅' : '⚠️';
-      const content = formatTextForPlatform(message.content.content || '', platform);
+      const rawContent = message.content.content || '';
+      const content = formatTextForPlatform(
+        message.content.type === 'error' ? sanitizeChannelErrorText(rawContent, platform) : rawContent,
+        platform
+      );
       return {
         type: 'text',
         text: `${icon} ${content}`,
@@ -448,44 +474,47 @@ export class ActionExecutor {
       // Set the assistant user in context
       context.channelUser = channelUser;
 
+      const source = platform;
+
+      // Read selected agent for this platform. Hermes-native channels are always
+      // chief-of-staff lanes, so they default to Hermes instead of Gemini.
+      let savedAgent: unknown = undefined;
+      try {
+        savedAgent = await ProcessConfig.get(`assistant.${platform}.agent` as Parameters<typeof ProcessConfig.get>[0]);
+      } catch {
+        // ignore
+      }
+      const agentPreference = resolveChannelAgentPreference(savedAgent, platform);
+      const { backend, customAgentId, name: agentName } = agentPreference;
+      const { convType, convBackend } = resolveChannelConvType(backend);
+      const conversationName = getChannelConversationName(platform, convType, convBackend, chatId);
+      const conversationExtra = buildChannelConversationExtra({
+        platform,
+        backend,
+        customAgentId,
+        agentName,
+      });
+
       // Get or create session (scoped by chatId for per-chat isolation)
       let session = this.sessionManager.getSession(channelUser.id, chatId);
-      if (!session || !session.conversationId) {
-        const source = platform;
+      if (session?.conversationId) {
+        const currentConversation = db.getConversation(session.conversationId);
+        const matchesDesiredAgent =
+          currentConversation.success &&
+          isChannelConversationForAgent(currentConversation.data, {
+            platform,
+            channelChatId: chatId,
+            backend,
+          });
 
-        // Read selected agent for this platform (defaults to Gemini)
-        let savedAgent: unknown = undefined;
-        try {
-          savedAgent = await ProcessConfig.get(
-            `assistant.${platform}.agent` as Parameters<typeof ProcessConfig.get>[0]
-          );
-        } catch {
-          // ignore
+        if (!matchesDesiredAgent) {
+          session = null;
         }
-        const backend = (
-          savedAgent && typeof savedAgent === 'object' && typeof (savedAgent as any).backend === 'string'
-            ? (savedAgent as any).backend
-            : 'gemini'
-        ) as string;
-        const customAgentId =
-          savedAgent && typeof savedAgent === 'object'
-            ? ((savedAgent as any).customAgentId as string | undefined)
-            : undefined;
-        const agentName =
-          savedAgent && typeof savedAgent === 'object' ? ((savedAgent as any).name as string | undefined) : undefined;
+      }
 
+      if (!session || !session.conversationId) {
         // Always resolve a provider model (required by ICreateConversationParams typing; ignored by ACP/Codex)
         const model = await getChannelDefaultModel(platform);
-
-        // Map backend to conversation type for lookup
-        const { convType, convBackend } = resolveChannelConvType(backend);
-        const conversationName = getChannelConversationName(platform, convType, convBackend, chatId);
-        const conversationExtra = buildChannelConversationExtra({
-          platform,
-          backend,
-          customAgentId,
-          agentName,
-        });
 
         // Lookup existing conversation by source + chatId + type + backend (per-chat isolation)
         const db2 = await getDatabase();
@@ -858,7 +887,7 @@ export class ActionExecutor {
       console.error(`[ActionExecutor] Chat processing failed:`, error);
 
       // Update message with error
-      const errorResponse = buildChatErrorResponse(error.message);
+      const errorResponse = buildChatErrorResponse(error.message, context.platform);
       await context.editMessage(thinkingMsgId, {
         type: 'text',
         text: errorResponse.text,

@@ -42,6 +42,16 @@ interface IStreamState {
 }
 
 const TOOL_CONTINUATION_WAIT_MS = 15_000;
+const CHANNEL_AUTO_APPROVAL_SOURCES = new Set([
+  'lark',
+  'telegram',
+  'dingtalk',
+  'weixin',
+  'wecom',
+  'slack',
+  'discord',
+  'imessage',
+]);
 
 function isNonAnswerMessage(message: TMessage): boolean {
   if (message.type === 'agent_status') {
@@ -224,12 +234,7 @@ export class ChannelMessageService {
       const db = await getDatabase();
       const dbResult = db.getConversation(conversationId);
       const isFromChannel =
-        dbResult.success &&
-        (dbResult.data?.source === 'lark' ||
-          dbResult.data?.source === 'telegram' ||
-          dbResult.data?.source === 'dingtalk' ||
-          dbResult.data?.source === 'weixin' ||
-          dbResult.data?.source === 'wecom');
+        dbResult.success && !!dbResult.data?.source && CHANNEL_AUTO_APPROVAL_SOURCES.has(dbResult.data.source);
 
       task = await workerTaskManager.getOrBuildTask(conversationId, {
         yoloMode: isFromChannel,

@@ -1,130 +1,69 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { describe, expect, it } from 'vitest';
+import type { TChatConversation } from '../../src/common/config/storage';
+import {
+  isChannelConversationForAgent,
+  resolveChannelAgentPreference,
+} from '../../src/process/channels/utils/channelConversation';
 
-/**
- * Pure function tests for channelConversation utilities
- * Inline implementations avoid module mocking conflicts
- */
-describe('channelConversation pure functions', () => {
-  const WEIXIN_FILE_SEND_SKILL = 'weixin-file-send';
+const makeConversation = (
+  overrides: Partial<TChatConversation> & { extra?: Record<string, unknown> }
+): TChatConversation =>
+  ({
+    id: 'conv-1',
+    name: 'discord-acp-hermes-channel-1',
+    type: 'acp',
+    extra: { backend: 'hermes' },
+    model: {} as TChatConversation['model'],
+    source: 'discord',
+    channelChatId: 'channel-1',
+    createTime: 1,
+    modifyTime: 1,
+    ...overrides,
+  }) as TChatConversation;
 
-  function getChannelEnabledSkills(platform: string): string[] | undefined {
-    return platform === 'weixin' ? [WEIXIN_FILE_SEND_SKILL] : undefined;
-  }
-
-  function buildChannelConversationExtra(args: {
-    platform: string;
-    backend: string;
-    customAgentId?: string;
-    agentName?: string;
-  }): {
-    backend?: string;
-    customAgentId?: string;
-    agentName?: string;
-    enabledSkills?: string[];
-  } {
-    const enabledSkills = getChannelEnabledSkills(args.platform);
-
-    if (args.backend === 'gemini' || args.backend === 'codex' || args.backend === 'openclaw-gateway') {
-      return enabledSkills ? { enabledSkills } : {};
-    }
-
-    return {
-      backend: args.backend,
-      customAgentId: args.customAgentId,
-      agentName: args.agentName,
-      ...(enabledSkills ? { enabledSkills } : {}),
-    };
-  }
-
-  describe('getChannelEnabledSkills', () => {
-    it('returns weixin-file-send skill for weixin platform', () => {
-      expect(getChannelEnabledSkills('weixin')).toEqual(['weixin-file-send']);
+describe('channel conversation routing', () => {
+  it('defaults Hermes-native channels to Hermes when no agent is saved', () => {
+    expect(resolveChannelAgentPreference(undefined, 'discord')).toMatchObject({
+      backend: 'hermes',
+      name: 'Hermes Chief of Staff',
     });
-
-    it('returns undefined for telegram platform', () => {
-      expect(getChannelEnabledSkills('telegram')).toBeUndefined();
-    });
-
-    it('returns undefined for lark platform', () => {
-      expect(getChannelEnabledSkills('lark')).toBeUndefined();
-    });
-
-    it('returns undefined for dingtalk platform', () => {
-      expect(getChannelEnabledSkills('dingtalk')).toBeUndefined();
-    });
+    expect(resolveChannelAgentPreference(undefined, 'slack').backend).toBe('hermes');
+    expect(resolveChannelAgentPreference(undefined, 'imessage').backend).toBe('hermes');
   });
 
-  describe('buildChannelConversationExtra', () => {
-    it('returns enabledSkills only for gemini backend with weixin platform', () => {
-      expect(buildChannelConversationExtra({ platform: 'weixin', backend: 'gemini' })).toEqual({
-        enabledSkills: ['weixin-file-send'],
-      });
+  it('keeps legacy channels on Gemini by default', () => {
+    expect(resolveChannelAgentPreference(undefined, 'telegram')).toEqual({ backend: 'gemini' });
+  });
+
+  it('rejects stale Gemini conversations for a Hermes Discord channel', () => {
+    const staleGeminiConversation = makeConversation({
+      type: 'gemini',
+      extra: {},
+      name: 'discord-gemini-channel-1',
     });
 
-    it('returns enabledSkills only for codex backend with weixin platform', () => {
-      expect(buildChannelConversationExtra({ platform: 'weixin', backend: 'codex' })).toEqual({
-        enabledSkills: ['weixin-file-send'],
-      });
-    });
+    expect(
+      isChannelConversationForAgent(staleGeminiConversation, {
+        platform: 'discord',
+        channelChatId: 'channel-1',
+        backend: 'hermes',
+      })
+    ).toBe(false);
+  });
 
-    it('returns enabledSkills only for openclaw-gateway backend with weixin platform', () => {
-      expect(buildChannelConversationExtra({ platform: 'weixin', backend: 'openclaw-gateway' })).toEqual({
-        enabledSkills: ['weixin-file-send'],
-      });
-    });
-
-    it('returns empty object for gemini backend with non-weixin platform', () => {
-      expect(buildChannelConversationExtra({ platform: 'telegram', backend: 'gemini' })).toEqual({});
-    });
-
-    it('returns full extra for ACP backend (claude) with customAgentId and agentName', () => {
-      expect(
-        buildChannelConversationExtra({
-          platform: 'weixin',
-          backend: 'claude',
-          customAgentId: 'agent-123',
-          agentName: 'Claude Assistant',
-        })
-      ).toEqual({
-        backend: 'claude',
-        customAgentId: 'agent-123',
-        agentName: 'Claude Assistant',
-        enabledSkills: ['weixin-file-send'],
-      });
-    });
-
-    it('returns full extra for ACP backend without customAgentId', () => {
-      expect(buildChannelConversationExtra({ platform: 'telegram', backend: 'claude' })).toEqual({
-        backend: 'claude',
-        customAgentId: undefined,
-        agentName: undefined,
-      });
-    });
-
-    it('handles unknown backend as ACP type', () => {
-      expect(
-        buildChannelConversationExtra({
-          platform: 'weixin',
-          backend: 'unknown-backend',
-          customAgentId: 'custom-1',
-          agentName: 'Custom Agent',
-        })
-      ).toEqual({
-        backend: 'unknown-backend',
-        customAgentId: 'custom-1',
-        agentName: 'Custom Agent',
-        enabledSkills: ['weixin-file-send'],
-      });
-    });
-
-    it('handles undefined optional parameters', () => {
-      expect(buildChannelConversationExtra({ platform: 'lark', backend: 'openclaw-gateway' })).toEqual({});
-    });
+  it('accepts matching Hermes ACP conversations', () => {
+    expect(
+      isChannelConversationForAgent(makeConversation({}), {
+        platform: 'discord',
+        channelChatId: 'channel-1',
+        backend: 'hermes',
+      })
+    ).toBe(true);
   });
 });

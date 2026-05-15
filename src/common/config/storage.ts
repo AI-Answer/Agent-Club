@@ -199,6 +199,22 @@ export interface IConfigStorageRefer {
     customAgentId?: string;
     name?: string;
   };
+  // Hermes-native channel agent selections / Hermes 专用渠道 Agent 选择
+  'assistant.slack.agent'?: {
+    backend: string;
+    customAgentId?: string;
+    name?: string;
+  };
+  'assistant.discord.agent'?: {
+    backend: string;
+    customAgentId?: string;
+    name?: string;
+  };
+  'assistant.imessage.agent'?: {
+    backend: string;
+    customAgentId?: string;
+    name?: string;
+  };
   // Skills Market: whether the aionui-skills builtin skill is enabled
   'skillsMarket.enabled'?: boolean;
   // Desktop Pet: whether the desktop pet feature is enabled

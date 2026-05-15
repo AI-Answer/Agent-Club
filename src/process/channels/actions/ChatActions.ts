@@ -8,6 +8,8 @@ import type { IRegisteredAction, ActionHandler } from './types';
 import { ChatActionNames, createSuccessResponse, createErrorResponse } from './types';
 import { createResponseActionsKeyboard, createErrorRecoveryKeyboard } from '../plugins/telegram/TelegramKeyboards';
 import { getChannelMessageService } from '../agent/ChannelMessageService';
+import { isHermesNativeChannel } from '../utils';
+import type { PluginType } from '../types';
 
 /**
  * ChatActions - Handlers for chat/AI-related actions
@@ -169,13 +171,28 @@ export function buildChatResponse(
 /**
  * Build an error response for chat failures
  */
-export function buildChatErrorResponse(error: string): {
+export function buildChatErrorResponse(
+  error: string,
+  platform?: PluginType
+): {
   text: string;
   parseMode: 'HTML' | 'MarkdownV2' | 'Markdown';
   replyMarkup?: unknown;
 } {
+  const cleaned = error
+    .replace(/^Error:\s*/i, '')
+    .replace(/^\[?API Error:\s*/i, '')
+    .replace(/\]$/g, '')
+    .trim();
+  const visibleError =
+    /requested entity was not found/i.test(cleaned) && platform
+      ? isHermesNativeChannel(platform)
+        ? 'Hermes was not reached because this channel was pointed at an unavailable model. Agent Club reset this channel to Hermes; send the message again.'
+        : 'The selected model or session was not found. Start a new session and try again.'
+      : cleaned || error;
+
   return {
-    text: `❌ <b>Processing Failed</b>\n\n${error}\n\nPlease retry or start a new conversation.`,
+    text: `❌ <b>Processing Failed</b>\n\n${visibleError}\n\nPlease retry or start a new conversation.`,
     parseMode: 'HTML',
     replyMarkup: createErrorRecoveryKeyboard(),
   };

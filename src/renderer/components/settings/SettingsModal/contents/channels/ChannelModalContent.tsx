@@ -760,6 +760,11 @@ const ChannelModalContent: React.FC = () => {
             return;
           }
 
+          await ConfigStorage.set(`assistant.${pluginType}.agent`, {
+            backend: 'hermes',
+            name: 'Hermes Chief of Staff',
+          });
+
           const result = await channel.enablePlugin.invoke({
             pluginId: `${pluginType}_default`,
             config: Object.fromEntries(
