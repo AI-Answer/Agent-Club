@@ -18,6 +18,7 @@ vi.mock('@/renderer/assets/logos/ai-major/mistral.svg', () => ({ default: 'mistr
 vi.mock('@/renderer/assets/logos/tools/nanobot.svg', () => ({ default: 'nanobot.svg' }));
 vi.mock('@/renderer/assets/logos/tools/coding/qoder.png', () => ({ default: 'qoder.png' }));
 vi.mock('@/renderer/assets/logos/tools/coding/cursor.png', () => ({ default: 'cursor.png' }));
+vi.mock('@/renderer/assets/logos/brand/custom-agent.svg', () => ({ default: 'custom-agent.svg' }));
 
 import { getAgentLogo, resolveAgentLogo } from '../../src/renderer/utils/model/agentLogo';
 
@@ -31,7 +32,6 @@ describe('agentLogo', () => {
 
     it('should return null for unknown backends', () => {
       expect(getAgentLogo('unknown')).toBeNull();
-      expect(getAgentLogo('custom')).toBeNull();
     });
 
     it('should return null for null/undefined', () => {
@@ -45,6 +45,8 @@ describe('agentLogo', () => {
       expect(getAgentLogo('auggie')).toBe('auggie.svg');
       expect(getAgentLogo('goose')).toBe('goose.svg');
       expect(getAgentLogo('copilot')).toBe('github.svg');
+      expect(getAgentLogo('aionrs')).toBe('custom-agent.svg');
+      expect(getAgentLogo('custom')).toBe('custom-agent.svg');
     });
   });
 
@@ -66,8 +68,8 @@ describe('agentLogo', () => {
       expect(resolveAgentLogo({ backend: 'gemini' })).toBe('gemini.svg');
     });
 
-    it('should return null for custom backend without extension info', () => {
-      expect(resolveAgentLogo({ backend: 'custom' })).toBeNull();
+    it('should return the custom agent logo for custom backend without extension info', () => {
+      expect(resolveAgentLogo({ backend: 'custom' })).toBe('custom-agent.svg');
     });
 
     it('should return null when nothing matches', () => {
@@ -91,8 +93,8 @@ describe('agentLogo', () => {
         customAgentId: 'ext:my-ext:unknown-adapter',
         isExtension: true,
       });
-      // 'unknown-adapter' not in logo map, 'custom' not in logo map → null
-      expect(logo).toBeNull();
+      // 'unknown-adapter' not in logo map, so fall back to the custom agent logo.
+      expect(logo).toBe('custom-agent.svg');
     });
   });
 });

@@ -10,9 +10,9 @@
  * All places that need to display agent icons should use this utility instead of maintaining separate lists
  */
 
-import AionLogo from '@/renderer/assets/logos/brand/aion.svg';
 import AuggieLogo from '@/renderer/assets/logos/brand/auggie.svg';
 import ClaudeLogo from '@/renderer/assets/logos/ai-major/claude.svg';
+import CustomAgentLogo from '@/renderer/assets/logos/brand/custom-agent.svg';
 import CursorLogo from '@/renderer/assets/logos/tools/coding/cursor.png';
 import CodeBuddyLogo from '@/renderer/assets/logos/tools/coding/codebuddy.svg';
 import CodexLogo from '@/renderer/assets/logos/tools/coding/codex.svg';
@@ -39,7 +39,8 @@ import QwenLogo from '@/renderer/assets/logos/ai-china/qwen.svg';
  * Note: keys are lowercase, supports multiple variants (e.g., openclaw-gateway and openclaw)
  */
 const AGENT_LOGO_MAP = {
-  aionrs: AionLogo,
+  aionrs: CustomAgentLogo,
+  custom: CustomAgentLogo,
   claude: ClaudeLogo,
   gemini: GeminiLogo,
   qwen: QwenLogo,
