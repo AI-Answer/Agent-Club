@@ -5,13 +5,13 @@
  *  - Navigating to the channels settings (webui tab → channels sub-tab)
  *  - Channel list renders with known channels
  *  - Toggle switches are visible for active channels
- *  - "Coming soon" channels have disabled toggles
+ *  - Removed channels stay hidden while Hermes-native channels are active
  */
 import { test, expect } from '../fixtures';
 import { goToChannelsTab, channelItemById, channelSwitchById, takeScreenshot, waitForClassChange } from '../helpers';
 
-const ACTIVE_CHANNEL_IDS = ['telegram', 'lark', 'dingtalk'] as const;
-const COMING_SOON_CHANNEL_IDS = ['slack', 'discord'] as const;
+const ACTIVE_CHANNEL_IDS = ['telegram', 'weixin', 'slack', 'discord', 'imessage'] as const;
+const HIDDEN_CHANNEL_IDS = ['lark', 'dingtalk', 'wecom'] as const;
 
 test.describe('Channels', () => {
   test('channels settings page renders', async ({ page }) => {
@@ -78,26 +78,20 @@ test.describe('Channels', () => {
     expect(toggled).toBeTruthy();
   });
 
-  test('coming-soon channels have disabled switches', async ({ page }) => {
+  test('Hermes channels are active and removed channels stay hidden', async ({ page }) => {
     await goToChannelsTab(page);
 
-    for (const id of COMING_SOON_CHANNEL_IDS) {
-      const item = page.locator(`${channelItemById(id)}[data-channel-status="coming_soon"]`).first();
+    for (const id of ['slack', 'discord', 'imessage'] as const) {
+      const item = page.locator(`${channelItemById(id)}[data-channel-status="active"]`).first();
       await expect(item).toBeVisible({ timeout: 8_000 });
 
       const sw = item.locator(channelSwitchById(id)).first();
       await expect(sw).toBeVisible({ timeout: 5_000 });
+      await expect(sw).toHaveAttribute('data-channel-switch-disabled', 'false');
+    }
 
-      const cls = (await sw.getAttribute('class')) || '';
-      const ariaDisabled = await sw.getAttribute('aria-disabled');
-      const dataDisabled = await sw.getAttribute('data-channel-switch-disabled');
-      const disabledAttr = await sw.getAttribute('disabled');
-      expect(
-        cls.includes('arco-switch-disabled') ||
-          ariaDisabled === 'true' ||
-          dataDisabled === 'true' ||
-          disabledAttr !== null
-      ).toBeTruthy();
+    for (const id of HIDDEN_CHANNEL_IDS) {
+      await expect(page.locator(channelItemById(id))).toHaveCount(0);
     }
   });
 

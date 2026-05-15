@@ -61,6 +61,7 @@ const BUILTIN_CHANNEL_TYPES = new Set([
   'imessage',
 ]);
 
+const IMESSAGE_WEBHOOK_PATH = '/channels/imessage/bluebubbles/webhook';
 const IMESSAGE_SETUP_DOC_LINKS = [
   {
     label: 'Hermes BlueBubbles setup',
@@ -880,6 +881,10 @@ const ChannelModalContent: React.FC = () => {
           { key: 'guid', label: 'BlueBubbles server password/guid', type: 'password', placeholder: 'Server password' },
         ],
       };
+      const localWebhookUrl = webuiStatus?.localUrl
+        ? `${webuiStatus.localUrl}${IMESSAGE_WEBHOOK_PATH}`
+        : `http://localhost:25808${IMESSAGE_WEBHOOK_PATH}`;
+      const lanWebhookUrl = webuiStatus?.networkUrl ? `${webuiStatus.networkUrl}${IMESSAGE_WEBHOOK_PATH}` : null;
 
       return (
         <div className='space-y-10px py-12px'>
@@ -918,11 +923,61 @@ const ChannelModalContent: React.FC = () => {
             ))}
           </div>
 
+          {pluginType === 'imessage' ? (
+            <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-1 px-12px py-10px'>
+              <div className='mb-8px text-12px font-600 uppercase leading-16px text-t-secondary'>
+                BlueBubbles webhook
+              </div>
+              <div className='grid grid-cols-1 gap-8px md:grid-cols-2'>
+                {[
+                  ['Local URL', localWebhookUrl],
+                  ...(lanWebhookUrl ? [['LAN URL', lanWebhookUrl] as [string, string]] : []),
+                ].map(([label, value]) => (
+                  <div key={label} className='rounded-8px bg-fill-2 px-10px py-8px'>
+                    <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>{label}</div>
+                    <div className='mt-3px break-all font-mono text-11px leading-16px text-t-primary'>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className='mt-8px text-11px leading-16px text-t-secondary'>
+                Add one of these URLs in BlueBubbles Server webhooks and include the same password/guid as a
+                <span className='mx-4px font-600 text-t-primary'>guid</span>
+                query param or
+                <span className='mx-4px font-600 text-t-primary'>x-bluebubbles-guid</span>
+                header. Agent Club will ignore personal traffic until this channel is explicitly enabled.
+              </div>
+            </div>
+          ) : null}
+
+          {pluginType === 'imessage' ? (
+            <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-1 px-12px py-10px'>
+              <div className='mb-8px text-12px font-600 uppercase leading-16px text-t-secondary'>Setup docs</div>
+              <div className='grid grid-cols-1 gap-8px sm:grid-cols-2'>
+                {IMESSAGE_SETUP_DOC_LINKS.map((doc) => (
+                  <a
+                    key={doc.href}
+                    href={doc.href}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='block rounded-8px border border-solid border-[var(--color-border-2)] bg-bg-1 px-10px py-8px no-underline transition hover:border-[rgb(var(--primary-5))] hover:bg-fill-2'
+                  >
+                    <div className='text-12px font-600 leading-17px text-[rgb(var(--primary-6))]'>{doc.label}</div>
+                    <div className='mt-3px text-11px leading-16px text-t-secondary'>{doc.description}</div>
+                  </a>
+                ))}
+              </div>
+              <div className='mt-8px rounded-8px bg-fill-2 px-10px py-8px text-11px leading-16px text-t-secondary'>
+                Install BlueBubbles Server first, copy its server URL and password/guid, then use this card to enable
+                the Hermes iMessage channel for the chief-of-staff agent.
+              </div>
+            </div>
+          ) : null}
+
           {status?.error ? <div className='text-12px leading-18px text-red-500'>{status.error}</div> : null}
         </div>
       );
     },
-    [hermesNativeStatuses, hermesNativeFieldValues, updateHermesNativeFieldValue]
+    [hermesNativeStatuses, hermesNativeFieldValues, updateHermesNativeFieldValue, webuiStatus]
   );
 
   // Build channel configurations
@@ -1042,53 +1097,6 @@ const ChannelModalContent: React.FC = () => {
       }));
 
     const extensionTypeSet = new Set(extensionChannels.map((channelConfig) => String(channelConfig.id).toLowerCase()));
-    const hermesComingSoonContent = (channelName: string, detail: string) => (
-      <div className='space-y-10px py-12px'>
-        <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-2 px-12px py-10px'>
-          <div className='mb-6px flex items-center gap-6px text-13px font-600 text-t-primary'>
-            <CheckOne theme='outline' size='14' className='text-[rgb(var(--primary-6))]' />
-            <span>Hermes Chief of Staff only</span>
-          </div>
-          <div className='text-12px leading-18px text-t-secondary'>{detail}</div>
-        </div>
-        <div className='grid grid-cols-1 gap-8px sm:grid-cols-3'>
-          {[
-            ['Scope', 'Personal chief-of-staff channel'],
-            ['Routing', 'Hermes agent only'],
-            ['Status', 'Setup gated'],
-          ].map(([label, value]) => (
-            <div key={`${channelName}-${label}`} className='rounded-8px bg-fill-2 px-10px py-8px'>
-              <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>{label}</div>
-              <div className='mt-3px text-12px font-600 leading-17px text-t-primary'>{value}</div>
-            </div>
-          ))}
-        </div>
-        {channelName === 'iMessage' ? (
-          <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-1 px-12px py-10px'>
-            <div className='mb-8px text-12px font-600 uppercase leading-16px text-t-secondary'>Setup docs</div>
-            <div className='grid grid-cols-1 gap-8px sm:grid-cols-2'>
-              {IMESSAGE_SETUP_DOC_LINKS.map((doc) => (
-                <a
-                  key={doc.href}
-                  href={doc.href}
-                  target='_blank'
-                  rel='noreferrer'
-                  className='block rounded-8px border border-solid border-[var(--color-border-2)] bg-bg-1 px-10px py-8px no-underline transition hover:border-[rgb(var(--primary-5))] hover:bg-fill-2'
-                >
-                  <div className='text-12px font-600 leading-17px text-[rgb(var(--primary-6))]'>{doc.label}</div>
-                  <div className='mt-3px text-11px leading-16px text-t-secondary'>{doc.description}</div>
-                </a>
-              ))}
-            </div>
-            <div className='mt-8px rounded-8px bg-fill-2 px-10px py-8px text-11px leading-16px text-t-secondary'>
-              Install BlueBubbles Server first, copy its server URL and password/guid, then run the Hermes
-              <span className='mx-4px font-600 text-t-primary'>hermes gateway setup</span>
-              CLI step before Agent Club enables live iMessage traffic.
-            </div>
-          </div>
-        ) : null}
-      </div>
-    );
     const hermesNativeChannels: ChannelConfig[] = [
       {
         id: 'slack',
@@ -1118,19 +1126,18 @@ const ChannelModalContent: React.FC = () => {
           'Uses the Discord Gateway and REST message API. Requires a bot token and Message Content intent for useful server-channel triage.'
         ),
       },
-    ].filter((channelConfig) => !extensionTypeSet.has(String(channelConfig.id).toLowerCase()));
-
-    const comingSoonChannels: ChannelConfig[] = [
       {
         id: 'imessage',
         title: 'iMessage',
         description: 'Mac-local Hermes channel for personal message triage.',
-        status: 'coming_soon' as const,
-        enabled: false,
-        disabled: true,
-        content: hermesComingSoonContent(
-          'iMessage',
-          'iMessage needs an approved local macOS Messages or BlueBubbles bridge before Agent Club reads or sends personal messages.'
+        status: 'active' as const,
+        enabled: hermesNativeStatuses.imessage?.enabled || false,
+        disabled: hermesNativeLoadingMap.imessage,
+        isConnected: hermesNativeStatuses.imessage?.connected || false,
+        botUsername: hermesNativeStatuses.imessage?.botUsername,
+        content: renderHermesNativeConfigForm(
+          'imessage',
+          'Uses BlueBubbles Server webhooks and REST calls. Requires an owner-approved test chat before Agent Club sends or reads live iMessage traffic.'
         ),
       },
     ].filter((channelConfig) => !extensionTypeSet.has(String(channelConfig.id).toLowerCase()));
@@ -1143,7 +1150,6 @@ const ChannelModalContent: React.FC = () => {
       wecomChannel,
       ...extensionChannels,
       ...hermesNativeChannels,
-      ...comingSoonChannels,
     ].filter((channelConfig) => !HIDDEN_CHANNEL_SETTING_IDS.has(String(channelConfig.id).toLowerCase()));
   }, [
     pluginStatus,
@@ -1178,7 +1184,7 @@ const ChannelModalContent: React.FC = () => {
     if (channelId === 'dingtalk') return handleToggleDingtalkPlugin;
     if (channelId === 'weixin') return handleToggleWeixinPlugin;
     if (channelId === 'wecom') return handleToggleWecomPlugin;
-    if (channelId === 'slack' || channelId === 'discord') {
+    if (channelId === 'slack' || channelId === 'discord' || channelId === 'imessage') {
       return (enabled: boolean) => {
         void handleToggleHermesNativePlugin(channelId, enabled);
       };
@@ -1212,7 +1218,9 @@ const ChannelModalContent: React.FC = () => {
           <div className='text-13px text-t-secondary leading-relaxed'>{channelGuideText}</div>
           <div className='inline-flex flex-wrap items-center gap-6px rd-8px bg-fill-2 px-10px py-7px text-12px text-t-secondary leading-relaxed'>
             <span className='font-500 text-t-primary'>Hermes Chief of Staff only:</span>
-            <span>Slack, Discord, and iMessage stay setup-gated here until each native channel can route through Hermes.</span>
+            <span>
+              Slack, Discord, and iMessage stay setup-gated here until each native channel can route through Hermes.
+            </span>
           </div>
           <div className='flex flex-wrap gap-x-12px gap-y-6px'>
             {channelSetupSteps.map((stepLabel, idx) => (

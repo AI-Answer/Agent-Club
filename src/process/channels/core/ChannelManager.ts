@@ -13,6 +13,7 @@ import { PluginManager, registerPlugin } from '../gateway/PluginManager';
 import { PairingService } from '../pairing/PairingService';
 import { DingTalkPlugin } from '../plugins/dingtalk/DingTalkPlugin';
 import { DiscordPlugin } from '../plugins/discord/DiscordPlugin';
+import { ImessagePlugin } from '../plugins/imessage/ImessagePlugin';
 import { LarkPlugin } from '../plugins/lark/LarkPlugin';
 import { SlackPlugin } from '../plugins/slack/SlackPlugin';
 import { TelegramPlugin } from '../plugins/telegram/TelegramPlugin';
@@ -54,6 +55,7 @@ export class ChannelManager {
     registerPlugin('telegram', TelegramPlugin);
     registerPlugin('slack', SlackPlugin);
     registerPlugin('discord', DiscordPlugin);
+    registerPlugin('imessage', ImessagePlugin);
     registerPlugin('lark', LarkPlugin);
     registerPlugin('dingtalk', DingTalkPlugin);
     registerPlugin('weixin', WeixinPlugin);
@@ -193,6 +195,7 @@ export class ChannelManager {
       'telegram',
       'slack',
       'discord',
+      'imessage',
       'lark',
       'dingtalk',
       'weixin',
@@ -293,6 +296,13 @@ export class ChannelManager {
       const botToken = config.botToken as string | undefined;
       if (botToken) {
         credentials = { botToken: botToken.trim() };
+      }
+    } else if (pluginType === 'imessage') {
+      const serverUrl = config.serverUrl as string | undefined;
+      const guid = config.guid as string | undefined;
+      if (serverUrl && guid) {
+        credentials = { serverUrl: serverUrl.trim(), guid: guid.trim() };
+        pluginRuntimeConfig = { ...pluginRuntimeConfig, mode: 'webhook' };
       }
     } else if (pluginType === 'weixin') {
       const accountId = config.accountId as string | undefined;
@@ -515,6 +525,9 @@ export class ChannelManager {
     const type = this.getPluginTypeFromId(pluginId);
     if (type === 'wecom') {
       return 'WeCom';
+    }
+    if (type === 'imessage') {
+      return 'iMessage';
     }
     return type.charAt(0).toUpperCase() + type.slice(1) + ' Bot';
   }

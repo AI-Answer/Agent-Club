@@ -18,6 +18,9 @@ export { SlackPlugin } from './slack/SlackPlugin';
 // Discord plugin
 export { DiscordPlugin } from './discord/DiscordPlugin';
 
+// iMessage / BlueBubbles plugin
+export { ImessagePlugin } from './imessage/ImessagePlugin';
+
 // DingTalk plugin
 export { DingTalkPlugin } from './dingtalk/DingTalkPlugin';
 

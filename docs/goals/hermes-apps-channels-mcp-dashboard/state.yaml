@@ -68,7 +68,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T009
+active_task: T011
 
 tasks:
   - id: T001
@@ -376,7 +376,7 @@ tasks:
   - id: T009
     type: worker
     assignee: Worker
-    status: active
+    status: blocked
     reasoning_hint: default
     objective: "Resolve the owner-approved iMessage bridge path and perform live channel smoke tests for Slack, Discord, and iMessage."
     allowed_files:
@@ -394,7 +394,59 @@ tasks:
       - "Owner does not approve credential use or local Messages/BlueBubbles access."
       - "The iMessage bridge would require reading or sending personal messages before an explicit test target is chosen."
       - "Slack or Discord credentials are unavailable."
-    receipt: null
+    receipt:
+      result: blocked
+      changed_files:
+        - "src/process/channels/plugins/imessage/BlueBubblesWebhookState.ts"
+        - "src/process/channels/plugins/imessage/ImessagePlugin.ts"
+        - "src/process/channels/plugins/imessage/index.ts"
+        - "src/process/channels/core/ChannelManager.ts"
+        - "src/process/channels/gateway/ActionExecutor.ts"
+        - "src/process/channels/gateway/PluginManager.ts"
+        - "src/process/channels/index.ts"
+        - "src/process/channels/plugins/index.ts"
+        - "src/process/webserver/routes/blueBubblesChannelRoutes.ts"
+        - "src/process/webserver/routes/apiRoutes.ts"
+        - "src/process/webserver/setup.ts"
+        - "src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+        - "src/renderer/services/i18n/locales/en-US/settings.json"
+        - "src/renderer/services/i18n/locales/zh-CN/settings.json"
+        - "src/renderer/services/i18n/locales/zh-TW/settings.json"
+        - "src/renderer/services/i18n/locales/ja-JP/settings.json"
+        - "src/renderer/services/i18n/locales/ko-KR/settings.json"
+        - "src/renderer/services/i18n/locales/ru-RU/settings.json"
+        - "src/renderer/services/i18n/locales/tr-TR/settings.json"
+        - "src/renderer/services/i18n/locales/uk-UA/settings.json"
+        - "tests/e2e/helpers/selectors.ts"
+        - "tests/e2e/specs/channels.e2e.ts"
+      summary: "Resolved the approved iMessage bridge path to BlueBubbles and implemented the local side: native iMessage plugin registration, BlueBubbles REST send path, signed webhook ingress, non-spammy final-message flushing for non-editable iMessage replies, and an active Channels settings card with webhook URL plus setup docs. Live Slack, Discord, and iMessage smokes remain blocked until owner-approved test credentials/bridge access exist."
+      completed:
+        - "iMessage is now a built-in native plugin type registered in ChannelManager and PluginManager."
+        - "BlueBubbles REST ping/send uses server URL plus password/guid, and inbound webhooks are exposed at /channels/imessage/bluebubbles/webhook."
+        - "The iMessage plugin ignores own messages, deduplicates webhook events, strips HTML for outgoing text, and avoids sending streaming partials by drafting until final/idle flush."
+        - "Channels settings now renders iMessage as an active Hermes native card with credential fields, webhook URL, BlueBubbles docs, and no Lark/DingTalk/WeCom copy."
+        - "Channel e2e selectors and expectations now match the visible WeChat plus Hermes-native channel set."
+      blocked_on:
+        - "Live Slack smoke still needs owner-approved Slack bot/app tokens and workspace install."
+        - "Live Discord smoke still needs owner-approved Discord bot token, enabled intents, and a test server/DM."
+        - "Live iMessage smoke needs owner-approved BlueBubbles server URL/password and an explicit test chat target."
+      commands:
+        - cmd: "bunx oxlint src/process/channels/plugins/imessage src/process/webserver/routes/blueBubblesChannelRoutes.ts src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+          status: pass
+        - cmd: "bunx oxlint tests/e2e/helpers/selectors.ts tests/e2e/specs/channels.e2e.ts"
+          status: pass_with_existing_warnings
+        - cmd: "bunx tsc --noEmit --pretty false"
+          status: pass
+        - cmd: "tsx local mocked BlueBubbles smoke"
+          status: pass
+        - cmd: "Electron CDP smoke at /settings/webui channels tab"
+          status: pass
+      verification:
+        - "Mocked BlueBubbles smoke confirmed startup ping uses /api/v1/ping?guid=secret and final text send uses /api/v1/message/text?guid=secret with stripped text."
+        - "Electron CDP smoke confirmed visible channel IDs: telegram, weixin, slack, discord, imessage."
+        - "Electron CDP smoke confirmed Lark, DingTalk, and WeCom were absent from visible channel rows and page copy."
+        - "Electron CDP smoke confirmed iMessage status active plus BlueBubbles webhook, server URL/password fields, Hermes BlueBubbles setup, and Private API helper docs."
+      screenshot: "/tmp/agent-club-imessage-channel-active.png"
 
   - id: T010
     type: worker
@@ -427,6 +479,26 @@ tasks:
         - "Visible channel IDs after smoke: telegram, weixin, slack, discord, imessage"
         - "Confirmed WeChat remained visible and Lark, DingTalk, and WeCom were absent from visible channel rows."
       screenshot: "/tmp/agent-club-channels-pruned.png"
+
+  - id: T011
+    type: worker
+    assignee: Worker
+    status: active
+    reasoning_hint: default
+    objective: "Run owner-approved live native-channel smoke tests for Slack, Discord, and BlueBubbles iMessage once test credentials and a safe test target are provided."
+    allowed_files:
+      - "docs/goals/hermes-apps-channels-mcp-dashboard"
+    verify:
+      - "Owner provides approved Slack bot/app tokens and a test workspace/channel or DM."
+      - "Owner provides approved Discord bot token, enabled intents, and a test server/channel or DM."
+      - "Owner provides approved BlueBubbles server URL/password and an explicit test iMessage chat GUID or test contact."
+      - "Live inbound/outbound smoke succeeds for Slack, Discord, and iMessage without logging or leaking secrets."
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-apps-channels-mcp-dashboard/state.yaml"
+    stop_if:
+      - "Approved credentials or test targets are unavailable."
+      - "The smoke would require reading or sending personal messages beyond the explicit test target."
+      - "Any platform response includes secrets that cannot be safely recorded in the board."
+    receipt: null
 
   - id: T999
     type: judge
@@ -464,14 +536,16 @@ tasks:
         - "No owner-approved real Slack native plugin smoke test."
         - "No owner-approved real Discord native plugin smoke test."
         - "No approved iMessage or BlueBubbles/local Messages bridge smoke test."
-      next_task: T009
+      next_task: T011
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
     result: passed_with_blocked_live_channel_smoke
-    task: T010
+    task: T009
     commands:
-      - "bun run lint -- src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
-      - "bunx tsc --noEmit -p tsconfig.json"
+      - "bunx oxlint src/process/channels/plugins/imessage src/process/webserver/routes/blueBubblesChannelRoutes.ts src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
+      - "bunx oxlint tests/e2e/helpers/selectors.ts tests/e2e/specs/channels.e2e.ts"
+      - "bunx tsc --noEmit --pretty false"
+      - "Mocked BlueBubbles plugin smoke"
       - "Electron CDP smoke: /settings/webui channels visible IDs telegram,weixin,slack,discord,imessage"

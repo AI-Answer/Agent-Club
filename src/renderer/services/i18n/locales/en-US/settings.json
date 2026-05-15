@@ -495,7 +495,7 @@
   "webui.resetPasswordWarning": "Please keep the reset password safe!",
   "webui.featureRemoteDesc": "Enable WebUI so your phone or remote browser can access Agent Club.",
   "webui.featureChannelsTitle": "Messaging Control",
-  "webui.featureChannelsDesc": "Connect Telegram, Lark, DingTalk, and WeChat to interact with Agent Club from IM apps.",
+  "webui.featureChannelsDesc": "Connect Telegram, WeChat, and Hermes channels to interact with Agent Club from IM apps.",
   "webui.goToChannels": "Go to Channels",
   "assistant.telegramConfig": "Telegram Bot Configuration",
   "assistant.botToken": "Bot Token",
