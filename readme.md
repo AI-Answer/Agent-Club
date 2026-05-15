@@ -1,5 +1,13 @@
 # Agent Club
 
+<p>
+  <a href="https://github.com/Samin12/Agent-Club/releases/latest">
+    <img alt="Download Agent Club" src="https://img.shields.io/badge/Download%20Agent%20Club-Latest%20Release-0f172a?style=for-the-badge&logo=apple&logoColor=white">
+  </a>
+</p>
+
+Download the latest Mac release, open the DMG, and drag `AgentClub.app` into Applications.
+
 Agent Club is a desktop workspace for managing an AI workforce.
 
 It brings chat, local agents, tasks, goals, schedules, channels, memory, skills, and a personal planner into one app so you can see what every agent is doing, where work is stuck, what matters today, and which channels are connected.
