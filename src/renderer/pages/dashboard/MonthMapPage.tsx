@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Empty, Input, Message, Spin, Tooltip } from '@arco-design/web-react';
-import { Calendar, Delete, Left, Plus, Refresh, Right } from '@icon-park/react';
+import { Calendar, CheckSmall, Delete, Left, Refresh, Right, Undo } from '@icon-park/react';
 import {
   DndContext,
   DragOverlay,
@@ -614,7 +614,7 @@ const DayCell: React.FC<{
   onSelectionStart: (event: React.PointerEvent<HTMLElement>) => void;
   onSelectionEnter: () => void;
   onDraftChange: (value: string) => void;
-  onAdd: () => void;
+  onAdd: () => void | Promise<void>;
   onDelete: (entry: PlannerEntry) => void;
   onUpdate: (entry: PlannerEntry, data: UpdatePlannerEntryRequest) => void;
 }> = ({
@@ -662,6 +662,14 @@ const DayCell: React.FC<{
             : undefined,
     boxShadow: shadows.length ? shadows.join(', ') : undefined,
   };
+  const handleAddKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const input = event.currentTarget;
+    void Promise.resolve(onAdd()).then(() => {
+      requestAnimationFrame(() => input.focus());
+    });
+  };
 
   return (
     <div
@@ -692,6 +700,24 @@ const DayCell: React.FC<{
           {entries.length ? <span className='text-10px font-700 text-t-secondary'>{entries.length}</span> : null}
         </div>
       </div>
+      <div
+        className={classNames(
+          'mb-4px flex h-19px shrink-0 items-center rounded-5px bg-[rgba(255,255,255,0.72)] px-5px transition-opacity focus-within:bg-white',
+          isPast && 'opacity-25 hover:opacity-100 focus-within:opacity-100'
+        )}
+        data-month-map-interactive='true'
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <input
+          value={draft}
+          placeholder='Add task'
+          onChange={(event) => onDraftChange(event.target.value)}
+          onKeyDown={handleAddKeyDown}
+          className='h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-10px leading-15px text-t-primary outline-none placeholder:text-t-tertiary'
+          aria-label={cell.date ? `Add task for ${cell.date}` : 'Add task'}
+        />
+      </div>
       <div className='min-h-0 flex-1 space-y-3px overflow-y-auto pr-2px'>
         {entries.map((entry) => (
           <PlannerEntryLine
@@ -702,25 +728,6 @@ const DayCell: React.FC<{
             onUpdate={(data) => onUpdate(entry, data)}
           />
         ))}
-      </div>
-      <div
-        className={classNames(
-          'mt-4px flex items-center gap-4px transition-opacity',
-          isPast && 'opacity-25 hover:opacity-100 focus-within:opacity-100'
-        )}
-        data-month-map-interactive='true'
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <Input
-          size='mini'
-          value={draft}
-          placeholder='Add task'
-          onChange={onDraftChange}
-          onPressEnter={onAdd}
-          className='min-w-0 flex-1 text-10px'
-        />
-        <Button size='mini' type='text' icon={<Plus theme='outline' size='12' />} onClick={onAdd} />
       </div>
     </div>
   );
@@ -753,6 +760,18 @@ const PlannerEntryLine: React.FC<{
     }
   };
 
+  const done = entry.status === 'done';
+  const toggleDone = () => {
+    const next = title.trim();
+    const data: UpdatePlannerEntryRequest = { status: done ? 'planned' : 'done' };
+    if (next && next !== entry.title) {
+      data.title = next;
+    } else if (!next) {
+      setTitle(entry.title);
+    }
+    onUpdate(data);
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -762,7 +781,7 @@ const PlannerEntryLine: React.FC<{
       className={classNames(
         'group relative flex h-20px min-w-0 cursor-grab items-center gap-2px rounded-5px border border-solid border-[var(--color-border-2)] bg-fill-1 px-3px shadow-[0_1px_0_rgba(0,0,0,0.02)] active:cursor-grabbing',
         isDragging && 'z-50 opacity-35',
-        entry.status === 'done' && 'opacity-65'
+        done && 'opacity-75'
       )}
       {...attributes}
       {...listeners}
@@ -780,13 +799,39 @@ const PlannerEntryLine: React.FC<{
         onBlur={commitTitle}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
+          if (event.key !== 'Enter') return;
+          if (event.metaKey || event.ctrlKey) {
+            event.preventDefault();
+            toggleDone();
+            return;
+          }
+          event.currentTarget.blur();
         }}
-        className='min-w-0 flex-1 border-0 bg-transparent p-0 text-10px leading-15px text-t-primary outline-none'
+        className={classNames(
+          'min-w-0 flex-1 border-0 bg-transparent p-0 text-10px leading-15px outline-none',
+          done ? 'text-t-tertiary line-through decoration-1 decoration-[var(--color-text-3)]' : 'text-t-primary'
+        )}
       />
+      <Tooltip content={done ? 'Mark planned' : 'Mark done'}>
+        <button
+          type='button'
+          className={classNames(
+            'flex size-15px shrink-0 items-center justify-center rounded-full border border-solid p-0 transition-colors',
+            done
+              ? 'border-[#22c55e] bg-[#dcfce7] text-[#15803d] hover:bg-[#bbf7d0]'
+              : 'border-[var(--color-border-3)] bg-transparent text-t-tertiary hover:border-[#22c55e] hover:bg-[#f0fdf4] hover:text-[#16a34a]',
+            saving && 'animate-pulse'
+          )}
+          aria-label={done ? `Mark ${entry.title} planned` : `Mark ${entry.title} done`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={toggleDone}
+        >
+          {done ? <Undo theme='outline' size='9' /> : <CheckSmall theme='outline' size='10' />}
+        </button>
+      </Tooltip>
       <Tooltip content={statusLabel(entry.status)}>
         <span
-          className={classNames('size-7px shrink-0 rounded-full', saving && 'animate-pulse')}
+          className={classNames('size-6px shrink-0 rounded-full', saving && 'animate-pulse')}
           style={{ backgroundColor: STATUS_DOT_COLOR[entry.status] }}
           aria-label={statusLabel(entry.status)}
         />
