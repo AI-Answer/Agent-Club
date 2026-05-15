@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Spin, Tag, Tooltip } from '@arco-design/web-react';
 import { LinkOut, Refresh } from '@icon-park/react';
 import { useTranslation } from 'react-i18next';
@@ -36,12 +36,18 @@ function buildBootUrl(frontendUrl: string, nextPath: string): string {
   return `${joinUrl(frontendUrl, AGENT_MANAGER_BOOT_PATH)}?${params.toString()}`;
 }
 
+function buildWorkspaceUrl(frontendUrl: string, nextPath: string): string {
+  return joinUrl(frontendUrl, nextPath);
+}
+
 const AgentManagerPage: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const [status, setStatus] = useState<AgentManagerStatus>(initialStatus);
   const [frameKey, setFrameKey] = useState(0);
   const [frameUrl, setFrameUrl] = useState(initialStatus.url);
+  const [sessionReady, setSessionReady] = useState(false);
+  const readyFrontendUrlRef = useRef<string | null>(null);
   const nextPath = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return normalizeNextPath(params.get('next'));
@@ -72,22 +78,49 @@ const AgentManagerPage: React.FC = () => {
 
   useEffect(() => {
     if (status.state === 'ready') {
-      setFrameUrl(buildBootUrl(status.url, nextPath));
-      setFrameKey((current) => current + 1);
+      if (readyFrontendUrlRef.current !== status.url) {
+        readyFrontendUrlRef.current = status.url;
+        setSessionReady(false);
+        setFrameKey((current) => current + 1);
+      }
+
+      setFrameUrl(sessionReady ? buildWorkspaceUrl(status.url, nextPath) : buildBootUrl(status.url, nextPath));
       return;
     }
 
+    readyFrontendUrlRef.current = null;
+    setSessionReady(false);
     setFrameUrl(status.url);
-  }, [nextPath, status.state, status.url]);
+  }, [nextPath, sessionReady, status.state, status.url]);
+
+  const prewarm = status.prewarm;
+  const isWarming = status.state === 'ready' && prewarm?.state === 'warming';
+  const hasWarmFailures = status.state === 'ready' && prewarm?.state === 'error' && Boolean(prewarm.failed);
+  const prewarmPercent =
+    prewarm && prewarm.total > 0 ? Math.max(0, Math.min(100, (prewarm.completed / prewarm.total) * 100)) : 0;
 
   const tagColor = useMemo(() => {
+    if (isWarming) return 'blue';
+    if (hasWarmFailures) return 'orange';
     if (status.state === 'ready') return 'green';
     if (status.state === 'error') return 'red';
     if (status.state === 'disabled') return 'gray';
     return 'blue';
-  }, [status.state]);
+  }, [hasWarmFailures, isWarming, status.state]);
+
+  const statusLabel = useMemo(() => {
+    if (isWarming && prewarm) {
+      return `Warming ${prewarm.completed}/${prewarm.total}`;
+    }
+    if (hasWarmFailures && prewarm) {
+      return `Warm ${prewarm.completed}/${prewarm.total}`;
+    }
+    return t(`agentManager.status.${status.state}`);
+  }, [hasWarmFailures, isWarming, prewarm, status.state, t]);
 
   const handleRestart = () => {
+    readyFrontendUrlRef.current = null;
+    setSessionReady(false);
     setFrameKey((current) => current + 1);
     void ipcBridge.agentManager.restart
       .invoke()
@@ -95,6 +128,17 @@ const AgentManagerPage: React.FC = () => {
       .catch((error) => {
         console.error(`Failed to restart ${AGENT_MANAGER_NAME}:`, error);
       });
+  };
+
+  const handleFrameLoad = (event: React.SyntheticEvent<HTMLIFrameElement>) => {
+    try {
+      const href = event.currentTarget.contentWindow?.location.href || '';
+      if (href && !href.includes(AGENT_MANAGER_BOOT_PATH)) {
+        setSessionReady(true);
+      }
+    } catch {
+      setSessionReady(true);
+    }
   };
 
   const handleOpenExternal = () => {
@@ -110,7 +154,15 @@ const AgentManagerPage: React.FC = () => {
         <div className='text-15px font-600 text-t-primary min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap'>
           {AGENT_MANAGER_NAME}
         </div>
-        <Tag color={tagColor}>{t(`agentManager.status.${status.state}`)}</Tag>
+        {isWarming && prewarm?.currentLabel ? (
+          <div className='hidden md:flex min-w-0 flex-1 items-center justify-end gap-8px text-12px text-t-secondary'>
+            <span className='truncate'>Warming {prewarm.currentLabel}</span>
+            <div className='h-4px w-120px overflow-hidden rd-999px bg-fill-3'>
+              <div className='h-full bg-primary transition-all' style={{ width: `${prewarmPercent}%` }} />
+            </div>
+          </div>
+        ) : null}
+        <Tag color={tagColor}>{statusLabel}</Tag>
         <Tooltip content={t('common.refresh')}>
           <Button type='text' size='small' icon={<Refresh theme='outline' size='18' />} onClick={handleRestart} />
         </Tooltip>
@@ -137,6 +189,7 @@ const AgentManagerPage: React.FC = () => {
           src={frameUrl}
           className='flex-1 min-h-0 w-full border-0 bg-1'
           allow='clipboard-read; clipboard-write; fullscreen'
+          onLoad={handleFrameLoad}
         />
       )}
     </div>

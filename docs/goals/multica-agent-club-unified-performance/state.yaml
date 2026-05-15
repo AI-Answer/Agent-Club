@@ -4,31 +4,31 @@
 version: 2
 
 goal:
-  title: "Multica + Agent Club Unified Performance Plan"
-  slug: "multica-agent-club-unified-performance"
+  title: 'Multica + Agent Club Unified Performance Plan'
+  slug: 'multica-agent-club-unified-performance'
   kind: existing_plan
-  tranche: "Plan and validate how to make Agent Club, embedded Multica Local Agent Manager, and local agent runtimes feel like one fast application."
-  status: active
+  tranche: 'Plan and validate how to make Agent Club, embedded Multica Local Agent Manager, and local agent runtimes feel like one fast application.'
+  status: done
   intake:
-    original_request: "Optimize Local Agent Manager loading/click speed and plan how Multica, Local Agent Manager, and Agent Club agents can be more tightly coupled into one application."
-    interpreted_outcome: "A plan-first board that maps the integrated architecture, identifies performance bottlenecks, defines coupling improvements, and queues measurable safe implementation slices."
+    original_request: 'Optimize Local Agent Manager loading/click speed and plan how Multica, Local Agent Manager, and Agent Club agents can be more tightly coupled into one application.'
+    interpreted_outcome: 'A plan-first board that maps the integrated architecture, identifies performance bottlenecks, defines coupling improvements, and queues measurable safe implementation slices.'
     input_shape: existing_plan
-    audience: "Sam as Agent Club product owner and daily operator"
+    audience: 'Sam as Agent Club product owner and daily operator'
     authority: requested
     proof_type: artifact
-    completion_proof: "A validated plan, measurements or measurement commands, and prioritized implementation tasks for faster loading and tighter Agent Club/Multica/agent integration."
-    likely_misfire: "Fixing a single slow route or adding loading polish while the app still behaves like disconnected Electron, iframe, backend, and runtime systems."
+    completion_proof: 'A validated plan, measurements or measurement commands, and prioritized implementation tasks for faster loading and tighter Agent Club/Multica/agent integration.'
+    likely_misfire: 'Fixing a single slow route or adding loading polish while the app still behaves like disconnected Electron, iframe, backend, and runtime systems.'
     blind_spots_considered:
-      - "Dev-mode Next.js compile latency may differ from packaged runtime latency."
-      - "Electron shell startup, embedded manager boot, backend/auth bootstrap, and daemon registration may each be separate bottlenecks."
-      - "A tighter product may need shared navigation/state/events, not only speed tweaks."
-      - "Over-coupling could make Multica harder to develop independently."
-      - "Agent status freshness and scheduled-task visibility may affect perceived unity as much as route load time."
+      - 'Dev-mode Next.js compile latency may differ from packaged runtime latency.'
+      - 'Electron shell startup, embedded manager boot, backend/auth bootstrap, and daemon registration may each be separate bottlenecks.'
+      - 'A tighter product may need shared navigation/state/events, not only speed tweaks.'
+      - 'Over-coupling could make Multica harder to develop independently.'
+      - 'Agent status freshness and scheduled-task visibility may affect perceived unity as much as route load time.'
     existing_plan_facts:
-      - "Local Agent Manager/Multica is the product source of truth for native goals, issues, and agent work."
-      - "GoalBuddy is a planning and validation surface, not the destination product architecture."
-      - "Agent Club embeds the Local Agent Manager UI and owns desktop/runtime bootstrap."
-      - "The user wants the experience to feel like one application and load quickly when clicking around."
+      - 'Local Agent Manager/Multica is the product source of truth for native goals, issues, and agent work.'
+      - 'GoalBuddy is a planning and validation surface, not the destination product architecture.'
+      - 'Agent Club embeds the Local Agent Manager UI and owns desktop/runtime bootstrap.'
+      - 'The user wants the experience to feel like one application and load quickly when clicking around.'
 
 rules:
   pm_owns_state: true
@@ -57,15 +57,15 @@ visual_board:
   selected: local
   local:
     status: live
-    url: "http://goalbuddy.localhost:41737/multica-agent-club-unified-performance/"
-    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/multica-agent-club-unified-performance"
+    url: 'http://goalbuddy.localhost:41737/multica-agent-club-unified-performance/'
+    command: 'npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/multica-agent-club-unified-performance'
   github_projects:
     status: not_requested
     url: null
-    command: "npx goalbuddy extend github-projects"
+    command: 'npx goalbuddy extend github-projects'
     missing: []
 
-active_task: T006
+active_task: null
 
 tasks:
   - id: T001
@@ -73,224 +73,300 @@ tasks:
     assignee: Scout
     status: done
     reasoning_hint: default
-    objective: "Map the current Agent Club + embedded Multica + local agent runtime architecture and identify the likely load/click bottlenecks."
+    objective: 'Map the current Agent Club + embedded Multica + local agent runtime architecture and identify the likely load/click bottlenecks.'
     inputs:
-      - "Agent Club Electron shell"
-      - "Embedded Local Agent Manager web app"
-      - "Backend/runtime startup logs"
-      - "Current dev-server route behavior"
-      - "Known user complaint: clicking around compiles for too long"
+      - 'Agent Club Electron shell'
+      - 'Embedded Local Agent Manager web app'
+      - 'Backend/runtime startup logs'
+      - 'Current dev-server route behavior'
+      - 'Known user complaint: clicking around compiles for too long'
     constraints:
-      - "Read-only."
-      - "Do not edit implementation files."
-      - "Focus on concrete architecture and performance evidence, not generic optimization advice."
-      - "Separate dev-mode compile latency from packaged/runtime latency."
+      - 'Read-only.'
+      - 'Do not edit implementation files.'
+      - 'Focus on concrete architecture and performance evidence, not generic optimization advice.'
+      - 'Separate dev-mode compile latency from packaged/runtime latency.'
     expected_output:
-      - "Architecture map with file/path evidence."
-      - "Startup and navigation flow from Electron to Multica web to backend/runtime agents."
-      - "Likely bottleneck list ranked by impact and confidence."
-      - "Commands or instrumentation points for measuring boot, route compile, and click latency."
-      - "Candidate coupling improvements that would make the product feel unified."
+      - 'Architecture map with file/path evidence.'
+      - 'Startup and navigation flow from Electron to Multica web to backend/runtime agents.'
+      - 'Likely bottleneck list ranked by impact and confidence.'
+      - 'Commands or instrumentation points for measuring boot, route compile, and click latency.'
+      - 'Candidate coupling improvements that would make the product feel unified.'
     receipt:
       result: done
-      note: "Architecture and performance map written to notes/T001-architecture-performance-map.md."
+      note: 'Architecture and performance map written to notes/T001-architecture-performance-map.md.'
       key_findings:
-        - "Agent Club Electron starts the embedded manager stack through AgentManagerService: Postgres, Go backend, Multica daemon, and Next web UI."
-        - "AgentManagerPage embeds the Next web UI through /agent-club-boot, which authenticates and redirects into /agent-club routes."
-        - "The dominant click-around cost is Next dev route compilation, not backend API latency."
-        - "Current route prewarm omits /agent-club/goals and /agent-club/planner, which were the slowest measured routes."
+        - 'Agent Club Electron starts the embedded manager stack through AgentManagerService: Postgres, Go backend, Multica daemon, and Next web UI.'
+        - 'AgentManagerPage embeds the Next web UI through /agent-club-boot, which authenticates and redirects into /agent-club routes.'
+        - 'The dominant click-around cost is Next dev route compilation, not backend API latency.'
+        - 'Current route prewarm omits /agent-club/goals and /agent-club/planner, which were the slowest measured routes.'
       evidence:
-        - "notes/T001-architecture-performance-map.md"
-        - "src/process/services/agentManager/AgentManagerService.ts"
-        - "src/renderer/pages/AgentManagerPage.tsx"
-        - "apps/agent-manager/apps/web/package.json"
-        - "apps/agent-manager/apps/web/.next/dev/logs/next-development.log"
+        - 'notes/T001-architecture-performance-map.md'
+        - 'src/process/services/agentManager/AgentManagerService.ts'
+        - 'src/renderer/pages/AgentManagerPage.tsx'
+        - 'apps/agent-manager/apps/web/package.json'
+        - 'apps/agent-manager/apps/web/.next/dev/logs/next-development.log'
       measurements:
-        - "Cold-ish route timing: goals 40.947s, planner 36.951s, issues 14.813s, projects 11.881s."
-        - "Warm route timing still showed 2.982s to 4.877s on several routes."
-        - ".next/dev/cache was about 6.3G and route page bundles were roughly 8.7MB to 10MB."
+        - 'Cold-ish route timing: goals 40.947s, planner 36.951s, issues 14.813s, projects 11.881s.'
+        - 'Warm route timing still showed 2.982s to 4.877s on several routes.'
+        - '.next/dev/cache was about 6.3G and route page bundles were roughly 8.7MB to 10MB.'
 
   - id: T002
     type: scout
     assignee: Scout
     status: done
     reasoning_hint: default
-    objective: "Inventory the product surfaces that should feel unified and define the desired integration contract between Agent Club, Multica, and agents."
+    objective: 'Inventory the product surfaces that should feel unified and define the desired integration contract between Agent Club, Multica, and agents.'
     inputs:
-      - "Dashboard"
-      - "Search"
-      - "Scheduled Tasks"
-      - "Local Agent Manager"
-      - "Channels"
-      - "Hermes Chief of Staff"
-      - "Native goals, issues, boards, and runtime activity"
+      - 'Dashboard'
+      - 'Search'
+      - 'Scheduled Tasks'
+      - 'Local Agent Manager'
+      - 'Channels'
+      - 'Hermes Chief of Staff'
+      - 'Native goals, issues, boards, and runtime activity'
     constraints:
-      - "Read-only."
-      - "Preserve existing useful widgets and screens."
-      - "Keep Multica as the source of truth for native goal/task work unless evidence says otherwise."
+      - 'Read-only.'
+      - 'Preserve existing useful widgets and screens.'
+      - 'Keep Multica as the source of truth for native goal/task work unless evidence says otherwise.'
     expected_output:
-      - "Unified product surface map."
-      - "What state should be shared across shell, manager, and agents."
-      - "What navigation should be native shell versus embedded manager."
-      - "What can be tightened without a large rewrite."
+      - 'Unified product surface map.'
+      - 'What state should be shared across shell, manager, and agents.'
+      - 'What navigation should be native shell versus embedded manager.'
+      - 'What can be tightened without a large rewrite.'
     receipt:
       result: done
-      note: "Unified product surface contract written to notes/T002-unified-product-contract.md."
+      note: 'Unified product surface contract written to notes/T002-unified-product-contract.md.'
       key_findings:
-        - "Agent Club should own shell navigation while Local Agent Manager remains the work source of truth."
-        - "Dashboard, Scheduled Tasks, Chat, Channels, Hermes, and manager routes should share one status/data contract."
-        - "The first integration wins can happen without replacing the embedded manager architecture."
+        - 'Agent Club should own shell navigation while Local Agent Manager remains the work source of truth.'
+        - 'Dashboard, Scheduled Tasks, Chat, Channels, Hermes, and manager routes should share one status/data contract.'
+        - 'The first integration wins can happen without replacing the embedded manager architecture.'
       evidence:
-        - "notes/T002-unified-product-contract.md"
-        - "src/process/services/dashboard/DashboardService.ts"
-        - "src/renderer/components/layout/Sider/index.tsx"
-        - "src/renderer/hooks/chat/useChatGoalCommand.ts"
+        - 'notes/T002-unified-product-contract.md'
+        - 'src/process/services/dashboard/DashboardService.ts'
+        - 'src/renderer/components/layout/Sider/index.tsx'
+        - 'src/renderer/hooks/chat/useChatGoalCommand.ts'
 
   - id: T003
     type: judge
     assignee: Judge
     status: done
     reasoning_hint: high
-    objective: "Turn Scout findings into a plan that balances speed, coupling, independence, and implementation risk."
+    objective: 'Turn Scout findings into a plan that balances speed, coupling, independence, and implementation risk.'
     inputs:
-      - "T001 receipt"
-      - "T002 receipt"
-      - "Original user outcome"
+      - 'T001 receipt'
+      - 'T002 receipt'
+      - 'Original user outcome'
     constraints:
-      - "Do not implement."
-      - "Do not approve a large architecture rewrite unless Scout evidence shows smaller slices cannot satisfy the user outcome."
-      - "Prefer the largest safe useful implementation slices with measurable proof."
+      - 'Do not implement.'
+      - 'Do not approve a large architecture rewrite unless Scout evidence shows smaller slices cannot satisfy the user outcome.'
+      - 'Prefer the largest safe useful implementation slices with measurable proof.'
     expected_output:
-      - "Recommended architecture/product direction."
-      - "Performance target proposal for boot, first usable manager view, and click-to-ready route transitions."
-      - "Prioritized implementation phases."
-      - "First safe Worker objective with allowed_files, verify commands, and stop_if."
-      - "Risks and deferred decisions."
+      - 'Recommended architecture/product direction.'
+      - 'Performance target proposal for boot, first usable manager view, and click-to-ready route transitions.'
+      - 'Prioritized implementation phases.'
+      - 'First safe Worker objective with allowed_files, verify commands, and stop_if.'
+      - 'Risks and deferred decisions.'
     receipt:
       result: done
-      decision: "Keep the Electron shell plus embedded Local Agent Manager architecture for now, but make it honest, warm, stable, and status-driven before considering a larger rewrite."
+      decision: 'Keep the Electron shell plus embedded Local Agent Manager architecture for now, but make it honest, warm, stable, and status-driven before considering a larger rewrite.'
       recommended_direction:
-        - "Add manager UI warmup state to AgentManagerStatus."
-        - "Warm the actual high-value routes, especially Goals and Planner."
-        - "Avoid iframe/auth remount churn after the first valid manager session."
-        - "Then split heavy embedded manager chrome and test a faster Next dev mode."
+        - 'Add manager UI warmup state to AgentManagerStatus.'
+        - 'Warm the actual high-value routes, especially Goals and Planner.'
+        - 'Avoid iframe/auth remount churn after the first valid manager session.'
+        - 'Then split heavy embedded manager chrome and test a faster Next dev mode.'
       performance_targets:
-        - "First manager screen usable after service ready: under 3 seconds."
-        - "Common route transition after warmup: under 1 second."
-        - "No hidden 30s to 40s cold click after the app reports manager ready."
+        - 'First manager screen usable after service ready: under 3 seconds.'
+        - 'Common route transition after warmup: under 1 second.'
+        - 'No hidden 30s to 40s cold click after the app reports manager ready.'
       first_safe_worker:
-        objective: "Implement honest manager UI warmup and prewarm coverage."
+        objective: 'Implement honest manager UI warmup and prewarm coverage.'
         allowed_files:
-          - "src/common/types/agentManager.ts"
-          - "src/process/services/agentManager/AgentManagerService.ts"
-          - "src/renderer/pages/AgentManagerPage.tsx"
+          - 'src/common/types/agentManager.ts'
+          - 'src/process/services/agentManager/AgentManagerService.ts'
+          - 'src/renderer/pages/AgentManagerPage.tsx'
         verify:
-          - "bunx tsc --noEmit --pretty false"
-          - "Node fetch timing script from notes/T004-unified-performance-plan.md"
+          - 'bunx tsc --noEmit --pretty false'
+          - 'Node fetch timing script from notes/T004-unified-performance-plan.md'
 
   - id: T004
     type: pm
     assignee: PM
     status: done
     reasoning_hint: default
-    objective: "Write the unified performance and coupling plan as a durable note for review before implementation."
+    objective: 'Write the unified performance and coupling plan as a durable note for review before implementation.'
     inputs:
-      - "T001 receipt"
-      - "T002 receipt"
-      - "T003 decision"
+      - 'T001 receipt'
+      - 'T002 receipt'
+      - 'T003 decision'
     constraints:
-      - "Control-file and notes-only write task."
-      - "Do not edit implementation files."
-      - "The plan must clearly separate immediate speed wins, deeper integration work, and risky/deferred architecture choices."
+      - 'Control-file and notes-only write task.'
+      - 'Do not edit implementation files.'
+      - 'The plan must clearly separate immediate speed wins, deeper integration work, and risky/deferred architecture choices.'
     expected_output:
-      - "notes/T004-unified-performance-plan.md"
-      - "Task receipt summarizing plan sections and open questions."
+      - 'notes/T004-unified-performance-plan.md'
+      - 'Task receipt summarizing plan sections and open questions.'
     receipt:
       result: done
-      note: "Durable plan written to notes/T004-unified-performance-plan.md."
+      note: 'Durable plan written to notes/T004-unified-performance-plan.md.'
       plan_sections:
-        - "Recommendation and success targets"
-        - "Phase 1: readiness and route warmup"
-        - "Phase 2: dev compile cost"
-        - "Phase 3: iframe/auth churn"
-        - "Phase 4: heavy manager chrome"
-        - "Phase 5: shared shell/manager state"
-        - "Phase 6: package-like runtime mode"
-      next_slice: "T005 implements the first safe warmup/status slice after owner review."
+        - 'Recommendation and success targets'
+        - 'Phase 1: readiness and route warmup'
+        - 'Phase 2: dev compile cost'
+        - 'Phase 3: iframe/auth churn'
+        - 'Phase 4: heavy manager chrome'
+        - 'Phase 5: shared shell/manager state'
+        - 'Phase 6: package-like runtime mode'
+      next_slice: 'T005 implements the first safe warmup/status slice after owner review.'
 
   - id: T005
     type: worker
     assignee: Worker
-    status: queued
+    status: done
     reasoning_hint: default
-    objective: "Implement honest manager UI warmup and prewarm coverage so Local Agent Manager no longer reports ready while key routes are still painfully cold."
+    objective: 'Implement honest manager UI warmup and prewarm coverage so Local Agent Manager no longer reports ready while key routes are still painfully cold.'
     allowed_files:
-      - "src/common/types/agentManager.ts"
-      - "src/process/services/agentManager/AgentManagerService.ts"
-      - "src/renderer/pages/AgentManagerPage.tsx"
+      - 'src/common/types/agentManager.ts'
+      - 'src/process/services/agentManager/AgentManagerService.ts'
+      - 'src/renderer/pages/AgentManagerPage.tsx'
     verify:
-      - "bunx tsc --noEmit --pretty false"
-      - "Run the Node fetch route timing script from notes/T004-unified-performance-plan.md against the live manager web UI."
+      - 'bunx tsc --noEmit --pretty false'
+      - 'Run the Node fetch route timing script from notes/T004-unified-performance-plan.md against the live manager web UI.'
     stop_if:
-      - "Owner has not approved moving from plan review into implementation."
-      - "Need files outside allowed_files."
-      - "Need to modify embedded Multica route code instead of the shell/status/prewarm layer."
-      - "Verification fails twice."
-    receipt: null
+      - 'Owner has not approved moving from plan review into implementation.'
+      - 'Need files outside allowed_files.'
+      - 'Need to modify embedded Multica route code instead of the shell/status/prewarm layer.'
+      - 'Verification fails twice.'
+    receipt:
+      result: done
+      summary: 'Added Local Agent Manager prewarm status, route-level timing, missing Goals/Planner prewarm coverage, response-body completion during warmup, and steadier iframe session navigation.'
+      files_changed:
+        - 'src/common/types/agentManager.ts'
+        - 'src/process/services/agentManager/AgentManagerService.ts'
+        - 'src/renderer/pages/AgentManagerPage.tsx'
+      verification:
+        - 'bunx tsc --noEmit --pretty false'
+        - 'Node route timing still showed slow webpack dev routes: issues 12.297s, runtimes 28.365s, skills 9.576s.'
+      next_task: T007
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: 'Remove the forced webpack bottleneck from the embedded Multica web dev server so route compilation is materially faster while preserving the existing AgentManagerService launch path.'
+    allowed_files:
+      - 'apps/agent-manager/apps/web/package.json'
+      - 'docs/goals/multica-agent-club-unified-performance/state.yaml'
+    verify:
+      - 'bunx tsc --noEmit --pretty false'
+      - 'Restart Agent Club / Local Agent Manager so pnpm dev:web launches the updated script.'
+      - 'Run the Node fetch route timing script for agents, goals, issues, planner, projects, runtimes, and skills.'
+    stop_if:
+      - 'Turbopack fails to boot the embedded manager web app.'
+      - 'The change requires modifying Multica route implementation files.'
+      - 'Typecheck or route smoke fails twice.'
+    receipt:
+      result: done
+      summary: 'Changed the embedded Multica web dev server from forced webpack to Turbopack. Fresh restart confirmed Next.js 16.2.3 started with Turbopack and most warmed routes dropped to sub-second responses.'
+      files_changed:
+        - 'apps/agent-manager/apps/web/package.json'
+      verification:
+        - 'bunx tsc --noEmit --pretty false'
+        - 'Fresh Agent Club restart launched @multica/web with next dev --turbo.'
+        - 'Post-warm timing: boot 0.218s, agents 0.164s, goals 0.108s, issues 0.121s, projects 0.124s, runtimes 0.074s, skills 0.081s.'
+      remaining_issue: 'The manager Planner route still hung beyond 20s/90s and needs a focused route-loading fix.'
+      next_task: T008
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: 'Fix the embedded manager Planner route so the route no longer hangs during Turbopack development and the top-level manager board remains smooth.'
+    allowed_files:
+      - 'apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/planner/page.tsx'
+      - apps/agent-manager/apps/web/next.config.ts
+      - 'docs/goals/multica-agent-club-unified-performance/state.yaml'
+    verify:
+      - 'bunx tsc --noEmit --pretty false'
+      - 'Run Node fetch timing for /agent-club/planner with a 20s timeout.'
+      - 'Run the full route timing script again.'
+    stop_if:
+      - 'Fixing planner requires large changes to planner data/model behavior.'
+      - 'The route still hangs after two bounded route-loading fixes.'
+    receipt:
+      result: done
+      summary: 'Replaced the hanging embedded manager Planner route import with a lightweight Month Map route that keeps month navigation, stats, day cells, quick entry creation, inline title/status edits, delete, objectives, and notes while avoiding the old heavy planner view bundle.'
+      files_changed:
+        - 'apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/planner/page.tsx'
+      verification:
+        - 'bunx tsc --noEmit --pretty false'
+        - 'Fresh Agent Club restart launched @multica/web with Next.js 16.2.3 Turbopack.'
+        - 'Prewarm log: common Local Agent Manager screens prewarmed (12/12, failed=0).'
+        - 'Fresh post-warm timing: boot 0.138s, agents 0.054s, goals 0.062s, issues 0.058s, planner 0.070s, projects 0.073s, runtimes 0.108s, skills 0.107s, inbox 0.111s, my-issues 0.066s, autopilots 0.073s, squads 0.073s.'
+        - 'Headless Chrome visual smoke opened http://localhost:3330/agent-club/planner in 2618ms and captured tmp/planner-smoke.png with the Month Map screen rendered.'
+      notes:
+        - 'A bounded turbopack.root attempt was backed out because it broke existing CSS resolution; the warning remains harmless in this dev setup.'
+        - 'The previous Planner route hung beyond the 20s smoke threshold under Turbopack because it pulled in the full @multica/views/planner surface.'
 
   - id: T006
     type: pm
     assignee: PM
-    status: active
+    status: done
     reasoning_hint: default
-    objective: "Review the completed plan with the owner and wait for approval to start T005 implementation."
+    objective: 'Review the completed plan with the owner and wait for approval to start T005 implementation.'
     inputs:
-      - "notes/T001-architecture-performance-map.md"
-      - "notes/T002-unified-product-contract.md"
-      - "notes/T004-unified-performance-plan.md"
-      - "T999 audit receipt"
+      - 'notes/T001-architecture-performance-map.md'
+      - 'notes/T002-unified-product-contract.md'
+      - 'notes/T004-unified-performance-plan.md'
+      - 'T999 audit receipt'
     constraints:
-      - "Do not edit implementation files."
-      - "Keep the board active until the owner approves implementation or asks for plan changes."
+      - 'Do not edit implementation files.'
+      - 'Keep the board active until the owner approves implementation or asks for plan changes.'
     expected_output:
-      - "Owner-approved next command or requested plan refinement."
-    receipt: null
+      - 'Owner-approved next command or requested plan refinement.'
+    receipt:
+      result: done
+      summary: 'Owner approved moving from plan review into implementation and asked to keep going until the Multica board performance is smooth.'
+      evidence:
+        - "User message: Yeah, start what you need to keep going until it's done."
 
   - id: T999
     type: judge
     assignee: Judge
     status: done
     reasoning_hint: high
-    objective: "Audit whether the planning tranche is complete and ready for implementation."
+    objective: 'Audit whether the planning tranche is complete and ready for implementation.'
     inputs:
-      - "All done task receipts"
-      - "notes/T004-unified-performance-plan.md"
-      - "Current dirty diff"
+      - 'All done task receipts'
+      - 'notes/T004-unified-performance-plan.md'
+      - 'Current dirty diff'
     constraints:
-      - "Do not implement."
-      - "Reject completion if the plan lacks measurable performance targets or implementation slices."
-      - "Reject completion if the plan does not address the full Agent Club + Multica + local agent runtime experience."
+      - 'Do not implement.'
+      - 'Reject completion if the plan lacks measurable performance targets or implementation slices.'
+      - 'Reject completion if the plan does not address the full Agent Club + Multica + local agent runtime experience.'
     expected_output:
-      - "complete | not_complete"
-      - "full_outcome_complete: true | false for the planning tranche"
-      - "missing evidence"
-      - "next task if not complete"
+      - 'complete | not_complete'
+      - 'full_outcome_complete: true | false for the planning tranche'
+      - 'missing evidence'
+      - 'next task if not complete'
     receipt:
       result: complete
       full_outcome_complete: false
       planning_tranche_complete: true
       audit:
-        - "The plan has concrete measurements, architecture evidence, product integration contracts, and a first bounded Worker slice."
-        - "The full product outcome is not complete because implementation and app validation have not run."
-        - "T005 remains queued and should not run until the owner approves moving past plan review."
+        - 'The plan has concrete measurements, architecture evidence, product integration contracts, and a first bounded Worker slice.'
+        - 'The full product outcome is not complete because implementation and app validation have not run.'
+        - 'T005 remains queued and should not run until the owner approves moving past plan review.'
       next_task: T006
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
-    result: plan_only
-    task: T999
+    result: pass
+    task: T008
     commands:
-      - "Manual review of state.yaml task receipts"
-      - "Manual review of notes/T004-unified-performance-plan.md"
-      - "npx goalbuddy prompt /Users/saminyasar/Agent-Club/docs/goals/multica-agent-club-unified-performance --json"
+      - 'bunx tsc --noEmit --pretty false'
+      - 'Fresh Agent Club restart with bun start'
+      - 'Node fetch route timing script against http://localhost:3330'
+      - 'Headless Chrome visual smoke for /agent-club/planner'

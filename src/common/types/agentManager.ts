@@ -1,11 +1,37 @@
 export type AgentManagerStatusState = 'idle' | 'starting' | 'ready' | 'error' | 'stopping' | 'disabled';
 
+export type AgentManagerPrewarmState = 'idle' | 'warming' | 'ready' | 'error';
+
+export type AgentManagerPrewarmRouteState = 'queued' | 'warming' | 'ready' | 'error';
+
+export type AgentManagerPrewarmRouteStatus = {
+  path: string;
+  label: string;
+  state: AgentManagerPrewarmRouteState;
+  durationMs?: number;
+  error?: string;
+  updatedAt?: number;
+};
+
+export type AgentManagerPrewarmStatus = {
+  state: AgentManagerPrewarmState;
+  total: number;
+  completed: number;
+  failed: number;
+  currentPath?: string;
+  currentLabel?: string;
+  startedAt?: number;
+  completedAt?: number;
+  routes: AgentManagerPrewarmRouteStatus[];
+};
+
 export type AgentManagerStatus = {
   state: AgentManagerStatusState;
   url: string;
   backendUrl: string;
   message?: string;
   detail?: string;
+  prewarm?: AgentManagerPrewarmStatus;
   updatedAt: number;
 };
 

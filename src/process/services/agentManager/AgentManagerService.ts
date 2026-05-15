@@ -17,6 +17,8 @@ import type {
   AgentManagerGoalCommandResult,
   AgentManagerGoalStatus,
   AgentManagerGoalSummary,
+  AgentManagerPrewarmRouteStatus,
+  AgentManagerPrewarmStatus,
   AgentManagerStatus,
 } from '@/common/types/agentManager';
 import type { DashboardAgentManagerSummary, DashboardWorkItem } from '@/common/types/dashboard';
@@ -56,6 +58,12 @@ const HOMEBREW_BIN_PATHS = [
 type CommandResult = {
   stdout: string;
   stderr: string;
+};
+
+type AgentManagerPrewarmRoute = {
+  path: string;
+  label: string;
+  timeoutMs?: number;
 };
 
 type AgentManagerProjectSummary = {
@@ -100,6 +108,8 @@ type AgentManagerExpandGoalResponse = {
 export class AgentManagerService {
   private processes = new Set<ChildProcess>();
   private startPromise: Promise<AgentManagerStatus> | null = null;
+  private prewarmPromise: Promise<void> | null = null;
+  private prewarmStatus: AgentManagerPrewarmStatus = this.createPrewarmStatus('idle', []);
   private status: AgentManagerStatus = this.createStatus('idle', `${AGENT_MANAGER_NAME} is idle`);
 
   getStatus(): AgentManagerStatus {
@@ -236,7 +246,9 @@ export class AgentManagerService {
           const priority = issue.priority && issue.priority !== 'none' ? ` priority=${issue.priority}` : '';
           return `- ${label}: ${issue.title} [${issue.status}${priority}]`;
         })
-      : ['- No goal-linked issues are visible yet. If the user asks for work to begin, create or expand a goal-linked issue first.'];
+      : [
+          '- No goal-linked issues are visible yet. If the user asks for work to begin, create or expand a goal-linked issue first.',
+        ];
 
     const activeIssue = this.pickActiveIssue(goalContext.issues);
     const activeIssueLine = activeIssue
@@ -375,6 +387,9 @@ export class AgentManagerService {
   }
 
   async stop(): Promise<void> {
+    this.prewarmPromise = null;
+    this.updatePrewarmStatus(this.createPrewarmStatus('idle', []), false);
+
     if (this.processes.size === 0) {
       if (this.status.state !== 'idle') {
         this.updateStatus('idle', `${AGENT_MANAGER_NAME} is stopped`);
@@ -524,7 +539,11 @@ export class AgentManagerService {
       }
     | undefined
   > {
-    const response = await this.agentManagerApi<AgentManagerGoalListResponse>(backendUrl, '/api/goals?limit=100', token);
+    const response = await this.agentManagerApi<AgentManagerGoalListResponse>(
+      backendUrl,
+      '/api/goals?limit=100',
+      token
+    );
     const goals = (response.goals || [])
       .filter((goal) => goal.description?.includes(`Conversation: ${conversationId}`))
       .toSorted((a, b) => {
@@ -629,16 +648,8 @@ export class AgentManagerService {
     return index === -1 ? order.length : index;
   }
 
-  private async getChatGoal(
-    backendUrl: string,
-    token: string,
-    goalId: string
-  ): Promise<AgentManagerGoalSummary> {
-    return this.agentManagerApi<AgentManagerGoalSummary>(
-      backendUrl,
-      `/api/goals/${encodeURIComponent(goalId)}`,
-      token
-    );
+  private async getChatGoal(backendUrl: string, token: string, goalId: string): Promise<AgentManagerGoalSummary> {
+    return this.agentManagerApi<AgentManagerGoalSummary>(backendUrl, `/api/goals/${encodeURIComponent(goalId)}`, token);
   }
 
   private async createChatGoal(
@@ -665,10 +676,15 @@ export class AgentManagerService {
     goalId: string,
     updates: Partial<Pick<AgentManagerGoalSummary, 'title' | 'description' | 'status'>>
   ): Promise<AgentManagerGoalSummary> {
-    return this.agentManagerApi<AgentManagerGoalSummary>(backendUrl, `/api/goals/${encodeURIComponent(goalId)}`, token, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
+    return this.agentManagerApi<AgentManagerGoalSummary>(
+      backendUrl,
+      `/api/goals/${encodeURIComponent(goalId)}`,
+      token,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      }
+    );
   }
 
   private buildChatGoalDescription(request: AgentManagerChatGoalCommandRequest, markdownPath?: string): string {
@@ -923,8 +939,9 @@ export class AgentManagerService {
       }
       await this.waitForHttp(frontendUrl, 120000);
 
-      this.updateStatus('ready', `${AGENT_MANAGER_NAME} is running`);
-      void this.prewarmFrontendRoutes();
+      this.updatePrewarmStatus(this.createPrewarmStatus('idle', this.getPrewarmRoutes()), false);
+      this.updateStatus('ready', `${AGENT_MANAGER_NAME} is running; warming common screens`);
+      this.startFrontendPrewarm();
       return this.status;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1796,45 +1813,177 @@ WHERE title = 'Agent Club Operating Board'
     });
   }
 
-  private async prewarmFrontendRoutes(): Promise<void> {
-    const frontendUrl = this.getFrontendUrl();
-    const routes = [
-      '/agent-club-boot?next=%2Fagent-club%2Fagents',
-      '/agent-club/issues',
-      '/agent-club/projects',
-      '/agent-club/agents',
-      '/agent-club/runtimes',
-      '/agent-club/inbox',
-      '/agent-club/my-issues',
-      '/agent-club/autopilots',
-      '/agent-club/squads',
-      '/agent-club/skills',
+  private getPrewarmRoutes(): AgentManagerPrewarmRoute[] {
+    const workspaceBase = `/${AGENT_MANAGER_WORKSPACE_SLUG}`;
+    const encodedAgentsPath = encodeURIComponent(`${workspaceBase}/agents`);
+
+    return [
+      {
+        path: `/agent-club-boot?next=${encodedAgentsPath}`,
+        label: 'Session boot',
+        timeoutMs: 45000,
+      },
+      { path: `${workspaceBase}/agents`, label: 'Agents', timeoutMs: 45000 },
+      { path: `${workspaceBase}/goals`, label: 'Goals', timeoutMs: 90000 },
+      { path: `${workspaceBase}/issues`, label: 'Issues', timeoutMs: 90000 },
+      { path: `${workspaceBase}/planner`, label: 'Planner', timeoutMs: 90000 },
+      { path: `${workspaceBase}/projects`, label: 'Projects', timeoutMs: 60000 },
+      { path: `${workspaceBase}/runtimes`, label: 'Runtimes', timeoutMs: 60000 },
+      { path: `${workspaceBase}/skills`, label: 'Skills', timeoutMs: 60000 },
+      { path: `${workspaceBase}/inbox`, label: 'Inbox', timeoutMs: 45000 },
+      { path: `${workspaceBase}/my-issues`, label: 'My Issues', timeoutMs: 45000 },
+      { path: `${workspaceBase}/autopilots`, label: 'Autopilots', timeoutMs: 45000 },
+      { path: `${workspaceBase}/squads`, label: 'Squads', timeoutMs: 45000 },
     ];
-
-    console.log(`[AgentManager] prewarming common ${AGENT_MANAGER_NAME} screens`);
-
-    for (const route of routes) {
-      const url = `${frontendUrl}${route}`;
-      try {
-        await this.fetchWithTimeout(url, 30000);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.warn(`[AgentManager] prewarm skipped ${route}: ${message}`);
-      }
-    }
-
-    console.log(`[AgentManager] common ${AGENT_MANAGER_NAME} screens prewarmed`);
   }
 
-  private async fetchWithTimeout(url: string, timeoutMs: number, method: 'GET' | 'POST' = 'GET'): Promise<void> {
+  private startFrontendPrewarm(): void {
+    if (this.prewarmPromise) {
+      return;
+    }
+
+    this.prewarmPromise = this.prewarmFrontendRoutes().finally(() => {
+      this.prewarmPromise = null;
+    });
+  }
+
+  private async prewarmFrontendRoutes(): Promise<void> {
+    const frontendUrl = this.getFrontendUrl();
+    const routes = this.getPrewarmRoutes();
+    const startedAt = Date.now();
+    let routeStatuses = this.createPrewarmRouteStatuses(routes);
+    let completed = 0;
+    let failed = 0;
+
+    console.log(`[AgentManager] prewarming common ${AGENT_MANAGER_NAME} screens`);
+    this.updatePrewarmStatus({
+      state: 'warming',
+      total: routes.length,
+      completed,
+      failed,
+      startedAt,
+      routes: routeStatuses,
+    });
+
+    for (const route of routes) {
+      const url = `${frontendUrl}${route.path}`;
+      const routeStartedAt = Date.now();
+      routeStatuses = this.updatePrewarmRoute(routeStatuses, route.path, {
+        state: 'warming',
+        updatedAt: routeStartedAt,
+      });
+      this.updatePrewarmStatus({
+        state: 'warming',
+        total: routes.length,
+        completed,
+        failed,
+        currentPath: route.path,
+        currentLabel: route.label,
+        startedAt,
+        routes: routeStatuses,
+      });
+
+      try {
+        await this.fetchWithTimeout(url, route.timeoutMs || 45000);
+        completed += 1;
+        routeStatuses = this.updatePrewarmRoute(routeStatuses, route.path, {
+          state: 'ready',
+          durationMs: Date.now() - routeStartedAt,
+          updatedAt: Date.now(),
+        });
+        console.log(`[AgentManager] prewarmed ${route.path} in ${Date.now() - routeStartedAt}ms`);
+      } catch (error) {
+        failed += 1;
+        const message = error instanceof Error ? error.message : String(error);
+        routeStatuses = this.updatePrewarmRoute(routeStatuses, route.path, {
+          state: 'error',
+          durationMs: Date.now() - routeStartedAt,
+          error: message,
+          updatedAt: Date.now(),
+        });
+        console.warn(`[AgentManager] prewarm skipped ${route.path}: ${message}`);
+      }
+
+      this.updatePrewarmStatus({
+        state: 'warming',
+        total: routes.length,
+        completed,
+        failed,
+        startedAt,
+        routes: routeStatuses,
+      });
+    }
+
+    this.updatePrewarmStatus({
+      state: failed > 0 ? 'error' : 'ready',
+      total: routes.length,
+      completed,
+      failed,
+      startedAt,
+      completedAt: Date.now(),
+      routes: routeStatuses,
+    });
+
+    console.log(
+      `[AgentManager] common ${AGENT_MANAGER_NAME} screens prewarmed (${completed}/${routes.length}, failed=${failed})`
+    );
+  }
+
+  private createPrewarmStatus(
+    state: AgentManagerPrewarmStatus['state'],
+    routes: AgentManagerPrewarmRoute[]
+  ): AgentManagerPrewarmStatus {
+    return {
+      state,
+      total: routes.length,
+      completed: 0,
+      failed: 0,
+      routes: this.createPrewarmRouteStatuses(routes),
+    };
+  }
+
+  private createPrewarmRouteStatuses(routes: AgentManagerPrewarmRoute[]): AgentManagerPrewarmRouteStatus[] {
+    return routes.map((route) => ({
+      path: route.path,
+      label: route.label,
+      state: 'queued',
+    }));
+  }
+
+  private updatePrewarmRoute(
+    routes: AgentManagerPrewarmRouteStatus[],
+    pathName: string,
+    patch: Partial<AgentManagerPrewarmRouteStatus>
+  ): AgentManagerPrewarmRouteStatus[] {
+    return routes.map((route) => (route.path === pathName ? { ...route, ...patch } : route));
+  }
+
+  private updatePrewarmStatus(prewarm: AgentManagerPrewarmStatus, emit = true): void {
+    this.prewarmStatus = prewarm;
+
+    if (!emit) {
+      return;
+    }
+
+    this.status = {
+      ...this.status,
+      prewarm,
+      updatedAt: Date.now(),
+    };
+    ipcBridge.agentManager.statusChanged.emit(this.status);
+  }
+
+  private async fetchWithTimeout(url: string, timeoutMs: number, method: 'GET' | 'POST' = 'GET'): Promise<number> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(url, { method, signal: controller.signal });
+      await response.arrayBuffer();
       if (response.status >= 500) {
         throw new Error(`${url} returned ${response.status}`);
       }
+      return response.status;
     } finally {
       clearTimeout(timeout);
     }
@@ -1951,6 +2100,7 @@ WHERE title = 'Agent Club Operating Board'
       backendUrl: this.getBackendUrl(),
       message,
       detail,
+      prewarm: this.prewarmStatus,
       updatedAt: Date.now(),
     };
   }
