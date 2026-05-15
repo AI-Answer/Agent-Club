@@ -8,6 +8,7 @@ import { resolveAgentLogo } from '@/renderer/utils/model/agentLogo';
 import { resolveExtensionAssetUrl } from '@/renderer/utils/platform';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import type { AcpBackend, AvailableAgent } from '../types';
+import { getAgentDisplayName } from '../hooks/agentSelectionUtils';
 import { Plus, Robot } from '@icon-park/react';
 import { Tooltip } from '@arco-design/web-react';
 import React from 'react';
@@ -115,7 +116,7 @@ const AgentPillBar: React.FC<AgentPillBarProps> = ({
                           : 'max-width 0.6s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) 0.05s, margin 0.6s cubic-bezier(0.2, 0.8, 0.3, 1)',
                     }}
                   >
-                    {agent.name}
+                    {getAgentDisplayName(agent)}
                   </span>
                 </div>
               </React.Fragment>

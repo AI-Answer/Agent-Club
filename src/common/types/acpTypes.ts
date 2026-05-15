@@ -476,7 +476,7 @@ export const ACP_BACKENDS_ALL: Record<AcpBackendAll, AcpBackendConfig> = {
   },
   custom: {
     id: 'custom',
-    name: 'Custom Agent',
+    name: 'Custom agent',
     cliCommand: undefined, // User-configured via settings
     authRequired: false,
     enabled: true,

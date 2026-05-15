@@ -215,7 +215,7 @@ const AionrsSendBox: React.FC<{
             conversation_id,
             files,
           });
-          assertBridgeSuccess(result, 'Failed to send message to Aion CLI');
+          assertBridgeSuccess(result, 'Failed to send message to Custom agent');
         }
         emitter.emit('chat.history.refresh');
         if (files.length > 0) {

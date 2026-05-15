@@ -237,7 +237,7 @@ class AcpDetector {
         .filter((a) => a.enabled !== false && !a.isPreset && a.defaultCliPath)
         .map((a) => ({
           id: `custom:${a.id}`,
-          name: a.name || 'Custom Agent',
+          name: a.name || 'Custom agent',
           kind: 'acp' as const,
           available: true,
           backend: 'custom',

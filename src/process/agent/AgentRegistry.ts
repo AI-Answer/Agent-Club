@@ -62,7 +62,7 @@ class AgentRegistry {
   private createAionrsAgent(): AionrsDetectedAgent {
     return {
       id: 'aionrs',
-      name: 'Custom Agent',
+      name: 'Custom agent',
       kind: 'aionrs',
       available: true,
       backend: 'aionrs',

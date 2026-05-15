@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 80 80" fill="none">
-<title>Custom Agent</title>
+<title>Custom agent</title>
 <circle cx="40" cy="40" r="38" fill="#111827"/>
 <circle cx="40" cy="40" r="33" stroke="#FACC15" stroke-width="4"/>
 <path d="M27 45C27 35.6 32.4 29 40 29C47.6 29 53 35.6 53 45V53C53 55.2 51.2 57 49 57H31C28.8 57 27 55.2 27 53V45Z" fill="white"/>

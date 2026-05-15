@@ -24,6 +24,7 @@ import FeedbackReportModal from '@/renderer/components/settings/SettingsModal/co
 import { useGuidAgentSelection } from './hooks/useGuidAgentSelection';
 import { useGuidInput } from './hooks/useGuidInput';
 import { useGuidMention } from './hooks/useGuidMention';
+import { getAgentDisplayName } from './hooks/agentSelectionUtils';
 import { useGuidModelSelection } from './hooks/useGuidModelSelection';
 import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
@@ -522,7 +523,7 @@ const GuidPage: React.FC = () => {
       .filter((a) => !a.isPreset && a.backend !== 'remote')
       .map((a) => ({
         key: a.backend,
-        label: a.name,
+        label: getAgentDisplayName(a),
         isCurrent: a.backend === currentPresetAgentType,
         isExtension: a.isExtension,
       }));
@@ -556,7 +557,10 @@ const GuidPage: React.FC = () => {
           await ConfigStorage.set('acp.customAgents', updated);
         }
         await agentSelection.refreshCustomAgents();
-        const agentName = ACP_BACKENDS_ALL[nextType as keyof typeof ACP_BACKENDS_ALL]?.name || nextType;
+        const agentName = getAgentDisplayName({
+          backend: nextType,
+          name: ACP_BACKENDS_ALL[nextType as keyof typeof ACP_BACKENDS_ALL]?.name,
+        });
         Message.success(t('guid.switchedToAgent', { agent: agentName }));
       } catch (error) {
         console.error('[GuidPage] Failed to switch preset agent type:', error);

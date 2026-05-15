@@ -47,3 +47,8 @@ export const getAgentKey = (agent: { backend: AcpBackend; customAgentId?: string
   if (agent.customAgentId) return `custom:${agent.customAgentId}`;
   return agent.backend;
 };
+
+export function getAgentDisplayName(agent: { backend?: string; name?: string } | undefined): string {
+  if (agent?.backend === 'aionrs') return 'Custom agent';
+  return agent?.name || agent?.backend || 'Agent';
+}
