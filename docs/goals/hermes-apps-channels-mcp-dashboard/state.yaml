@@ -68,7 +68,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T011
+active_task: T012
 
 tasks:
   - id: T001
@@ -483,7 +483,7 @@ tasks:
   - id: T011
     type: worker
     assignee: Worker
-    status: active
+    status: blocked
     reasoning_hint: default
     objective: "Run owner-approved live native-channel smoke tests for Slack, Discord, and BlueBubbles iMessage once test credentials and a safe test target are provided."
     allowed_files:
@@ -498,6 +498,39 @@ tasks:
       - "Approved credentials or test targets are unavailable."
       - "The smoke would require reading or sending personal messages beyond the explicit test target."
       - "Any platform response includes secrets that cannot be safely recorded in the board."
+    receipt:
+      result: blocked
+      changed_files:
+        - "docs/goals/hermes-apps-channels-mcp-dashboard/notes/T011-live-channel-smoke-blocker.md"
+        - "docs/goals/hermes-apps-channels-mcp-dashboard/state.yaml"
+      summary: "Live Slack, Discord, and BlueBubbles iMessage smokes are blocked because no owner-approved test credentials or safe test targets are available in this thread. The blocker is now explicit and operator-ready: the board records exactly which tokens, intents, webhook settings, and test destinations are required, plus safety rules for redaction and personal-message boundaries."
+      blocked_on:
+        - "Slack: bot token, app-level Socket Mode token, and a safe test workspace/channel or DM."
+        - "Discord: bot token, enabled required intents including Message Content, and a safe test server/channel or DM."
+        - "iMessage: BlueBubbles server URL, password/guid, and an explicit test chat GUID/contact."
+      safety_rules:
+        - "Do not record tokens, passwords, phone numbers, or chat GUIDs in the board."
+        - "Do not read or send personal messages outside the explicit test target."
+        - "Redact secrets from terminal output, screenshots, receipts, and commits."
+      operator_note: "When these inputs are available, reactivate T011 and run one inbound/outbound smoke per platform."
+      note_file: "docs/goals/hermes-apps-channels-mcp-dashboard/notes/T011-live-channel-smoke-blocker.md"
+
+  - id: T012
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: default
+    objective: "Hold the live native-channel smoke gate open until the owner provides approved Slack, Discord, and BlueBubbles/iMessage credentials plus explicit safe test targets."
+    inputs:
+      - "T011 blocker receipt."
+      - "docs/goals/hermes-apps-channels-mcp-dashboard/notes/T011-live-channel-smoke-blocker.md"
+    constraints:
+      - "Do not request, print, commit, or log secrets in the board."
+      - "Do not read or send personal messages outside an explicit test target."
+      - "Do not mark the full goal complete until live Slack, Discord, and iMessage smoke evidence exists or the owner explicitly removes those requirements."
+    expected_output:
+      - "If credentials arrive: move T012 to done, reactivate T011, run the safe live smokes, and record sanitized evidence."
+      - "If credentials remain unavailable: keep T012 active and report the exact blocker."
     receipt: null
 
   - id: T999
@@ -536,16 +569,18 @@ tasks:
         - "No owner-approved real Slack native plugin smoke test."
         - "No owner-approved real Discord native plugin smoke test."
         - "No approved iMessage or BlueBubbles/local Messages bridge smoke test."
-      next_task: T011
+      next_task: T012
+      blocked_next_step: "Owner must provide approved Slack, Discord, and BlueBubbles/iMessage test credentials plus explicit safe test targets before live native-channel smoke testing can continue."
 
 checks:
   dirty_fingerprint: unknown
   last_verification:
-    result: passed_with_blocked_live_channel_smoke
-    task: T009
+    result: blocked_on_owner_credentials
+    task: T011
     commands:
       - "bunx oxlint src/process/channels/plugins/imessage src/process/webserver/routes/blueBubblesChannelRoutes.ts src/renderer/components/settings/SettingsModal/contents/channels/ChannelModalContent.tsx"
       - "bunx oxlint tests/e2e/helpers/selectors.ts tests/e2e/specs/channels.e2e.ts"
       - "bunx tsc --noEmit --pretty false"
       - "Mocked BlueBubbles plugin smoke"
       - "Electron CDP smoke: /settings/webui channels visible IDs telegram,weixin,slack,discord,imessage"
+      - "PM blocker audit: no approved Slack, Discord, or BlueBubbles/iMessage live-smoke credentials or safe test targets are available"
