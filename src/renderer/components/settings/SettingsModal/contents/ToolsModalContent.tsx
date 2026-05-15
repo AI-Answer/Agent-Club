@@ -21,6 +21,7 @@ import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import AionSelect from '@/renderer/components/base/AionSelect';
 import AddMcpServerModal from '@/renderer/pages/settings/components/AddMcpServerModal';
 import ComposioMcpSetup from '@/renderer/pages/settings/ToolsSettings/ComposioMcpSetup';
+import PeekabooMcpSetup from '@/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup';
 import McpAgentStatusDisplay from '@/renderer/pages/settings/ToolsSettings/McpAgentStatusDisplay';
 import McpServerItem from '@/renderer/pages/settings/ToolsSettings/McpServerItem';
 import {
@@ -435,6 +436,7 @@ const ModalMcpManagementSection: React.FC<{
 
       <div className='flex-1 min-h-0'>
         <ComposioMcpSetup mcpServers={mcpServers} onSaveServer={wrappedHandleAddMcpServer} />
+        <PeekabooMcpSetup mcpServers={mcpServers} onSaveServer={wrappedHandleAddMcpServer} />
         {visibleMcpServers.length === 0 && extensionMcpServers.length === 0 ? (
           <div className='py-24px text-center text-t-secondary text-14px border border-dashed border-border-2 rd-12px'>
             {t('settings.mcpNoServersFound')}

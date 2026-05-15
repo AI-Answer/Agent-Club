@@ -1,0 +1,333 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Hermes Peekaboo Computer Control"
+  slug: "hermes-peekaboo-computer-control"
+  kind: specific
+  tranche: "Prepare and then implement a safe Hermes-scoped Peekaboo computer-control setup path inside Agent Club MCP/Skills surfaces."
+  status: active
+  intake:
+    original_request: "Add Peekaboo so Hermes can download/install it from MCP/Skills, then visibly control apps like Slack when the user presses a button."
+    interpreted_outcome: "Agent Club should expose a Hermes-scoped computer-control setup and demo path powered by Peekaboo, with install/configuration, permissions, visible supervision, and safe stop boundaries."
+    input_shape: specific
+    audience: "Sam and future Agent Club users using Hermes as a personal chief of staff."
+    authority: requested
+    proof_type: demo
+    completion_proof: "A live Agent Club demo shows Peekaboo available through MCP/Skills setup, readiness checks, Hermes-only enablement, and a supervised harmless Slack demo where the user can see and stop desktop control."
+    likely_misfire: "Shipping a hidden MCP preset or generic automation hook that lets Hermes control the desktop without visible owner supervision, permission readiness, or a scoped demo path."
+    blind_spots_considered:
+      - "Peekaboo's current official install and MCP commands must be verified before implementation."
+      - "macOS Screen Recording and Accessibility permissions must be surfaced as readiness gates."
+      - "Computer control should be Hermes-scoped and opt-in."
+      - "The product should make desktop activity visible, not hidden in logs."
+      - "A Slack demo must be harmless and owner-approved before any live app control."
+    existing_plan_facts:
+      - "User referenced https://peekaboo.sh/ as the target tool."
+      - "Peekaboo docs say it is a macOS automation toolkit that captures pixels, reads the accessibility tree, drives input, and exposes tools over MCP."
+      - "Peekaboo docs show Homebrew install: brew install steipete/tap/peekaboo."
+      - "Peekaboo docs show npm MCP launch: npx -y @steipete/peekaboo mcp."
+      - "User wants this under the MCP and Skills surfaces, not a detached terminal-only setup."
+      - "User imagines a button where Hermes opens Slack and the user watches it happen."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/hermes-peekaboo-computer-control/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T006
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: default
+    objective: "Verify Peekaboo's current install, MCP, permissions, and agent-control model, then map the Agent Club MCP, Skills, Hermes, and UI surfaces that should host the setup."
+    inputs:
+      - "https://peekaboo.sh/"
+      - "Current Agent Club repository."
+      - "Existing MCP/Composio setup surfaces."
+      - "Existing Skills Hub/JourneyKits surfaces."
+      - "Existing Hermes dashboard/channel setup work."
+    constraints:
+      - "Read-only."
+      - "Do not install Peekaboo yet."
+      - "Do not request or grant macOS permissions."
+      - "Do not open or control Slack."
+      - "Use official Peekaboo docs for commands and capability claims."
+    expected_output:
+      - "Official Peekaboo install and MCP configuration facts."
+      - "Permission/readiness gates required for macOS automation."
+      - "Relevant Agent Club files and routes for MCP setup, Skills Hub, Hermes config, dashboard widgets, and supervised run UI."
+      - "Recommended implementation slices with allowed_files and verification commands."
+    receipt:
+      result: done
+      summary: "Peekaboo is a current macOS desktop automation fit for Hermes: official docs show Homebrew CLI install, npm MCP launch with npx, stdio MCP transport, see/image/click/type/hotkey tools, and explicit Screen Recording plus Accessibility readiness gates. Agent Club already has the right product surfaces: MCP & Voice can save and sync stdio MCP servers, Skills Hub can host capability setup/discovery, and the Hermes dashboard already reads MCP config to show app/tool readiness."
+      evidence:
+        - "https://peekaboo.sh/install.html"
+        - "https://peekaboo.sh/MCP.html"
+        - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx"
+        - "src/process/services/dashboard/DashboardService.ts"
+      source_evidence:
+        - "https://peekaboo.sh/install.html: Homebrew install is brew install steipete/tap/peekaboo; npm MCP launch is npx -y @steipete/peekaboo mcp; verify with peekaboo --version, peekaboo permissions status, and peekaboo list apps."
+        - "https://peekaboo.sh/MCP.html: Peekaboo exposes image, see, click, scroll, type, hotkey, set_value, and perform_action over stdio; http/sse are recognized but not implemented."
+        - "https://peekaboo.sh/permissions.html: Screen Recording is required, Accessibility is recommended, Event Synthesizing is optional for background input."
+        - "https://peekaboo.sh/quickstart.html: safe flow is permissions status/grant, screenshot, see, click/type, then optional MCP config."
+        - "https://peekaboo.sh/commands/agent.html: agent command supports dry-run and session controls, and troubleshooting points back to permissions and target verification."
+      repo_evidence:
+        - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx hosts MCP setup cards and wraps saved servers with connection testing and agent sync."
+        - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx is the page-mode MCP management surface and duplicates the same setup-card extension point."
+        - "src/renderer/pages/settings/ToolsSettings/ComposioMcpSetup.tsx is the nearest existing pattern for a curated install/config card that saves a stdio MCP server."
+        - "src/common/config/storage.ts defines IMcpServer stdio transport with command, args, and env."
+        - "src/process/services/dashboard/DashboardService.ts builds the Hermes MCP app list from ProcessConfig mcp.config and can truthfully show a Peekaboo card once a server exists."
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx is the Skills Hub/JourneyKits surface, but it is larger and not necessary for the first MCP-install vertical slice."
+      recommended_slices:
+        - "First: add a Peekaboo Desktop Control MCP setup card to MCP & Voice/page-mode tools surfaces and the Hermes dashboard MCP app list."
+        - "Next: add a Skills Hub/JourneyKit-style Peekaboo skill/card if the user still wants skills marketplace discoverability after MCP setup works."
+        - "Later: implement supervised Slack demo only after explicit owner approval to control Slack."
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Choose the largest safe first implementation slice for a Hermes-scoped Peekaboo computer-control setup."
+    inputs:
+      - "T001 receipt."
+      - "Original request and charter."
+    constraints:
+      - "Do not implement."
+      - "Reject a design that enables hidden or unbounded desktop control."
+      - "Prefer a vertical slice that users can actually see in Agent Club."
+    expected_output:
+      - "approved | blocked"
+      - "Exact Worker objective."
+      - "allowed_files."
+      - "verify commands."
+      - "stop_if conditions."
+    receipt:
+      result: done
+      decision: "approved"
+      full_outcome_complete: false
+      summary: "Approve the largest safe first slice: implement a real Peekaboo MCP setup card in both MCP & Voice surfaces, backed by the existing MCP save/test/sync flow, and add Peekaboo Desktop Control to the Hermes dashboard MCP app list. This moves the product toward Hermes computer control without installing software, granting permissions, or touching Slack."
+      worker_objective: "Add a Peekaboo Desktop Control MCP setup card and Hermes dashboard signal."
+      allowed_files:
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+        - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+        - "src/process/services/dashboard/DashboardService.ts"
+        - "docs/goals/hermes-peekaboo-computer-control/state.yaml"
+      verify:
+        - "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/process/services/dashboard/DashboardService.ts"
+        - "bunx tsc --noEmit --pretty false"
+        - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+      stop_if:
+        - "Need to install Peekaboo, grant macOS permissions, or control live apps."
+        - "Need files outside allowed_files."
+        - "Verification fails twice for the same reason."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add a Peekaboo Desktop Control MCP setup card and Hermes dashboard signal."
+    allowed_files:
+      - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+      - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    verify:
+      - "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/process/services/dashboard/DashboardService.ts"
+      - "bunx tsc --noEmit --pretty false"
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    stop_if:
+      - "Need files outside Judge-approved allowed_files."
+      - "Need to install Peekaboo, grant permissions, or control live apps without explicit owner approval."
+      - "Verification fails twice for the same reason."
+      - "The UI would imply Hermes can control the desktop before readiness checks pass."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+        - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+        - "src/process/services/dashboard/DashboardService.ts"
+      commands:
+        - cmd: "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/process/services/dashboard/DashboardService.ts"
+          status: pass
+        - cmd: "bunx tsc --noEmit --pretty false"
+          status: pass
+      summary: "Added a Peekaboo Desktop Control MCP setup card to both MCP settings surfaces, saving a real stdio preset for npx -y @steipete/peekaboo mcp with permission gates and safety docs. Hermes dashboard MCP apps now include Peekaboo Desktop Control and will reflect it from mcp.config."
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: blocked
+    reasoning_hint: default
+    objective: "Add a supervised Hermes demo path that can open Slack and perform one harmless visible action only after owner approval."
+    allowed_files: []
+    verify: []
+    stop_if:
+      - "Peekaboo install/readiness path is not implemented or verified."
+      - "Owner has not approved controlling Slack in a safe test session."
+      - "Need to read, send, or mutate real Slack data beyond the approved harmless demo."
+    receipt:
+      result: blocked
+      summary: "Live Slack control remains owner-gated. The product can expose setup and readiness now, but Codex should not install Peekaboo, grant macOS permissions, open Slack, or perform desktop actions without explicit approval in a supervised test session."
+      missing:
+        - "Owner approval for a live Slack desktop-control smoke test."
+        - "Local Peekaboo install and macOS Screen Recording/Accessibility readiness confirmation."
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: default
+    objective: "Add a Skills Hub discovery card that routes Hermes Desktop Control setup back to the Peekaboo MCP path and official docs."
+    allowed_files:
+      - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+      - "docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    verify:
+      - "bunx oxlint src/renderer/pages/settings/SkillsHubSettings.tsx"
+      - "bunx tsc --noEmit --pretty false"
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    stop_if:
+      - "Need to install Peekaboo, grant permissions, or control live apps."
+      - "Need files outside allowed_files."
+      - "The card implies a live skill is installed before MCP readiness exists."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+      commands:
+        - cmd: "bunx oxlint src/renderer/pages/settings/SkillsHubSettings.tsx"
+          status: pass
+        - cmd: "bunx tsc --noEmit --pretty false"
+          status: pass
+      summary: "Added a Hermes Desktop Control discovery card to Skills Hub. The card routes users to the MCP setup path, links Peekaboo docs, and labels the capability as MCP-powered, owner-supervised, permission-gated desktop control."
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the Hermes Peekaboo computer-control outcome is complete."
+    inputs:
+      - "All done task receipts."
+      - "Last verification."
+      - "Current dirty diff."
+    constraints:
+      - "Do not implement."
+      - "Reject completion if setup is only a static mock."
+      - "Reject completion if desktop control is hidden, unbounded, or not owner-gated."
+      - "Reject completion without a verified install/readiness path and a safe demo or clear owner-gated blocker."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence."
+      - "next task if not complete."
+    receipt:
+      result: done
+      decision: "not_complete"
+      full_outcome_complete: false
+      summary: "The local product setup tranche is implemented: MCP setup exists, Skills Hub discoverability exists, and the Hermes dashboard can surface Peekaboo readiness. The full owner outcome is not complete because the live supervised app-control demo must wait for an approved Peekaboo install, macOS permission readiness, and explicit approval to control Slack or another real app."
+      missing_evidence:
+        - "Peekaboo installed and reachable on this Mac."
+        - "Screen Recording and Accessibility readiness confirmed."
+        - "Owner-approved harmless live desktop-control smoke in Slack, Discord, iMessage, or another selected app."
+      next_task: T006
+
+  - id: T006
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: default
+    objective: "Wait for owner approval and local Peekaboo readiness before attempting any live Hermes desktop-control smoke test."
+    constraints:
+      - "Do not install Peekaboo without owner approval."
+      - "Do not grant macOS permissions without owner approval."
+      - "Do not open or control Slack, Discord, iMessage, or another app until the owner explicitly approves a supervised smoke test."
+    expected_output:
+      - "Owner-selected app for the harmless smoke test."
+      - "Confirmation that Peekaboo is installed and permissions are ready."
+      - "Exact approved action, stop boundary, and no-send/no-mutate constraints."
+    receipt: null
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: low
+    objective: "Format the touched Peekaboo and Skills Hub files so final verification is clean."
+    allowed_files:
+      - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+      - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+      - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+      - "src/process/services/dashboard/DashboardService.ts"
+      - "docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    verify:
+      - "bunx oxfmt --check src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+      - "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+      - "bunx tsc --noEmit --pretty false"
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+    stop_if:
+      - "Formatting changes files outside allowed_files."
+      - "Verification fails after formatting."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+        - "src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx"
+        - "src/renderer/pages/settings/ToolsSettings/McpManagement.tsx"
+        - "src/renderer/pages/settings/SkillsHubSettings.tsx"
+        - "src/process/services/dashboard/DashboardService.ts"
+      commands:
+        - cmd: "bunx oxfmt --check src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+          status: pass
+        - cmd: "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+          status: pass
+        - cmd: "bunx tsc --noEmit --pretty false"
+          status: pass
+      summary: "Formatted the touched product files and reran the final format, lint, and type gates."
+
+checks:
+  dirty_fingerprint: "Implemented Peekaboo MCP setup, Hermes dashboard signal, Skills Hub discovery card, and GoalBuddy state updates; unrelated untracked docs/goals/month-map-planner-agent-dispatch left untouched."
+  last_verification:
+    result: pass
+    task: T006
+    commands:
+      - "bunx oxfmt --check src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+      - "bunx oxlint src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx src/renderer/components/settings/SettingsModal/contents/ToolsModalContent.tsx src/renderer/pages/settings/ToolsSettings/McpManagement.tsx src/renderer/pages/settings/SkillsHubSettings.tsx src/process/services/dashboard/DashboardService.ts"
+      - "bunx tsc --noEmit --pretty false"
+      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"

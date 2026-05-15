@@ -181,7 +181,9 @@ function countMatchingTools(server: IMcpServer | undefined, tokens: string[]): n
   if (!server?.tools?.length) {
     return 0;
   }
-  return server.tools.filter((tool) => tokens.some((token) => `${tool.name} ${tool.description || ''}`.toLowerCase().includes(token))).length;
+  return server.tools.filter((tool) =>
+    tokens.some((token) => `${tool.name} ${tool.description || ''}`.toLowerCase().includes(token))
+  ).length;
 }
 
 function hermesStatusFromConfigured(value: boolean, enabled?: boolean): DashboardHermesItemStatus {
@@ -314,12 +316,12 @@ export class DashboardService {
     const snapshot = value as Partial<DashboardSnapshot>;
     return Boolean(
       typeof snapshot.id === 'string' &&
-        typeof snapshot.generatedAt === 'number' &&
-        snapshot.summary &&
-        snapshot.metrics &&
-        snapshot.hermesControl &&
-        Array.isArray(snapshot.widgetLayout) &&
-        Array.isArray(snapshot.sources)
+      typeof snapshot.generatedAt === 'number' &&
+      snapshot.summary &&
+      snapshot.metrics &&
+      snapshot.hermesControl &&
+      Array.isArray(snapshot.widgetLayout) &&
+      Array.isArray(snapshot.sources)
     );
   }
 
@@ -490,13 +492,22 @@ export class DashboardService {
     sources.push(
       memoryResult.source,
       jobs.length > 0
-        ? sourceStatus('scheduled_tasks', 'Scheduled Tasks', 'connected', `${jobs.length} scheduled task${jobs.length === 1 ? '' : 's'} found.`)
+        ? sourceStatus(
+            'scheduled_tasks',
+            'Scheduled Tasks',
+            'connected',
+            `${jobs.length} scheduled task${jobs.length === 1 ? '' : 's'} found.`
+          )
         : sourceStatus('scheduled_tasks', 'Scheduled Tasks', 'connected', 'No scheduled tasks yet.'),
       agentManagerResult.source,
       sourceStatus(
         'mcp',
         'MCP Apps',
-        composioApp?.status === 'connected' ? 'connected' : composioApp?.status === 'ready' ? 'degraded' : 'disconnected',
+        composioApp?.status === 'connected'
+          ? 'connected'
+          : composioApp?.status === 'ready'
+            ? 'degraded'
+            : 'disconnected',
         composioApp?.status === 'connected'
           ? `Composio Tool Router is connected with ${composioApp.toolCount} visible tool${composioApp.toolCount === 1 ? '' : 's'}.`
           : 'Connect Composio Tool Router to give Hermes app tools through MCP.',
@@ -521,15 +532,33 @@ export class DashboardService {
             ),
           ]
         : []),
-      sourceStatus('email', 'Email', 'disconnected', 'Connect Gmail or another inbox source to surface replies and follow-ups.', {
-        setupRoute: '/settings/capabilities',
-      }),
-      sourceStatus('calendar', 'Calendar', 'disconnected', 'Connect calendar access to turn meetings into prep and follow-up actions.', {
-        setupRoute: '/settings/capabilities',
-      }),
-      sourceStatus('todos', 'Todo Lists', 'disconnected', 'Connect a todo source to reconcile personal tasks with agent work.', {
-        setupRoute: '/settings/capabilities',
-      }),
+      sourceStatus(
+        'email',
+        'Email',
+        'disconnected',
+        'Connect Gmail or another inbox source to surface replies and follow-ups.',
+        {
+          setupRoute: '/settings/capabilities',
+        }
+      ),
+      sourceStatus(
+        'calendar',
+        'Calendar',
+        'disconnected',
+        'Connect calendar access to turn meetings into prep and follow-up actions.',
+        {
+          setupRoute: '/settings/capabilities',
+        }
+      ),
+      sourceStatus(
+        'todos',
+        'Todo Lists',
+        'disconnected',
+        'Connect a todo source to reconcile personal tasks with agent work.',
+        {
+          setupRoute: '/settings/capabilities',
+        }
+      ),
       sourceStatus(
         'custom_widget',
         'Custom Widgets',
@@ -554,7 +583,8 @@ export class DashboardService {
       {
         id: 'focus-aios-course-video',
         title: 'Build the AIOS course video',
-        description: 'Turn the AI operating systems idea into the course video asset and use Agent Club as the live proof.',
+        description:
+          'Turn the AI operating systems idea into the course video asset and use Agent Club as the live proof.',
         priority: 'high',
         sourceIds: ['manual_context', 'honcho'],
         ctaLabel: 'Open Agent Manager',
@@ -577,7 +607,8 @@ export class DashboardService {
       actions.push({
         id: 'configure-hermes-mcp-apps',
         title: 'Connect Hermes app tools',
-        description: 'Attach Composio Tool Router as MCP so Hermes can use connected apps from one controlled setup path.',
+        description:
+          'Attach Composio Tool Router as MCP so Hermes can use connected apps from one controlled setup path.',
         priority: 'medium',
         sourceIds: ['mcp'],
         ctaLabel: 'Open MCP',
@@ -603,7 +634,8 @@ export class DashboardService {
       actions.push({
         id: 'setup-honcho-memory',
         title: 'Connect Honcho memory',
-        description: 'Memory is the core source for personal chief-of-staff insights. Connect Honcho before trusting personal recommendations.',
+        description:
+          'Memory is the core source for personal chief-of-staff insights. Connect Honcho before trusting personal recommendations.',
         priority: 'high',
         sourceIds: ['honcho'],
         ctaLabel: 'Open Memory',
@@ -675,8 +707,7 @@ export class DashboardService {
       insights.push({
         id: 'chief-of-staff-reasoning',
         title: 'Chief-of-staff reasoning',
-        body:
-          'I treated your typed context as the newest signal, then rebuilt the brief against memory, scheduled tasks, active agent work, and source health.',
+        body: 'I treated your typed context as the newest signal, then rebuilt the brief against memory, scheduled tasks, active agent work, and source health.',
         sourceIds: ['manual_context', 'honcho', 'scheduled_tasks', 'agent_manager'],
         confidence: 'medium',
       });
@@ -707,7 +738,8 @@ export class DashboardService {
       actions.push({
         id: 'create-chief-of-staff-heartbeat',
         title: 'Create a chief-of-staff heartbeat',
-        description: 'Add a recurring scheduled task so Agent Club can refresh priorities and automation ideas during the day.',
+        description:
+          'Add a recurring scheduled task so Agent Club can refresh priorities and automation ideas during the day.',
         priority: 'medium',
         sourceIds: ['scheduled_tasks'],
         ctaLabel: 'Open Scheduled Tasks',
@@ -731,7 +763,8 @@ export class DashboardService {
     actions.push({
       id: 'connect-work-sources',
       title: 'Connect email, calendar, and todo sources',
-      description: 'Those connectors unlock real reply-needed, meeting-prep, and personal task actions instead of placeholders.',
+      description:
+        'Those connectors unlock real reply-needed, meeting-prep, and personal task actions instead of placeholders.',
       priority: 'medium',
       sourceIds: ['email', 'calendar', 'todos'],
       ctaLabel: 'Open Capabilities',
@@ -788,7 +821,8 @@ export class DashboardService {
       {
         id: 'meeting-follow-up-sweep',
         title: 'Meeting follow-up sweep',
-        description: 'Once calendar is connected, auto-draft follow-ups and next actions after meetings instead of manually reconstructing them.',
+        description:
+          'Once calendar is connected, auto-draft follow-ups and next actions after meetings instead of manually reconstructing them.',
         estimatedMinutesSaved: 20,
         sourceIds: ['calendar', 'email'],
         ctaLabel: 'Connect sources',
@@ -881,7 +915,8 @@ export class DashboardService {
     }
 
     const todayKey = localDateKey(generatedAt);
-    const visibleWorkSignal = agentManager.activeIssues + agentManager.activeGoals + jobs.filter((job) => job.enabled).length;
+    const visibleWorkSignal =
+      agentManager.activeIssues + agentManager.activeGoals + jobs.filter((job) => job.enabled).length;
     counts.set(todayKey, (counts.get(todayKey) || 0) + Math.max(1, visibleWorkSignal));
 
     const values = days.map((day) => counts.get(day) || 0);
@@ -1086,9 +1121,9 @@ export class DashboardService {
     if (memoryResult.focusHint || memoryResult.chiefOfStaffBrief) {
       return {
         title: 'Three things to focus on',
-        brief: 'This week is webinar prep, the AIOS course video, and making Agent Club demo-ready enough to support both.',
-        nextBestMove:
-          'Keep the dashboard honest: anything not helping the webinar, course video, or demo should wait.',
+        brief:
+          'This week is webinar prep, the AIOS course video, and making Agent Club demo-ready enough to support both.',
+        nextBestMove: 'Keep the dashboard honest: anything not helping the webinar, course video, or demo should wait.',
         confidence: memoryResult.chiefOfStaffBrief ? 'high' : 'medium',
       };
     }
@@ -1097,7 +1132,8 @@ export class DashboardService {
       return {
         title: 'Three things to focus on',
         brief: `${activeWork.length} local work item${activeWork.length === 1 ? '' : 's'} are visible, but the dashboard is filtering them through the current three priorities.`,
-        nextBestMove: 'Do the webinar prep first, then choose the next Agent Club task only if it strengthens the AIOS course video.',
+        nextBestMove:
+          'Do the webinar prep first, then choose the next Agent Club task only if it strengthens the AIOS course video.',
         confidence: 'high',
       };
     }
@@ -1173,7 +1209,9 @@ export class DashboardService {
       const server = directServer(tokens);
       const toolCount = countMatchingTools(composioServer, tokens) + (server?.tools?.length || 0);
       const installed = Boolean(server) || toolCount > 0;
-      const status = server ? this.statusForMcpServer(server) : hermesStatusFromConfigured(installed, composioServer?.enabled);
+      const status = server
+        ? this.statusForMcpServer(server)
+        : hermesStatusFromConfigured(installed, composioServer?.enabled);
 
       return {
         id,
@@ -1206,27 +1244,62 @@ export class DashboardService {
         route: MCP_TOOLS_ROUTE,
         sourceIds: ['mcp'],
       },
-      appCard('gmail', 'Gmail', 'Surface priority inbox threads and reply work once attached.', 'OAuth', ['email'], [
+      appCard(
+        'peekaboo-desktop-control',
+        'Peekaboo Desktop Control',
+        'Let Hermes observe and control the Mac through supervised Peekaboo runs after permissions are approved.',
+        'Local MCP',
+        ['desktop control', 'macOS', 'supervised'],
+        ['peekaboo', 'desktop control', 'screen recording']
+      ),
+      appCard(
         'gmail',
-        'google mail',
-      ]),
-      appCard('slack-app', 'Slack', 'Let Hermes read and route team-channel context after approval.', 'OAuth', [
-        'team chat',
-        'channels',
-      ], ['slack']),
-      appCard('google-calendar', 'Google Calendar', 'Turn meetings into prep, follow-ups, and time-protection tasks.', 'OAuth', [
-        'calendar',
-      ], ['calendar', 'google calendar']),
-      appCard('google-drive', 'Google Drive', 'Use Docs, Sheets, and Drive files as dashboard/action sources.', 'OAuth', [
-        'docs',
-        'files',
-      ], ['drive', 'docs', 'sheets']),
-      appCard('notion', 'Notion', 'Bring notes, docs, and lightweight tasks into the chief-of-staff loop.', 'OAuth', [
-        'notes',
-      ], ['notion']),
-      appCard('github', 'GitHub', 'Connect repositories, issues, and PRs when coding work should become visible.', 'OAuth', [
-        'developer tools',
-      ], ['github', 'pull request', 'issue']),
+        'Gmail',
+        'Surface priority inbox threads and reply work once attached.',
+        'OAuth',
+        ['email'],
+        ['gmail', 'google mail']
+      ),
+      appCard(
+        'slack-app',
+        'Slack',
+        'Let Hermes read and route team-channel context after approval.',
+        'OAuth',
+        ['team chat', 'channels'],
+        ['slack']
+      ),
+      appCard(
+        'google-calendar',
+        'Google Calendar',
+        'Turn meetings into prep, follow-ups, and time-protection tasks.',
+        'OAuth',
+        ['calendar'],
+        ['calendar', 'google calendar']
+      ),
+      appCard(
+        'google-drive',
+        'Google Drive',
+        'Use Docs, Sheets, and Drive files as dashboard/action sources.',
+        'OAuth',
+        ['docs', 'files'],
+        ['drive', 'docs', 'sheets']
+      ),
+      appCard(
+        'notion',
+        'Notion',
+        'Bring notes, docs, and lightweight tasks into the chief-of-staff loop.',
+        'OAuth',
+        ['notes'],
+        ['notion']
+      ),
+      appCard(
+        'github',
+        'GitHub',
+        'Connect repositories, issues, and PRs when coding work should become visible.',
+        'OAuth',
+        ['developer tools'],
+        ['github', 'pull request', 'issue']
+      ),
     ];
   }
 
@@ -1287,7 +1360,8 @@ export class DashboardService {
         id: 'imessage',
         title: 'iMessage',
         description: 'Local personal-message triage needs a Mac-native bridge before Hermes can use it.',
-        detail: 'Needs a local macOS Messages or BlueBubbles-style bridge decision before any live messages are touched.',
+        detail:
+          'Needs a local macOS Messages or BlueBubbles-style bridge decision before any live messages are touched.',
         status: 'setup_required',
         hermesOnly: true,
         ctaLabel: 'Plan bridge',
@@ -1366,8 +1440,7 @@ export class DashboardService {
         topPriority ||
         truncate(snapshot.representation, 220);
       const delegationHint =
-        extractBriefLine(chiefOfStaffBrief, [/take off/i, /delegate/i, /agent/i, /plate/i]) ||
-        delegationTheme;
+        extractBriefLine(chiefOfStaffBrief, [/take off/i, /delegate/i, /agent/i, /plate/i]) || delegationTheme;
       const clarityHint =
         extractBriefLine(chiefOfStaffBrief, [/clarity/i, /reorient/i, /director/i]) ||
         firstMatchingLine(snapshot.peerCard, [/PREFERENCE/i, /CONCEPT/i]);

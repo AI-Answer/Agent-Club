@@ -6,6 +6,7 @@ import { type IMcpServer, BUILTIN_IMAGE_GEN_ID } from '@/common/config/storage';
 import { acpConversation } from '@/common/adapter/ipcBridge';
 import AddMcpServerModal from '../components/AddMcpServerModal';
 import ComposioMcpSetup from './ComposioMcpSetup';
+import PeekabooMcpSetup from './PeekabooMcpSetup';
 import McpServerItem from './McpServerItem';
 import {
   useMcpServers,
@@ -124,11 +125,8 @@ const McpManagement: React.FC<McpManagementProps> = ({ message }) => {
 
   // 包装编辑服务器，编辑后自动测试连接
   const wrappedHandleEditMcpServer = React.useCallback(
-    async (
-      editingMcpServer: IMcpServer | undefined,
-      serverData: Omit<IMcpServer, 'id' | 'createdAt' | 'updatedAt'>
-    ) => {
-      const updatedServer = await handleEditMcpServer(editingMcpServer, serverData);
+    async (targetMcpServer: IMcpServer | undefined, serverData: Omit<IMcpServer, 'id' | 'createdAt' | 'updatedAt'>) => {
+      const updatedServer = await handleEditMcpServer(targetMcpServer, serverData);
       if (updatedServer) {
         // 直接使用返回的服务器对象进行测试
         void handleTestMcpConnection(updatedServer);
@@ -271,6 +269,7 @@ const McpManagement: React.FC<McpManagementProps> = ({ message }) => {
       >
         <div>
           <ComposioMcpSetup mcpServers={mcpServers} onSaveServer={wrappedHandleAddMcpServer} />
+          <PeekabooMcpSetup mcpServers={mcpServers} onSaveServer={wrappedHandleAddMcpServer} />
           {visibleMcpServers.length === 0 && extensionMcpServers.length === 0 ? (
             <div className='text-center py-8 text-t-secondary'>{t('settings.mcpNoServersFound')}</div>
           ) : (

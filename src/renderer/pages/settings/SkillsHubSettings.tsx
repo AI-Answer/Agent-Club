@@ -4,7 +4,7 @@ import { Button, Message, Modal, Typography, Input, Dropdown, Menu } from '@arco
 import { Delete, Download, FolderOpen, Info, Lightning, Puzzle, Search, Plus, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
 
 // Skill 信息类型 / Skill info type
@@ -48,6 +48,7 @@ interface SkillsHubSettingsProps {
 
 const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = true }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightName = searchParams.get('highlight');
   const [highlightedSkill, setHighlightedSkill] = useState<string | null>(null);
@@ -133,7 +134,8 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
           setJourneyKits(result.data.kits);
         } else {
           Message.error(
-            result.msg || t('settings.skillsHub.journeyKitsSearchFailed', { defaultValue: 'Failed to load JourneyKits' })
+            result.msg ||
+              t('settings.skillsHub.journeyKitsSearchFailed', { defaultValue: 'Failed to load JourneyKits' })
           );
         }
       } catch (error) {
@@ -162,7 +164,9 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
       }
     } catch (error) {
       console.error('Failed to load owned JourneyKits:', error);
-      Message.error(t('settings.skillsHub.journeyKitsOwnedFailed', { defaultValue: 'Failed to load your JourneyKits' }));
+      Message.error(
+        t('settings.skillsHub.journeyKitsOwnedFailed', { defaultValue: 'Failed to load your JourneyKits' })
+      );
     } finally {
       setJourneyOwnedLoading(false);
     }
@@ -224,15 +228,17 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   };
 
   const handleImportAll = async (skills: Array<{ name: string; path: string }>) => {
-    let successCount = 0;
-    for (const skill of skills) {
-      try {
-        const result = await ipcBridge.fs.importSkillWithSymlink.invoke({ skillPath: skill.path });
-        if (result.success) successCount++;
-      } catch {
-        // continue
-      }
-    }
+    const results = await Promise.all(
+      skills.map(async (skill) => {
+        try {
+          const result = await ipcBridge.fs.importSkillWithSymlink.invoke({ skillPath: skill.path });
+          return result.success;
+        } catch {
+          return false;
+        }
+      })
+    );
+    const successCount = results.filter(Boolean).length;
     if (successCount > 0) {
       Message.success(
         t('settings.skillsHub.importAllSuccess', {
@@ -309,7 +315,9 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
         }
       } catch (error) {
         console.error('Failed to install JourneyKit:', error);
-        Message.error(t('settings.skillsHub.journeyKitInstallFailed', { defaultValue: 'Failed to install JourneyKit' }));
+        Message.error(
+          t('settings.skillsHub.journeyKitInstallFailed', { defaultValue: 'Failed to install JourneyKit' })
+        );
       } finally {
         setJourneyInstalling(null);
       }
@@ -364,7 +372,9 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
         setJourneyOwnedKits([]);
         Message.success(t('settings.skillsHub.journeyKitsKeyCleared', { defaultValue: 'JourneyKits key removed' }));
       } else {
-        Message.error(result.msg || t('settings.skillsHub.journeyKitsKeyClearFailed', { defaultValue: 'Failed to remove key' }));
+        Message.error(
+          result.msg || t('settings.skillsHub.journeyKitsKeyClearFailed', { defaultValue: 'Failed to remove key' })
+        );
       }
     } catch (error) {
       console.error('Failed to clear JourneyKits key:', error);
@@ -419,7 +429,9 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
         }
       } catch (error) {
         console.error('Failed to publish skill to JourneyKits:', error);
-        Message.error(t('settings.skillsHub.journeyKitsPublishFailed', { defaultValue: 'Failed to upload to JourneyKits' }));
+        Message.error(
+          t('settings.skillsHub.journeyKitsPublishFailed', { defaultValue: 'Failed to upload to JourneyKits' })
+        );
       } finally {
         setJourneyPublishingSkill(null);
       }
@@ -445,10 +457,15 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
         onOk: async () => {
           const result = await ipcBridge.fs.deleteJourneyKitOwned.invoke({ owner: kit.owner, slug: kit.slug });
           if (result.success) {
-            Message.success(result.msg || t('settings.skillsHub.journeyKitsDeleteSuccess', { defaultValue: 'JourneyKit deleted' }));
+            Message.success(
+              result.msg || t('settings.skillsHub.journeyKitsDeleteSuccess', { defaultValue: 'JourneyKit deleted' })
+            );
             void fetchJourneyOwnedKits();
           } else {
-            Message.error(result.msg || t('settings.skillsHub.journeyKitsDeleteFailed', { defaultValue: 'Failed to delete JourneyKit' }));
+            Message.error(
+              result.msg ||
+                t('settings.skillsHub.journeyKitsDeleteFailed', { defaultValue: 'Failed to delete JourneyKit' })
+            );
           }
         },
       });
@@ -490,6 +507,7 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
         Message.error(result.msg || 'Failed to add path');
       }
     } catch (error) {
+      console.error('Failed to add custom path:', error);
       Message.error('Failed to add custom path');
     }
   }, [customPathName, customPathValue, handleRefreshExternal]);
@@ -510,6 +528,64 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   const mainContent = (
     <div className='flex flex-col h-full w-full'>
       <div className='space-y-16px pb-24px'>
+        {/* ======== Hermes Desktop Control ======== */}
+        <div className='px-[16px] md:px-[32px] py-22px bg-base rd-16px md:rd-24px mb-16px shadow-sm border border-b-base relative overflow-hidden transition-all'>
+          <div className='flex flex-col xl:flex-row xl:items-center justify-between gap-16px'>
+            <div className='flex items-start gap-14px min-w-0'>
+              <div className='w-44px h-44px rd-12px bg-[rgba(var(--primary-6),0.08)] flex items-center justify-center text-primary-6 shrink-0'>
+                <Lightning theme='filled' size={22} fill='rgb(var(--primary-6))' />
+              </div>
+              <div className='min-w-0 flex flex-col gap-8px'>
+                <div className='flex flex-wrap items-center gap-8px'>
+                  <span className='text-16px md:text-18px text-t-primary font-bold tracking-tight'>
+                    Hermes Desktop Control
+                  </span>
+                  <span className='bg-[rgba(var(--success-6),0.08)] text-[rgb(var(--success-6))] text-12px px-10px py-2px rd-[100px] font-medium'>
+                    MCP powered
+                  </span>
+                  <span className='bg-fill-2 text-t-secondary text-12px px-10px py-2px rd-[100px] font-medium'>
+                    owner supervised
+                  </span>
+                </div>
+                <Typography.Text className='text-13px text-t-secondary block max-w-3xl leading-relaxed'>
+                  Add Peekaboo as the desktop-control capability for Hermes. Setup lives in MCP so the app can verify
+                  command, tool, and permission readiness before any visible Slack, Discord, or iMessage run starts.
+                </Typography.Text>
+                <div className='flex flex-wrap gap-6px'>
+                  {[
+                    'Screen Recording required',
+                    'Accessibility before clicks',
+                    'No hidden app control',
+                    'Stop before send',
+                  ].map((label) => (
+                    <span key={label} className='bg-fill-2 text-t-secondary text-11px px-8px py-3px rd-6px'>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className='flex flex-wrap gap-8px xl:justify-end shrink-0'>
+              <Button
+                type='primary'
+                className='rd-8px'
+                icon={<Puzzle size={14} />}
+                onClick={() => void navigate('/settings/capabilities?tab=tools')}
+              >
+                Open MCP setup
+              </Button>
+              <Button
+                type='outline'
+                className='rd-8px'
+                icon={<Info size={14} />}
+                onClick={() => void ipcBridge.shell.openExternal.invoke('https://peekaboo.sh/')}
+              >
+                Peekaboo docs
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* ======== JourneyKits ======== */}
         <div className='px-[16px] md:px-[32px] py-32px bg-base rd-16px md:rd-24px mb-16px shadow-sm border border-b-base relative overflow-hidden transition-all'>
           <div className='flex flex-col lg:flex-row lg:items-start justify-between gap-16px mb-24px relative z-10 w-full'>
@@ -554,12 +630,7 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                   }}
                 />
               </div>
-              <Button
-                type='primary'
-                className='rd-8px shrink-0'
-                loading={journeyLoading}
-                onClick={handleJourneySearch}
-              >
+              <Button type='primary' className='rd-8px shrink-0' loading={journeyLoading} onClick={handleJourneySearch}>
                 {t('settings.skillsHub.searchJourneyKits', { defaultValue: 'Search' })}
               </Button>
             </div>
@@ -596,7 +667,12 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                     {t('settings.skillsHub.refreshMyKits', { defaultValue: 'Refresh My Kits' })}
                   </Button>
                   {journeyConfig?.hasApiKey && (
-                    <Button size='small' className='rd-8px' status='danger' onClick={() => void handleClearJourneyKey()}>
+                    <Button
+                      size='small'
+                      className='rd-8px'
+                      status='danger'
+                      onClick={() => void handleClearJourneyKey()}
+                    >
                       {t('settings.skillsHub.clearKey', { defaultValue: 'Clear Key' })}
                     </Button>
                   )}
@@ -684,7 +760,12 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                         <Button size='mini' className='rd-6px' onClick={() => handleOpenJourneyKit(kit)}>
                           {t('settings.skillsHub.openJourneyKit', { defaultValue: 'Open' })}
                         </Button>
-                        <Button size='mini' status='danger' className='rd-6px' onClick={() => handleDeleteJourneyKit(kit)}>
+                        <Button
+                          size='mini'
+                          status='danger'
+                          className='rd-6px'
+                          onClick={() => handleDeleteJourneyKit(kit)}
+                        >
                           {t('common.delete', { defaultValue: 'Delete' })}
                         </Button>
                       </div>
@@ -737,7 +818,9 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
                     )}
                     <div className='flex items-center gap-8px text-12px text-t-tertiary font-mono min-w-0'>
                       <span className='truncate'>{kit.kitRef}</span>
-                      {typeof kit.installCount === 'number' && <span>{kit.installCount.toLocaleString()} installs</span>}
+                      {typeof kit.installCount === 'number' && (
+                        <span>{kit.installCount.toLocaleString()} installs</span>
+                      )}
                     </div>
                   </div>
                   <div className='shrink-0 sm:self-center flex items-center mt-8px sm:mt-0'>
