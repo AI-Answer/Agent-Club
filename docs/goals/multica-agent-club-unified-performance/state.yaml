@@ -1,0 +1,203 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Multica + Agent Club Unified Performance Plan"
+  slug: "multica-agent-club-unified-performance"
+  kind: existing_plan
+  tranche: "Plan and validate how to make Agent Club, embedded Multica Local Agent Manager, and local agent runtimes feel like one fast application."
+  status: active
+  intake:
+    original_request: "Optimize Local Agent Manager loading/click speed and plan how Multica, Local Agent Manager, and Agent Club agents can be more tightly coupled into one application."
+    interpreted_outcome: "A plan-first board that maps the integrated architecture, identifies performance bottlenecks, defines coupling improvements, and queues measurable safe implementation slices."
+    input_shape: existing_plan
+    audience: "Sam as Agent Club product owner and daily operator"
+    authority: requested
+    proof_type: artifact
+    completion_proof: "A validated plan, measurements or measurement commands, and prioritized implementation tasks for faster loading and tighter Agent Club/Multica/agent integration."
+    likely_misfire: "Fixing a single slow route or adding loading polish while the app still behaves like disconnected Electron, iframe, backend, and runtime systems."
+    blind_spots_considered:
+      - "Dev-mode Next.js compile latency may differ from packaged runtime latency."
+      - "Electron shell startup, embedded manager boot, backend/auth bootstrap, and daemon registration may each be separate bottlenecks."
+      - "A tighter product may need shared navigation/state/events, not only speed tweaks."
+      - "Over-coupling could make Multica harder to develop independently."
+      - "Agent status freshness and scheduled-task visibility may affect perceived unity as much as route load time."
+    existing_plan_facts:
+      - "Local Agent Manager/Multica is the product source of truth for native goals, issues, and agent work."
+      - "GoalBuddy is a planning and validation surface, not the destination product architecture."
+      - "Agent Club embeds the Local Agent Manager UI and owns desktop/runtime bootstrap."
+      - "The user wants the experience to feel like one application and load quickly when clicking around."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: false
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/multica-agent-club-unified-performance/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/multica-agent-club-unified-performance"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T001
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: active
+    reasoning_hint: default
+    objective: "Map the current Agent Club + embedded Multica + local agent runtime architecture and identify the likely load/click bottlenecks."
+    inputs:
+      - "Agent Club Electron shell"
+      - "Embedded Local Agent Manager web app"
+      - "Backend/runtime startup logs"
+      - "Current dev-server route behavior"
+      - "Known user complaint: clicking around compiles for too long"
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Focus on concrete architecture and performance evidence, not generic optimization advice."
+      - "Separate dev-mode compile latency from packaged/runtime latency."
+    expected_output:
+      - "Architecture map with file/path evidence."
+      - "Startup and navigation flow from Electron to Multica web to backend/runtime agents."
+      - "Likely bottleneck list ranked by impact and confidence."
+      - "Commands or instrumentation points for measuring boot, route compile, and click latency."
+      - "Candidate coupling improvements that would make the product feel unified."
+    receipt: null
+
+  - id: T002
+    type: scout
+    assignee: Scout
+    status: queued
+    reasoning_hint: default
+    objective: "Inventory the product surfaces that should feel unified and define the desired integration contract between Agent Club, Multica, and agents."
+    inputs:
+      - "Dashboard"
+      - "Search"
+      - "Scheduled Tasks"
+      - "Local Agent Manager"
+      - "Channels"
+      - "Hermes Chief of Staff"
+      - "Native goals, issues, boards, and runtime activity"
+    constraints:
+      - "Read-only."
+      - "Preserve existing useful widgets and screens."
+      - "Keep Multica as the source of truth for native goal/task work unless evidence says otherwise."
+    expected_output:
+      - "Unified product surface map."
+      - "What state should be shared across shell, manager, and agents."
+      - "What navigation should be native shell versus embedded manager."
+      - "What can be tightened without a large rewrite."
+    receipt: null
+
+  - id: T003
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Turn Scout findings into a plan that balances speed, coupling, independence, and implementation risk."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "Original user outcome"
+    constraints:
+      - "Do not implement."
+      - "Do not approve a large architecture rewrite unless Scout evidence shows smaller slices cannot satisfy the user outcome."
+      - "Prefer the largest safe useful implementation slices with measurable proof."
+    expected_output:
+      - "Recommended architecture/product direction."
+      - "Performance target proposal for boot, first usable manager view, and click-to-ready route transitions."
+      - "Prioritized implementation phases."
+      - "First safe Worker objective with allowed_files, verify commands, and stop_if."
+      - "Risks and deferred decisions."
+    receipt: null
+
+  - id: T004
+    type: pm
+    assignee: PM
+    status: queued
+    reasoning_hint: default
+    objective: "Write the unified performance and coupling plan as a durable note for review before implementation."
+    inputs:
+      - "T001 receipt"
+      - "T002 receipt"
+      - "T003 decision"
+    constraints:
+      - "Control-file and notes-only write task."
+      - "Do not edit implementation files."
+      - "The plan must clearly separate immediate speed wins, deeper integration work, and risky/deferred architecture choices."
+    expected_output:
+      - "notes/T004-unified-performance-plan.md"
+      - "Task receipt summarizing plan sections and open questions."
+    receipt: null
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: queued
+    reasoning_hint: default
+    objective: "Execute the first safe implementation task selected by Judge after the plan is reviewed."
+    allowed_files: []
+    verify: []
+    stop_if:
+      - "The plan has not been written or reviewed."
+      - "Need files outside allowed_files."
+      - "Behavior is ambiguous."
+      - "Verification fails twice."
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the planning tranche is complete and ready for implementation."
+    inputs:
+      - "All done task receipts"
+      - "notes/T004-unified-performance-plan.md"
+      - "Current dirty diff"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if the plan lacks measurable performance targets or implementation slices."
+      - "Reject completion if the plan does not address the full Agent Club + Multica + local agent runtime experience."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false for the planning tranche"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: unknown
+    task: null
+    commands: []

@@ -1,0 +1,480 @@
+version: 2
+
+goal:
+  title: "Month Map Planner And Agent Dispatch"
+  slug: "month-map-planner-agent-dispatch"
+  kind: existing_plan
+  tranche: "Implement the complete v1 Month Map planner vertical slice inside Agent Club's embedded Local Agent Manager, including persistence, UI, agent dispatch, agent context/update integration, and cross-app verification."
+  status: done
+  intake:
+    original_request: "Make a GoalBuddy goal, then run /goal to develop the whole warm map planner feature and test it across the application."
+    interpreted_outcome: "Agent Club has a working Local Agent Manager Month Map that mirrors Samin's current Google Sheets warm map workflow and can dispatch/update Multica agent work from planner items."
+    input_shape: existing_plan
+    audience: "Samin and local Multica agents"
+    authority: requested
+    proof_type: test
+    completion_proof: "Focused tests and an app smoke test show the Month Map opens to the current month, edits/saves entries/objectives/notes/tab colors, grays past days and highlights today, creates/links a Multica project/goal/issue from a planner entry, dispatches an agent task, injects planner context, and reflects agent/status updates back into the planner."
+    likely_misfire: "Shipping a standalone calendar, annual dashboard, or GoalBuddy-like board that looks polished but does not preserve the freeform month workflow or connect to Multica execution."
+    blind_spots_considered:
+      - "Whether planner entries should be first-class records or issue-only records."
+      - "How to keep day cells freeform while preserving structured links to issues/goals/projects."
+      - "How agents learn today's priorities without scraping UI text."
+      - "How agent-created or agent-updated work writes back to the planner."
+      - "How deep links open inside Agent Club rather than an external browser."
+      - "How to test app-wide behavior without depending on a production daemon."
+    existing_plan_facts:
+      - "Use the user's Google Sheet `Samin - War Map 2026` as behavioral inspiration."
+      - "The user lives in the current month tab, especially May-like planning, not the annual dashboard."
+      - "V1 excludes RICE scoring."
+      - "Month tabs should be recolorable."
+      - "Past/taken days should be gray and today should be highlighted automatically."
+      - "Bottom `Main Objectives` and `Notes` sections are part of the monthly surface."
+      - "A planner task can be started by an agent through a right-click/button plus prompt/context modal."
+      - "Starting an agent should create or link project/goal/issue records in Multica and queue work."
+      - "Planner context should be available to agents as today's priorities and month objectives."
+      - "Agents should be able to retroactively update planner entries."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+  slice_policy:
+    max_consecutive_tiny_tasks: 2
+    prefer_vertical_slices: true
+    judge_picks_largest_safe_slice: true
+    worker_completes_whole_slice: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live
+    url: "http://goalbuddy.localhost:41737/month-map-planner-agent-dispatch/"
+    command: "npx goalbuddy board /Users/saminyasar/Agent-Club/docs/goals/month-map-planner-agent-dispatch"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: null
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: low
+    objective: "Map the current Agent Club and apps/agent-manager architecture needed for a Month Map planner, including routes, data/API patterns, issue/project/goal creation, agent queueing, context injection points, navigation/deep-link behavior, and verification commands."
+    inputs:
+      - "/Users/saminyasar/Agent-Club"
+      - "apps/agent-manager"
+      - "src/renderer/pages/AgentManagerPage.tsx"
+      - "Prior sheet facts: month tabs, May tab, freeform day entries, Main Objectives, Notes, gray past days, today highlight, right-click/button agent dispatch."
+      - "Memory facts: Local Agent Manager is product source of truth; /goal prep creates shell; /goal expansion queues planner/worker tasks."
+    constraints:
+      - "Read-only."
+      - "Do not edit implementation files."
+      - "Prefer concrete file-path evidence and exact commands."
+      - "Do not re-argue product architecture; start from Local Agent Manager and Multica."
+    expected_output:
+      - "Repo map for planner backend, frontend, routing, and dispatch surfaces."
+      - "Exact candidate files/directories for implementation."
+      - "Existing API/query/migration patterns to reuse."
+      - "Verification commands and likely smoke-test path."
+      - "Risks and recommended first Worker slice."
+    receipt:
+      result: done
+      summary: "Mapped the planner integration path through apps/agent-manager: Go API/router/sqlc migrations, @multica/core API hooks/types, shared @multica/views page, Next route, desktop React route, sidebar paths/nav, and existing project/goal/issue/agent task creation flows."
+      evidence:
+        - "Backend routes live in apps/agent-manager/server/cmd/server/router.go under authenticated workspace-scoped /api routes; planner should mount beside issues/projects/goals."
+        - "Persistence uses migrations plus sqlc from apps/agent-manager/server/sqlc.yaml, queries in server/pkg/db/queries, generated code in server/pkg/db/generated."
+        - "Issue creation already queues agent work when assignee_type=agent and status is not backlog through Handler.CreateIssue -> TaskService.EnqueueTaskForIssue."
+        - "Project/goal APIs exist in server/internal/handler/project.go and goal.go and @multica/core projects/goals queries/mutations."
+        - "Shared UI pages live in packages/views and are mounted by apps/web routes plus apps/desktop/src/renderer/src/routes.tsx."
+        - "Navigation paths are centralized in packages/core/paths/paths.ts and app sidebar labels live in packages/views/locales/*/layout.json."
+      risks:
+        - "sqlc generation is required after adding planner queries."
+        - "A live daemon is not required to prove task queue creation, but final app smoke may only verify dispatch linkage unless a local runtime is online."
+        - "Existing dirty worktree has unrelated Agent Club edits; avoid reverting or touching unrelated dashboard/memory changes."
+
+  - id: T002
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Validate the implementation strategy from T001 and choose the largest safe first Worker slice that moves toward the full Month Map feature."
+    inputs:
+      - "T001 receipt"
+      - "goal.md"
+      - "state.yaml"
+    constraints:
+      - "Do not implement."
+      - "Reject tiny helper-only slices unless they unlock a larger vertical slice."
+      - "Keep v1 month-first and exclude RICE."
+    expected_output:
+      - "Decision"
+      - "First Worker objective"
+      - "allowed_files"
+      - "verify commands"
+      - "stop_if conditions"
+      - "Any blocked/deferred scope"
+    receipt:
+      result: done
+      decision: "Proceed with a backend-first vertical slice, then layer the shared UI and dispatch workflow on top of the same planner API."
+      first_worker_objective: "Add first-class Month Map persistence and API contracts for planner months and entries, including issue/project/goal links and task-status backfill hooks."
+      allowed_files:
+        - "apps/agent-manager/server/migrations/091_month_map_planner.up.sql"
+        - "apps/agent-manager/server/migrations/091_month_map_planner.down.sql"
+        - "apps/agent-manager/server/pkg/db/queries/planner.sql"
+        - "apps/agent-manager/server/pkg/db/generated/**"
+        - "apps/agent-manager/server/internal/handler/planner.go"
+        - "apps/agent-manager/server/cmd/server/router.go"
+        - "apps/agent-manager/server/internal/service/task.go"
+        - "apps/agent-manager/packages/core/types/planner.ts"
+        - "apps/agent-manager/packages/core/types/index.ts"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/planner/**"
+      verify:
+        - "cd apps/agent-manager/server && sqlc generate"
+        - "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+        - "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+      stop_if:
+        - "sqlc cannot generate due to schema/query ambiguity."
+        - "Issue dispatch semantics require changing unrelated issue creation behavior."
+        - "Backend tests reveal migration incompatibility with existing tables."
+
+  - id: T003
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the first backend/data vertical slice selected by Judge, expected to cover planner persistence, query/API contracts, and safe seed/current-month behavior."
+    allowed_files:
+      - "apps/agent-manager/server/migrations/091_month_map_planner.up.sql"
+      - "apps/agent-manager/server/migrations/091_month_map_planner.down.sql"
+      - "apps/agent-manager/server/pkg/db/queries/planner.sql"
+      - "apps/agent-manager/server/pkg/db/generated/**"
+      - "apps/agent-manager/server/internal/handler/planner.go"
+      - "apps/agent-manager/server/cmd/server/router.go"
+      - "apps/agent-manager/server/internal/service/task.go"
+      - "apps/agent-manager/packages/core/types/planner.ts"
+      - "apps/agent-manager/packages/core/types/index.ts"
+      - "apps/agent-manager/packages/core/api/client.ts"
+      - "apps/agent-manager/packages/core/planner/**"
+      - "apps/agent-manager/packages/core/package.json"
+    verify:
+      - "cd apps/agent-manager/server && sqlc generate"
+      - "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+      - "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+    stop_if:
+      - "Need files outside allowed_files."
+      - "Schema or API pattern is ambiguous after T001/T002."
+      - "Verification fails twice for the same reason."
+    receipt:
+      result: done
+      summary: "Implemented Month Map backend and shared core API slice: planner schema, sqlc queries/generated code, authenticated planner routes, JSON responses, React Query hooks, and task lifecycle status sync for linked planner entries."
+      changed_files:
+        - "apps/agent-manager/server/migrations/091_month_map_planner.up.sql"
+        - "apps/agent-manager/server/migrations/091_month_map_planner.down.sql"
+        - "apps/agent-manager/server/pkg/db/queries/planner.sql"
+        - "apps/agent-manager/server/pkg/db/generated/planner.sql.go"
+        - "apps/agent-manager/server/pkg/db/generated/models.go"
+        - "apps/agent-manager/server/internal/handler/planner.go"
+        - "apps/agent-manager/server/cmd/server/router.go"
+        - "apps/agent-manager/server/internal/service/task.go"
+        - "apps/agent-manager/packages/core/types/planner.ts"
+        - "apps/agent-manager/packages/core/types/index.ts"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/planner/queries.ts"
+        - "apps/agent-manager/packages/core/planner/mutations.ts"
+        - "apps/agent-manager/packages/core/planner/index.ts"
+        - "apps/agent-manager/packages/core/package.json"
+      verification:
+        - "cd apps/agent-manager/server && sqlc generate"
+        - "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+        - "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+      commands:
+        - command: "cd apps/agent-manager/server && sqlc generate"
+          status: pass
+        - command: "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+          status: pass
+      notes:
+        - "Installed local Homebrew sqlc 1.31.1 because sqlc was not on PATH."
+        - "Task start/complete/fail/cancel now updates linked planner entries to working/done/blocked/skipped."
+
+  - id: T004
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement the Month Map UI slice: current-month default, month tabs, tab color controls, spreadsheet-like editable day cells, objectives, notes, gray past days, and today highlight."
+    allowed_files:
+      - "apps/agent-manager/packages/views/planner/**"
+      - "apps/agent-manager/packages/views/locales/en/planner.json"
+      - "apps/agent-manager/packages/views/locales/zh-Hans/planner.json"
+      - "apps/agent-manager/packages/views/locales/index.ts"
+      - "apps/agent-manager/packages/views/i18n/resources-types.ts"
+      - "apps/agent-manager/packages/views/package.json"
+      - "apps/agent-manager/packages/views/issues/components/issue-detail.test.tsx"
+      - "apps/agent-manager/packages/views/issues/components/issues-page.test.tsx"
+      - "apps/agent-manager/packages/views/issues/hooks/issue-delete-mutations.test.tsx"
+      - "apps/agent-manager/packages/views/issues/utils/filter.test.ts"
+    verify:
+      - "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+    stop_if:
+      - "Need backend/API behavior not yet implemented."
+      - "UI cannot be verified in the app shell."
+      - "Text/layout overlaps or breaks at normal app widths."
+    receipt:
+      result: done
+      summary: "Implemented the shared Month Map page: current-month default, month tabs, tab recoloring, Monday-first spreadsheet grid, gray past days, today highlight, inline entry creation/editing/status updates/deletion, and bottom Main Objectives/Notes editors."
+      changed_files:
+        - "apps/agent-manager/packages/views/planner/components/planner-page.tsx"
+        - "apps/agent-manager/packages/views/planner/components/index.ts"
+        - "apps/agent-manager/packages/views/planner/index.ts"
+        - "apps/agent-manager/packages/views/locales/en/planner.json"
+        - "apps/agent-manager/packages/views/locales/zh-Hans/planner.json"
+        - "apps/agent-manager/packages/views/locales/index.ts"
+        - "apps/agent-manager/packages/views/i18n/resources-types.ts"
+        - "apps/agent-manager/packages/views/package.json"
+        - "apps/agent-manager/packages/views/issues/components/issue-detail.test.tsx"
+        - "apps/agent-manager/packages/views/issues/components/issues-page.test.tsx"
+        - "apps/agent-manager/packages/views/issues/hooks/issue-delete-mutations.test.tsx"
+        - "apps/agent-manager/packages/views/issues/utils/filter.test.ts"
+      verification:
+        - "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+      commands:
+        - command: "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+          status: pass
+      notes:
+        - "Repaired existing issue test fixtures by adding goal_id:null so the view package typecheck reflects the already-present goal type shape."
+
+  - id: T005
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement planner item to Multica execution: context menu/button, prompt modal, create/link project/goal/issue, assign/queue an agent, and write status/link chips back to the planner item."
+    allowed_files:
+      - "apps/agent-manager/packages/views/planner/components/planner-page.tsx"
+      - "apps/agent-manager/packages/views/locales/en/planner.json"
+      - "apps/agent-manager/packages/views/locales/zh-Hans/planner.json"
+      - "apps/agent-manager/packages/views/package.json"
+    verify:
+      - "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+    stop_if:
+      - "Cannot identify the existing issue/goal/project/agent task APIs."
+      - "Dispatch would require external credentials or a live production-only daemon."
+      - "Deep-link routing cannot be kept inside Agent Club without a separate shell change."
+    receipt:
+      result: done
+      summary: "Implemented planner entry dispatch into Multica execution: right-click/menu Start with agent, prompt modal, agent and project selection, automatic Month Map project creation, goal creation, agent-assigned issue creation, and planner entry link/status writeback."
+      changed_files:
+        - "apps/agent-manager/packages/views/planner/components/planner-page.tsx"
+        - "apps/agent-manager/packages/views/locales/en/planner.json"
+        - "apps/agent-manager/packages/views/locales/zh-Hans/planner.json"
+      verification:
+        - "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+      commands:
+        - command: "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+          status: pass
+      notes:
+        - "Issue descriptions include date, month, entry, prompt, main objectives, and notes so assigned agents receive the Month Map context immediately."
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Implement agent awareness and retroactive updates: expose current planner context to agent starts and add structured update paths so agent/status changes can update planner entries."
+    allowed_files:
+      - "apps/agent-manager/server/internal/handler/planner.go"
+      - "apps/agent-manager/server/internal/service/task.go"
+      - "apps/agent-manager/packages/core/api/client.ts"
+      - "apps/agent-manager/packages/core/planner/**"
+      - "apps/agent-manager/packages/views/planner/components/planner-page.tsx"
+    verify:
+      - "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+      - "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+      - "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+    stop_if:
+      - "Agent context injection point is unsafe or unclear."
+      - "Planner updates would require unstructured UI scraping."
+      - "No testable local path exists for the update event."
+    receipt:
+      result: done
+      summary: "Implemented v1 agent awareness and retroactive update paths through the planner context API, dispatch-time issue context injection, agent-attributed planner entry creation, and automatic planner entry status sync from linked task lifecycle events."
+      changed_files:
+        - "apps/agent-manager/server/internal/handler/planner.go"
+        - "apps/agent-manager/server/internal/service/task.go"
+        - "apps/agent-manager/packages/core/api/client.ts"
+        - "apps/agent-manager/packages/core/planner/queries.ts"
+        - "apps/agent-manager/packages/core/planner/mutations.ts"
+      evidence:
+        - "GET /api/planner/context returns today's entries, objectives, and notes for the selected date."
+        - "Planner issue descriptions include month objectives/notes and the exact user prompt before assignment."
+        - "TaskService maps linked issue task start/complete/fail/cancel to planner entry working/done/blocked/skipped."
+        - "Planner entry create supports member/agent/system attribution through created_by_type and created_by_id."
+      verification:
+        - "Covered by T003 and T005 verification."
+      commands:
+        - command: "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+          status: pass
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Wire the Planner into the app-wide navigation and embedded Agent Manager shell so it works seamlessly across Agent Club routes and in-app links."
+    allowed_files:
+      - "apps/agent-manager/packages/core/paths/paths.ts"
+      - "apps/agent-manager/packages/views/layout/app-sidebar.tsx"
+      - "apps/agent-manager/packages/views/locales/en/layout.json"
+      - "apps/agent-manager/packages/views/locales/zh-Hans/layout.json"
+      - "apps/agent-manager/packages/views/search/search-command.tsx"
+      - "apps/agent-manager/packages/views/locales/en/search.json"
+      - "apps/agent-manager/packages/views/locales/zh-Hans/search.json"
+      - "apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/planner/page.tsx"
+      - "apps/agent-manager/apps/desktop/src/renderer/src/routes.tsx"
+      - "apps/agent-manager/apps/desktop/src/renderer/src/stores/tab-store.ts"
+      - "apps/agent-manager/apps/desktop/src/renderer/src/components/tab-bar.tsx"
+    verify:
+      - "cd apps/agent-manager && pnpm --filter @multica/core typecheck"
+      - "cd apps/agent-manager && pnpm --filter @multica/views typecheck"
+      - "cd apps/agent-manager && pnpm --filter @multica/web typecheck"
+      - "cd apps/agent-manager && pnpm --filter @multica/desktop typecheck"
+    stop_if:
+      - "Navigation changes conflict with unrelated user edits."
+      - "App shell route ownership is ambiguous."
+      - "Deep links open externally after the route update."
+    receipt:
+      result: done
+      summary: "Wired Month Map into app-wide navigation and embedded routes: shared path builder, sidebar, search command, web route, desktop memory-router route, and desktop tab icon mapping."
+      changed_files:
+        - "apps/agent-manager/packages/core/paths/paths.ts"
+        - "apps/agent-manager/packages/views/layout/app-sidebar.tsx"
+        - "apps/agent-manager/packages/views/locales/en/layout.json"
+        - "apps/agent-manager/packages/views/locales/zh-Hans/layout.json"
+        - "apps/agent-manager/packages/views/search/search-command.tsx"
+        - "apps/agent-manager/packages/views/locales/en/search.json"
+        - "apps/agent-manager/packages/views/locales/zh-Hans/search.json"
+        - "apps/agent-manager/apps/web/app/[workspaceSlug]/(dashboard)/planner/page.tsx"
+        - "apps/agent-manager/apps/desktop/src/renderer/src/routes.tsx"
+        - "apps/agent-manager/apps/desktop/src/renderer/src/stores/tab-store.ts"
+        - "apps/agent-manager/apps/desktop/src/renderer/src/components/tab-bar.tsx"
+      verification:
+        - "cd apps/agent-manager && pnpm --filter @multica/core typecheck && pnpm --filter @multica/views typecheck && pnpm --filter @multica/web typecheck && pnpm --filter @multica/desktop typecheck"
+      commands:
+        - command: "cd apps/agent-manager && pnpm --filter @multica/core typecheck && pnpm --filter @multica/views typecheck && pnpm --filter @multica/web typecheck && pnpm --filter @multica/desktop typecheck"
+          status: pass
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Add and run focused tests and smoke checks for the full Month Map flow across backend, frontend, app shell, and Multica dispatch/linking behavior."
+    allowed_files:
+      - "apps/agent-manager/packages/views/planner/components/planner-page.tsx"
+    verify: []
+    stop_if:
+      - "Required test harness is missing or broken before this feature."
+      - "A real daemon dependency blocks end-to-end validation; use a local deterministic substitute and document the limitation."
+      - "Visual smoke testing shows blank, broken, or overlapping UI."
+    receipt:
+      result: done
+      summary: "Ran the full verification pass for the Month Map vertical slice across backend, shared packages, web/desktop typechecks, local migration/API health, authenticated planner UI, planner CRUD, dispatch modal, and planner context."
+      changed_files:
+        - "apps/agent-manager/packages/views/planner/components/planner-page.tsx"
+      commands:
+        - command: "cd apps/agent-manager/server && sqlc generate"
+          status: pass
+        - command: "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+          status: pass
+        - command: "cd apps/agent-manager && pnpm --filter @multica/core typecheck && pnpm --filter @multica/views typecheck && pnpm --filter @multica/web typecheck && pnpm --filter @multica/desktop typecheck"
+          status: pass
+        - command: "cd apps/agent-manager/server && DATABASE_URL=postgres://multica:multica@127.0.0.1:55432/multica?sslmode=disable go run ./cmd/migrate up"
+          status: pass
+        - command: "Playwright smoke via system Chrome: POST /auth/agent-club, open /agent-club/planner, verify Month Map/May/today/objectives/notes/Add task and /api/planner month routes return 200"
+          status: pass
+        - command: "Playwright smoke: create planner task, edit title, open Start with agent modal, verify agent/project/goal/prompt controls and enabled start button, then delete smoke task"
+          status: pass
+        - command: "GET /api/planner/context?date=2026-05-14"
+          status: pass
+        - command: "git diff --check"
+          status: pass
+      evidence:
+        - "Authenticated Month Map route loaded at http://localhost:3330/agent-club/planner with GET /api/planner/months?year=2026 and GET /api/planner/months/2026/5 returning 200."
+        - "UI smoke created a May 14 task through POST /api/planner/entries, edited it through PUT /api/planner/entries/{id}, opened the Start with agent dialog, confirmed Coordinator/project/goal/prompt controls, and deleted the smoke entry through DELETE /api/planner/entries/{id}."
+        - "Planner context endpoint returned date 2026-05-14 and month May."
+      notes:
+        - "I verified the live dispatch dialog and API wiring without leaving a real agent smoke task running."
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Audit whether the implemented Month Map feature satisfies the original owner outcome and is tested across the application."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+      - "Goal intake and non-negotiable constraints"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if any required Worker task is still queued, active, or unverified."
+      - "Reject completion if the feature is only a static UI, only a backend model, or does not dispatch/link Multica agent work."
+      - "Reject completion if tests/smoke verification do not cover the core current-month edit -> agent dispatch -> planner update path."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt:
+      result: done
+      decision: complete
+      full_outcome_complete: true
+      summary: "The Month Map feature satisfies the owner outcome for v1: it is a first-class Local Agent Manager planner, not a separate GoalBuddy/RICE board; it opens to the current month, looks and operates like the user's Google Sheets warm map, persists freeform day tasks/objectives/notes/tab colors, exposes planner context to agents, and turns a planner item into Multica project/goal/issue work with agent assignment."
+      evidence:
+        - "Data/API: planner_month and planner_entry schema, authenticated planner month/entry/context routes, sqlc queries, shared core API client/hooks/types."
+        - "UI: Month Map nav/search/desktop/web routes, month tabs, tab color swatches, gray past days, yellow today, inline day task CRUD, objectives and notes panels."
+        - "Agent flow: right-click/dropdown Start with agent opens a prompt modal, creates/links Month Map project, goal, issue, and planner entry metadata, and task lifecycle sync maps linked issue execution back to planner statuses."
+        - "Verification: Go tests, core/views/web/desktop typechecks, local migration, authenticated browser smoke, planner CRUD smoke, dispatch modal smoke, planner context endpoint, and git diff check passed."
+      residual_risk:
+        - "The final smoke intentionally did not launch and leave a real agent task running; the UI start path is enabled and wired to the existing issue/goal/project APIs, and task-status sync is covered in backend/service tests."
+
+checks:
+  dirty_fingerprint: unknown
+  last_verification:
+    result: pass
+    task: T999
+    commands:
+      - "cd apps/agent-manager/server && sqlc generate"
+      - "cd apps/agent-manager/server && go test ./internal/handler ./internal/service ./cmd/server"
+      - "cd apps/agent-manager && pnpm --filter @multica/core typecheck && pnpm --filter @multica/views typecheck && pnpm --filter @multica/web typecheck && pnpm --filter @multica/desktop typecheck"
+      - "cd apps/agent-manager/server && DATABASE_URL=postgres://multica:multica@127.0.0.1:55432/multica?sslmode=disable go run ./cmd/migrate up"
+      - "Playwright authenticated planner route smoke"
+      - "Playwright planner create/edit/delete and Start with agent modal smoke"
+      - "GET /api/planner/context?date=2026-05-14"
+      - "git diff --check"

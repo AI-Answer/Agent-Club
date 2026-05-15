@@ -44,6 +44,7 @@ const MONTH_NAMES = [
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_MARK_COLORS = ['#fecaca', '#fed7aa', '#fde68a', '#bbf7d0', '#bfdbfe', '#ddd6fe', '#fbcfe8', '#cbd5e1'];
+const DAY_SELECTION_HIGHLIGHT_TIMEOUT_MS = 3500;
 
 const STATUS_DOT_COLOR: Record<PlannerEntryStatus, string> = {
   planned: '#94a3b8',
@@ -92,6 +93,68 @@ function statusLabel(status: PlannerEntryStatus): string {
   return status.replace(/_/g, ' ');
 }
 
+const MONTH_MAP_NAV_SELECTOR = 'input[data-month-map-nav="true"]';
+
+function addDaysToKey(value: string, days: number): string {
+  const [year, month, day] = value.split('-').map(Number);
+  return dateKey(new Date(year, month - 1, day + days));
+}
+
+function focusMonthMapInput(input: HTMLInputElement | undefined): boolean {
+  if (!input) return false;
+  input.focus();
+  requestAnimationFrame(() => {
+    const position = input.value.length;
+    input.setSelectionRange(position, position);
+  });
+  return true;
+}
+
+function monthMapNavTargets(date: string): HTMLInputElement[] {
+  return Array.from(document.querySelectorAll<HTMLInputElement>(MONTH_MAP_NAV_SELECTOR))
+    .filter((input) => input.dataset.monthMapDate === date)
+    .toSorted((a, b) => Number(a.dataset.monthMapIndex ?? 0) - Number(b.dataset.monthMapIndex ?? 0));
+}
+
+function focusMonthMapDate(date: string, current: HTMLInputElement): boolean {
+  const targets = monthMapNavTargets(date);
+  if (!targets.length) return false;
+  if (current.dataset.monthMapKind === 'add') {
+    return focusMonthMapInput(targets.find((input) => input.dataset.monthMapKind === 'add') ?? targets.at(-1));
+  }
+  const index = Number(current.dataset.monthMapIndex ?? 0);
+  return focusMonthMapInput(
+    targets.find((input) => Number(input.dataset.monthMapIndex ?? 0) === index) ??
+      targets.find((input) => input.dataset.monthMapKind === 'add') ??
+      targets.at(-1)
+  );
+}
+
+function handleMonthMapArrowNavigation(event: React.KeyboardEvent<HTMLInputElement>): boolean {
+  const input = event.currentTarget;
+  const date = input.dataset.monthMapDate;
+  if (!date) return false;
+
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    event.preventDefault();
+    const targets = monthMapNavTargets(date);
+    const currentIndex = targets.indexOf(input);
+    const next = targets[currentIndex + (event.key === 'ArrowDown' ? 1 : -1)];
+    if (focusMonthMapInput(next)) return true;
+    return focusMonthMapDate(addDaysToKey(date, event.key === 'ArrowDown' ? 7 : -7), input);
+  }
+
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return false;
+  const selectionStart = input.selectionStart ?? 0;
+  const selectionEnd = input.selectionEnd ?? 0;
+  const atStart = selectionStart === 0 && selectionEnd === 0;
+  const atEnd = selectionStart === input.value.length && selectionEnd === input.value.length;
+  if ((event.key === 'ArrowLeft' && !atStart) || (event.key === 'ArrowRight' && !atEnd)) return false;
+
+  event.preventDefault();
+  return focusMonthMapDate(addDaysToKey(date, event.key === 'ArrowRight' ? 1 : -1), input);
+}
+
 const MonthMapPage: React.FC = () => {
   const layout = useLayoutContext();
   const isMobile = layout?.isMobile ?? false;
@@ -110,6 +173,7 @@ const MonthMapPage: React.FC = () => {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(() => new Set());
   const [dayMarkLabel, setDayMarkLabel] = useState('');
   const [activeDragEntry, setActiveDragEntry] = useState<PlannerEntry | null>(null);
+  const [keyboardFocusDate, setKeyboardFocusDate] = useState<string | null>(null);
   const dateSelectionActiveRef = useRef(false);
   const dateSelectionModeRef = useRef<'add' | 'remove'>('add');
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -138,6 +202,7 @@ const MonthMapPage: React.FC = () => {
 
   useEffect(() => {
     setSelectedDates(new Set());
+    setKeyboardFocusDate(null);
     setDayMarkLabel('');
   }, [month, year]);
 
@@ -309,23 +374,25 @@ const MonthMapPage: React.FC = () => {
     [dayMarksByDate, removeDayMark, replaceDayMark]
   );
 
-  const applyDayMark = useCallback(
-    async (color: string) => {
-      const label = dayMarkLabel.trim() || null;
-      await Promise.all(selectedDatesList.map((date) => updateDayMark(date, { color, label })));
-    },
-    [dayMarkLabel, selectedDatesList, updateDayMark]
-  );
-
-  const clearSelectedDayMarks = useCallback(async () => {
-    await Promise.all(selectedDatesList.map((date) => deleteDayMark(date)));
-  }, [deleteDayMark, selectedDatesList]);
-
   const clearSelectedDates = useCallback(() => {
     dateSelectionActiveRef.current = false;
     setSelectedDates(new Set());
     setDayMarkLabel('');
   }, []);
+
+  const applyDayMark = useCallback(
+    async (color: string) => {
+      const label = dayMarkLabel.trim() || null;
+      await Promise.all(selectedDatesList.map((date) => updateDayMark(date, { color, label })));
+      clearSelectedDates();
+    },
+    [clearSelectedDates, dayMarkLabel, selectedDatesList, updateDayMark]
+  );
+
+  const clearSelectedDayMarks = useCallback(async () => {
+    await Promise.all(selectedDatesList.map((date) => deleteDayMark(date)));
+    clearSelectedDates();
+  }, [clearSelectedDates, deleteDayMark, selectedDatesList]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -336,6 +403,12 @@ const MonthMapPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [clearSelectedDates]);
+
+  useEffect(() => {
+    if (!selectedDatesList.length) return undefined;
+    const timeout = window.setTimeout(clearSelectedDates, DAY_SELECTION_HIGHLIGHT_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [clearSelectedDates, dayMarkLabel, selectedDatesList]);
 
   const beginDateSelection = useCallback((date: string, event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
@@ -547,12 +620,19 @@ const MonthMapPage: React.FC = () => {
                         entries={cell.date ? entriesByDate.get(cell.date) ?? [] : []}
                         dayMark={cell.date ? dayMarksByDate.get(cell.date) : undefined}
                         selected={cell.date ? selectedDates.has(cell.date) : false}
+                        keyboardFocused={cell.date ? keyboardFocusDate === cell.date : false}
                         draft={cell.date ? drafts[cell.date] ?? '' : ''}
                         savingEntryId={savingEntryId}
+                        onKeyboardFocus={() => cell.date && setKeyboardFocusDate(cell.date)}
+                        onKeyboardBlur={() => {
+                          if (cell.date) {
+                            setKeyboardFocusDate((current) => (current === cell.date ? null : current));
+                          }
+                        }}
                         onSelectionStart={(event) => cell.date && beginDateSelection(cell.date, event)}
                         onSelectionEnter={() => cell.date && extendDateSelection(cell.date)}
                         onDraftChange={(value) => cell.date && setDrafts((current) => ({ ...current, [cell.date!]: value }))}
-                        onAdd={() => cell.date && void addEntry(cell.date)}
+                        onAdd={() => (cell.date ? addEntry(cell.date) : undefined)}
                         onDelete={deleteEntry}
                         onUpdate={updateEntry}
                       />
@@ -609,8 +689,11 @@ const DayCell: React.FC<{
   entries: PlannerEntry[];
   dayMark?: PlannerDayMark;
   selected: boolean;
+  keyboardFocused: boolean;
   draft: string;
   savingEntryId: string | null;
+  onKeyboardFocus: () => void;
+  onKeyboardBlur: () => void;
   onSelectionStart: (event: React.PointerEvent<HTMLElement>) => void;
   onSelectionEnter: () => void;
   onDraftChange: (value: string) => void;
@@ -623,8 +706,11 @@ const DayCell: React.FC<{
   entries,
   dayMark,
   selected,
+  keyboardFocused,
   draft,
   savingEntryId,
+  onKeyboardFocus,
+  onKeyboardBlur,
   onSelectionStart,
   onSelectionEnter,
   onDraftChange,
@@ -636,6 +722,7 @@ const DayCell: React.FC<{
     id: cell.date ? `day:${cell.date}` : `blank:${cell.day ?? 'x'}`,
     disabled: !cell.date,
   });
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   if (!cell.date || cell.day == null) {
     return <div className='h-142px min-w-0' style={{ backgroundColor: '#d1d5db' }} />;
@@ -644,6 +731,7 @@ const DayCell: React.FC<{
   const isPast = cell.date < todayKey;
   const isToday = cell.date === todayKey;
   const shadows = [
+    keyboardFocused ? 'inset 0 0 0 2px rgba(37,99,235,0.58), inset 0 0 0 999px rgba(37,99,235,0.045)' : null,
     selected ? 'inset 0 0 0 2px rgba(17,24,39,0.42)' : null,
     !selected && isToday ? 'inset 0 0 0 2px #facc15' : null,
     dayMark ? `inset 0 4px 0 ${dayMark.color}` : null,
@@ -663,20 +751,69 @@ const DayCell: React.FC<{
     boxShadow: shadows.length ? shadows.join(', ') : undefined,
   };
   const handleAddKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (handleMonthMapArrowNavigation(event)) return;
     if (event.key !== 'Enter' || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    const input = event.currentTarget;
     void Promise.resolve(onAdd()).then(() => {
-      requestAnimationFrame(() => input.focus());
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => addInputRef.current?.focus());
+      });
     });
   };
+  const focusAddInput = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => addInputRef.current?.focus());
+    });
+  };
+  const renderAddTaskInput = (placement: 'top' | 'after-task') => (
+    <div
+      className={classNames(
+        'flex h-19px shrink-0 items-center rounded-5px bg-[rgba(255,255,255,0.72)] px-5px transition-opacity focus-within:bg-white',
+        placement === 'top' && 'mb-4px',
+        isPast && 'opacity-25 hover:opacity-100 focus-within:opacity-100'
+      )}
+      data-month-map-interactive='true'
+      onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <input
+        ref={addInputRef}
+        value={draft}
+        placeholder='Add task'
+        onChange={(event) => onDraftChange(event.target.value)}
+        onKeyDown={handleAddKeyDown}
+        data-month-map-nav='true'
+        data-month-map-date={cell.date}
+        data-month-map-kind='add'
+        data-month-map-index={entries.length}
+        className='h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-10px leading-15px text-t-primary outline-none placeholder:text-t-tertiary'
+        aria-label={cell.date ? `Add task for ${cell.date}` : 'Add task'}
+      />
+    </div>
+  );
 
   return (
     <div
       ref={setNodeRef}
       style={cellStyle}
+      data-month-map-cell-date={cell.date}
       onPointerDown={onSelectionStart}
       onPointerEnter={onSelectionEnter}
+      onFocusCapture={(event) => {
+        if (
+          event.target instanceof HTMLInputElement &&
+          event.target.dataset.monthMapNav === 'true' &&
+          event.target.dataset.monthMapDate === cell.date
+        ) {
+          onKeyboardFocus();
+        }
+      }}
+      onBlurCapture={(event) => {
+        const next = event.relatedTarget;
+        if (!(next instanceof HTMLInputElement) || next.dataset.monthMapDate !== cell.date) {
+          onKeyboardBlur();
+        }
+      }}
       className={classNames(
         'flex h-142px min-w-0 cursor-crosshair select-none flex-col bg-1 p-6px transition-colors',
         isPast && 'text-t-secondary'
@@ -700,34 +837,20 @@ const DayCell: React.FC<{
           {entries.length ? <span className='text-10px font-700 text-t-secondary'>{entries.length}</span> : null}
         </div>
       </div>
-      <div
-        className={classNames(
-          'mb-4px flex h-19px shrink-0 items-center rounded-5px bg-[rgba(255,255,255,0.72)] px-5px transition-opacity focus-within:bg-white',
-          isPast && 'opacity-25 hover:opacity-100 focus-within:opacity-100'
-        )}
-        data-month-map-interactive='true'
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <input
-          value={draft}
-          placeholder='Add task'
-          onChange={(event) => onDraftChange(event.target.value)}
-          onKeyDown={handleAddKeyDown}
-          className='h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-10px leading-15px text-t-primary outline-none placeholder:text-t-tertiary'
-          aria-label={cell.date ? `Add task for ${cell.date}` : 'Add task'}
-        />
-      </div>
+      {entries.length === 0 ? renderAddTaskInput('top') : null}
       <div className='min-h-0 flex-1 space-y-3px overflow-y-auto pr-2px'>
-        {entries.map((entry) => (
+        {entries.map((entry, entryIndex) => (
           <PlannerEntryLine
             key={entry.id}
             entry={entry}
+            entryIndex={entryIndex}
             saving={savingEntryId === entry.id}
             onDelete={() => onDelete(entry)}
             onUpdate={(data) => onUpdate(entry, data)}
+            onFocusNextTask={focusAddInput}
           />
         ))}
+        {entries.length > 0 ? renderAddTaskInput('after-task') : null}
       </div>
     </div>
   );
@@ -735,10 +858,12 @@ const DayCell: React.FC<{
 
 const PlannerEntryLine: React.FC<{
   entry: PlannerEntry;
+  entryIndex: number;
   saving: boolean;
   onDelete: () => void;
   onUpdate: (data: UpdatePlannerEntryRequest) => void;
-}> = ({ entry, saving, onDelete, onUpdate }) => {
+  onFocusNextTask: () => void;
+}> = ({ entry, entryIndex, saving, onDelete, onUpdate, onFocusNextTask }) => {
   const [title, setTitle] = useState(entry.title);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: entry.id,
@@ -799,14 +924,21 @@ const PlannerEntryLine: React.FC<{
         onBlur={commitTitle}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
+          if (handleMonthMapArrowNavigation(event)) return;
           if (event.key !== 'Enter') return;
           if (event.metaKey || event.ctrlKey) {
             event.preventDefault();
             toggleDone();
             return;
           }
+          event.preventDefault();
           event.currentTarget.blur();
+          onFocusNextTask();
         }}
+        data-month-map-nav='true'
+        data-month-map-date={entry.entry_date}
+        data-month-map-kind='task'
+        data-month-map-index={entryIndex}
         className={classNames(
           'min-w-0 flex-1 border-0 bg-transparent p-0 text-10px leading-15px outline-none',
           done ? 'text-t-tertiary line-through decoration-1 decoration-[var(--color-text-3)]' : 'text-t-primary'
