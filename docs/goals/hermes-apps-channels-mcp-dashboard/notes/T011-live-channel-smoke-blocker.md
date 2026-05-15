@@ -42,4 +42,3 @@ iMessage via BlueBubbles:
 - iMessage plugin: BlueBubbles REST send plus signed webhook ingress implemented and typechecked.
 - UI smoke confirmed the visible channel set is Telegram, WeChat, Slack, Discord, and iMessage, with Lark, DingTalk, and WeCom hidden.
 - Mocked BlueBubbles smoke confirmed ping and final stripped text send behavior.
-

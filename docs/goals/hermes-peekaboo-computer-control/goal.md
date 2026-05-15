@@ -78,4 +78,3 @@ On every `/goal` continuation:
 5. Keep computer-control actions owner-approved, scoped, visible, and reversible.
 6. Record compact receipts.
 7. Run the GoalBuddy state checker before stopping.
-
