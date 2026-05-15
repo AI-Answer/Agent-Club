@@ -62,7 +62,7 @@ visual_board:
     command: "npx goalbuddy extend github-projects"
     missing: []
 
-active_task: T010
+active_task: T011
 
 tasks:
   - id: T001
@@ -451,7 +451,7 @@ tasks:
   - id: T010
     type: pm
     assignee: PM
-    status: active
+    status: done
     reasoning_hint: default
     objective: "Run or schedule the first harmless supervised Hermes desktop-control smoke through the packaged Peekaboo runner."
     constraints:
@@ -463,19 +463,71 @@ tasks:
     expected_output:
       - "A harmless live desktop-control smoke receipt, or a clear blocker if the app/UI supervision path is not ready."
       - "Decision on whether the full goal is complete or needs a product-level supervised run button next."
+    receipt:
+      result: done
+      summary: "Enabled the packaged Peekaboo MCP in the live AgentClub-Dev config, restarted the Electron dev app from the updated checkout, and ran harmless no-send/no-mutate packaged-runner smoke checks. The exact stdio MCP command Agent Club stores for Hermes is usable and returns 25 tools."
+      app_config:
+        path: "/Users/saminyasar/Library/Application Support/AgentClub-Dev/config/aionui-config.txt"
+        backup: "/Users/saminyasar/Library/Application Support/AgentClub-Dev/config/aionui-config.txt.bak-peekaboo-1778813203302"
+        server_name: "peekaboo"
+        enabled: true
+        command: "node"
+        args:
+          - "/Users/saminyasar/Agent-Club/out/main/builtin-mcp-peekaboo.js"
+      commands:
+        - cmd: "node out/main/builtin-mcp-peekaboo.js --version"
+          status: pass
+          output: "Peekaboo 3.1.2 (main/3f1ea6dd, built: 2026-05-11T06:50:44+01:00)"
+        - cmd: "node out/main/builtin-mcp-peekaboo.js permissions status --json"
+          status: pass
+          output: "Screen Recording, Accessibility, and Event Synthesizing are granted."
+        - cmd: "bun start"
+          status: pass
+          output: "Agent Club dev app restarted; userData is /Users/saminyasar/Library/Application Support/AgentClub-Dev."
+        - cmd: "node out/main/builtin-mcp-peekaboo.js list apps --json"
+          status: pass
+          output: "Returned running macOS apps through the packaged runner; Agent Club/Electron was active and Slack was detected as installed/running with no message or data mutation."
+        - cmd: "node out/main/builtin-mcp-peekaboo.js see --mode screen --screen-index 0 --no-remote --capture-engine cg --json"
+          status: pass
+          output: "Read-only screen observation succeeded against the restarted Agent Club window with 129 elements and screenshot /Users/saminyasar/Desktop/peekaboo_see_1778813334.png."
+        - cmd: "MCP SDK StdioClientTransport -> node out/main/builtin-mcp-peekaboo.js -> listTools"
+          status: pass
+          output: "True stdio MCP handshake succeeded and returned 25 tools."
+      no_mutation_boundary:
+        - "No Slack messages sent."
+        - "No typing, clicking, deleting, posting, purchasing, or clipboard mutation performed."
+        - "Smoke was observe/list/MCP-handshake only."
+      decision: "The packaged operational path is working. Full original product outcome still needs an in-app supervised run button with visible stop/pause controls if the goal continues beyond setup."
+
+  - id: T011
+    type: judge
+    assignee: Judge
+    status: active
+    reasoning_hint: high
+    objective: "Audit whether the Hermes Peekaboo goal is complete now that the packaged setup and no-mutate smoke are working, or whether to continue into an in-app supervised run button."
+    inputs:
+      - "T009 packaged runner receipt."
+      - "T010 live dev config and smoke receipt."
+      - "Original user request for a button where Hermes can visibly open/control apps."
+    constraints:
+      - "Do not implement."
+      - "Do not control Slack or other apps."
+      - "Reject completion if the original product button/stop-control outcome remains required."
+    expected_output:
+      - "complete | not_complete"
+      - "Full outcome complete true | false."
+      - "Next Worker task if not complete."
     receipt: null
 
 checks:
   dirty_fingerprint: "Implemented Peekaboo MCP setup, Hermes dashboard signal, Skills Hub discovery card, and GoalBuddy state updates; unrelated untracked docs/goals/month-map-planner-agent-dispatch left untouched."
   last_verification:
     result: pass
-    task: T009
+    task: T010
     commands:
-      - "node scripts/build-mcp-servers.js"
       - "node out/main/builtin-mcp-peekaboo.js --version"
       - "node out/main/builtin-mcp-peekaboo.js permissions status --json"
-      - "node out/main/builtin-mcp-peekaboo.js tools --json"
-      - "bunx oxfmt --check electron-builder.yml scripts/build-mcp-servers.js src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
-      - "bunx oxlint src/common/adapter/ipcBridge.ts src/common/types/peekaboo.ts src/process/bridge/mcpBridge.ts src/process/resources/builtinMcp/constants.ts src/process/resources/builtinMcp/peekabooProxy.ts src/process/services/dashboard/DashboardService.ts src/process/utils/initStorage.ts src/renderer/pages/settings/SkillsHubSettings.tsx src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
-      - "bunx tsc --noEmit --pretty false"
-      - "node /Users/saminyasar/.codex/plugins/cache/goalbuddy/goalbuddy/0.3.6/skills/goalbuddy/scripts/check-goal-state.mjs /Users/saminyasar/Agent-Club/docs/goals/hermes-peekaboo-computer-control/state.yaml"
+      - "bun start"
+      - "node out/main/builtin-mcp-peekaboo.js list apps --json"
+      - "node out/main/builtin-mcp-peekaboo.js see --mode screen --screen-index 0 --no-remote --capture-engine cg --json"
+      - "MCP SDK StdioClientTransport -> node out/main/builtin-mcp-peekaboo.js -> listTools"
