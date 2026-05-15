@@ -64,7 +64,7 @@ const AboutModalContent: React.FC = () => {
     },
     {
       title: t('settings.feedback'),
-      url: 'https://github.com/Samin12/Agent-Club/issues',
+      url: 'https://www.skool.com/claude',
       icon: <Right theme='outline' size='16' />,
     },
     {

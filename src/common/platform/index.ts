@@ -1,5 +1,5 @@
 import path from 'path';
-import { APP_DEV_MULTI_NAME, APP_DEV_NAME } from '@/common/config/appBrand';
+import { APP_BRAND_NAME, APP_DEV_MULTI_NAME, APP_DEV_NAME } from '@/common/config/appBrand';
 import type { IPlatformServices } from './IPlatformServices';
 import { NodePlatformServices } from './NodePlatformServices';
 
@@ -44,6 +44,7 @@ export function getPlatformServices(): IPlatformServices {
           const devAppName = getDevAppName();
           app.setName(devAppName);
           app.setPath('userData', path.join(path.dirname(app.getPath('userData')), devAppName));
+          app.setName(APP_BRAND_NAME);
         }
         // Typed as IPlatformPaths so tsc enforces completeness: any new method
         // added to the interface will cause a compile error here if omitted below.

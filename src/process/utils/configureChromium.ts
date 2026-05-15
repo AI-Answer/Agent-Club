@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
 import { getDevAppName } from '@/common/platform';
+import { APP_BRAND_NAME } from '@/common/config/appBrand';
 
 // ============ Environment Separation ============
 // Set app name before any getPath() call so userData is isolated from production.
@@ -23,6 +24,9 @@ if (!app.isPackaged) {
   // Explicitly override userData to the dev directory.
   const appSupportDir = path.dirname(app.getPath('userData'));
   app.setPath('userData', path.join(appSupportDir, devAppName));
+  // Keep the visible app name user-facing while preserving the isolated dev
+  // userData directory above.
+  app.setName(APP_BRAND_NAME);
 }
 
 // Configure Chromium command-line flags for WebUI and CLI modes
