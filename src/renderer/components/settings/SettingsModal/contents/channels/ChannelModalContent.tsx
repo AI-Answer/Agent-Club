@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IChannelPluginStatus } from '@process/channels/types';
+import type { IChannelPairingRequest, IChannelPluginStatus, IChannelUser } from '@process/channels/types';
 import type { IProvider, TProviderWithModel } from '@/common/config/storage';
 import { channel, webui, type IWebUIStatus } from '@/common/adapter/ipcBridge';
 import { ConfigStorage } from '@/common/config/storage';
@@ -12,8 +12,8 @@ import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import { useModelProviderList } from '@/renderer/hooks/agent/useModelProviderList';
 import type { GeminiModelSelection } from '@/renderer/pages/conversation/platforms/gemini/useGeminiModelSelection';
 import { useGeminiModelSelection } from '@/renderer/pages/conversation/platforms/gemini/useGeminiModelSelection';
-import { Input, InputNumber, Message, Select, Switch } from '@arco-design/web-react';
-import { CheckOne } from '@icon-park/react';
+import { Button, Empty, Input, InputNumber, Message, Select, Spin, Switch, Tooltip } from '@arco-design/web-react';
+import { CheckOne, CloseOne, Copy, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsViewMode } from '../../settingsViewContext';
@@ -237,6 +237,14 @@ const ChannelModalContent: React.FC = () => {
     discord: {},
     imessage: {},
   });
+  const [hermesNativePendingPairings, setHermesNativePendingPairings] = useState<
+    Partial<Record<HermesNativeChannelId, IChannelPairingRequest[]>>
+  >({});
+  const [hermesNativeAuthorizedUsers, setHermesNativeAuthorizedUsers] = useState<
+    Partial<Record<HermesNativeChannelId, IChannelUser[]>>
+  >({});
+  const [hermesNativePairingLoading, setHermesNativePairingLoading] = useState(false);
+  const [hermesNativeManualPairingCode, setHermesNativeManualPairingCode] = useState('');
   const [webuiStatus, setWebuiStatus] = useState<IWebUIStatus | null>(null);
 
   // Track the token entered in TelegramConfigForm so the toggle handler can use it
@@ -325,6 +333,61 @@ const ChannelModalContent: React.FC = () => {
     void loadPluginStatus();
   }, [loadPluginStatus]);
 
+  const groupHermesNativePairings = useCallback((items: IChannelPairingRequest[]) => {
+    const next: Partial<Record<HermesNativeChannelId, IChannelPairingRequest[]>> = {
+      slack: [],
+      discord: [],
+      imessage: [],
+    };
+    for (const item of items) {
+      if (HERMES_NATIVE_CHANNEL_IDS.has(item.platformType as HermesNativeChannelId)) {
+        const platformType = item.platformType as HermesNativeChannelId;
+        next[platformType] = [...(next[platformType] || []), item];
+      }
+    }
+    return next;
+  }, []);
+
+  const groupHermesNativeUsers = useCallback((items: IChannelUser[]) => {
+    const next: Partial<Record<HermesNativeChannelId, IChannelUser[]>> = {
+      slack: [],
+      discord: [],
+      imessage: [],
+    };
+    for (const item of items) {
+      if (HERMES_NATIVE_CHANNEL_IDS.has(item.platformType as HermesNativeChannelId)) {
+        const platformType = item.platformType as HermesNativeChannelId;
+        next[platformType] = [...(next[platformType] || []), item];
+      }
+    }
+    return next;
+  }, []);
+
+  const loadHermesNativePairingState = useCallback(async () => {
+    setHermesNativePairingLoading(true);
+    try {
+      const [pairingsResult, usersResult] = await Promise.all([
+        channel.getPendingPairings.invoke(),
+        channel.getAuthorizedUsers.invoke(),
+      ]);
+
+      if (pairingsResult.success && pairingsResult.data) {
+        setHermesNativePendingPairings(groupHermesNativePairings(pairingsResult.data));
+      }
+      if (usersResult.success && usersResult.data) {
+        setHermesNativeAuthorizedUsers(groupHermesNativeUsers(usersResult.data));
+      }
+    } catch (error) {
+      console.error('[ChannelSettings] Failed to load Hermes channel pairing state:', error);
+    } finally {
+      setHermesNativePairingLoading(false);
+    }
+  }, [groupHermesNativePairings, groupHermesNativeUsers]);
+
+  useEffect(() => {
+    void loadHermesNativePairingState();
+  }, [loadHermesNativePairingState]);
+
   useEffect(() => {
     const loadWebuiStatus = async () => {
       try {
@@ -370,6 +433,23 @@ const ChannelModalContent: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const unsubscribePairing = channel.pairingRequested.on((request) => {
+      if (HERMES_NATIVE_CHANNEL_IDS.has(request.platformType as HermesNativeChannelId)) {
+        void loadHermesNativePairingState();
+      }
+    });
+    const unsubscribeAuthorized = channel.userAuthorized.on((user) => {
+      if (HERMES_NATIVE_CHANNEL_IDS.has(user.platformType as HermesNativeChannelId)) {
+        void loadHermesNativePairingState();
+      }
+    });
+    return () => {
+      unsubscribePairing();
+      unsubscribeAuthorized();
+    };
+  }, [loadHermesNativePairingState]);
 
   // Toggle collapse
   const handleToggleCollapse = (channelId: string) => {
@@ -598,6 +678,60 @@ const ChannelModalContent: React.FC = () => {
         [key]: value,
       },
     }));
+  }, []);
+
+  const handleApproveHermesNativePairing = useCallback(
+    async (code: string) => {
+      const normalizedCode = code.trim();
+      if (!normalizedCode) {
+        Message.warning(t('settings.assistant.pairingCodeRequired', 'Enter a pairing code first'));
+        return;
+      }
+
+      try {
+        const result = await channel.approvePairing.invoke({ code: normalizedCode });
+        if (result.success) {
+          Message.success(t('settings.assistant.pairingApproved', 'Pairing approved'));
+          setHermesNativeManualPairingCode('');
+          await loadHermesNativePairingState();
+        } else {
+          Message.error(result.msg || t('settings.assistant.approveFailed', 'Failed to approve pairing'));
+        }
+      } catch (error) {
+        Message.error(getErrorMessage(error));
+      }
+    },
+    [loadHermesNativePairingState, t]
+  );
+
+  const handleRejectHermesNativePairing = useCallback(
+    async (code: string) => {
+      try {
+        const result = await channel.rejectPairing.invoke({ code });
+        if (result.success) {
+          Message.info(t('settings.assistant.pairingRejected', 'Pairing rejected'));
+          await loadHermesNativePairingState();
+        } else {
+          Message.error(result.msg || t('settings.assistant.rejectFailed', 'Failed to reject pairing'));
+        }
+      } catch (error) {
+        Message.error(getErrorMessage(error));
+      }
+    },
+    [loadHermesNativePairingState, t]
+  );
+
+  const copyPairingCode = useCallback(
+    (code: string) => {
+      void navigator.clipboard.writeText(code);
+      Message.success(t('common.copySuccess', 'Copied'));
+    },
+    [t]
+  );
+
+  const getPairingMinutesLeft = useCallback((expiresAt: number) => {
+    const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000 / 60));
+    return `${remaining} min`;
   }, []);
 
   const handleToggleHermesNativePlugin = useCallback(
@@ -885,6 +1019,8 @@ const ChannelModalContent: React.FC = () => {
         ? `${webuiStatus.localUrl}${IMESSAGE_WEBHOOK_PATH}`
         : `http://localhost:25808${IMESSAGE_WEBHOOK_PATH}`;
       const lanWebhookUrl = webuiStatus?.networkUrl ? `${webuiStatus.networkUrl}${IMESSAGE_WEBHOOK_PATH}` : null;
+      const discordPendingPairings = hermesNativePendingPairings.discord || [];
+      const discordAuthorizedUsers = hermesNativeAuthorizedUsers.discord || [];
 
       return (
         <div className='space-y-10px py-12px'>
@@ -973,11 +1109,175 @@ const ChannelModalContent: React.FC = () => {
             </div>
           ) : null}
 
+          {pluginType === 'discord' ? (
+            <div className='rounded-10px border border-solid border-[var(--color-border-2)] bg-fill-1 px-12px py-10px'>
+              <div className='mb-8px flex flex-wrap items-center justify-between gap-8px'>
+                <div>
+                  <div className='text-12px font-600 uppercase leading-16px text-t-secondary'>
+                    Pair Discord to Hermes
+                  </div>
+                  <div className='mt-3px text-12px leading-18px text-t-secondary'>
+                    This is the approval place for the code Discord sends you. The old bot copy may say WebUI, but in
+                    Agent Club it lives at Settings → Remote → Channels → Discord. The Hermes Gateway page only stores
+                    the bot token and does not show pending Agent Club pairing approvals.
+                  </div>
+                </div>
+                <Button
+                  size='mini'
+                  type='text'
+                  icon={<Refresh size={14} />}
+                  loading={hermesNativePairingLoading}
+                  onClick={() => void loadHermesNativePairingState()}
+                >
+                  Refresh
+                </Button>
+              </div>
+
+              <div className='mb-10px grid grid-cols-1 gap-8px md:grid-cols-3'>
+                {[
+                  ['1', 'Enable Discord', 'Save the bot token, turn Discord on, and wait for Connected.'],
+                  ['2', 'Start in Discord', 'DM the bot or mention it in a server channel to get a six digit code.'],
+                  ['3', 'Approve here', 'Click Approve below, then go back to Discord and message Hermes.'],
+                ].map(([step, title, description]) => (
+                  <div key={step} className='rounded-8px bg-fill-2 px-10px py-8px'>
+                    <div className='text-10px font-600 uppercase leading-14px text-t-secondary'>Step {step}</div>
+                    <div className='mt-3px text-12px font-600 leading-17px text-t-primary'>{title}</div>
+                    <div className='mt-3px text-11px leading-16px text-t-secondary'>{description}</div>
+                  </div>
+                ))}
+              </div>
+
+              {hermesNativePairingLoading ? (
+                <div className='flex justify-center py-18px'>
+                  <Spin />
+                </div>
+              ) : discordPendingPairings.length > 0 ? (
+                <div className='flex flex-col gap-8px'>
+                  {discordPendingPairings.map((pairing) => (
+                    <div
+                      key={pairing.code}
+                      className='flex flex-col gap-10px rounded-8px bg-fill-2 px-10px py-9px sm:flex-row sm:items-center sm:justify-between'
+                    >
+                      <div className='min-w-0'>
+                        <div className='flex flex-wrap items-center gap-8px'>
+                          <span className='text-13px font-600 text-t-primary'>
+                            {pairing.displayName || 'Discord user'}
+                          </span>
+                          <Tooltip content='Copy pairing code'>
+                            <button
+                              className='inline-flex cursor-pointer items-center gap-4px border-none bg-transparent p-0 text-12px text-t-secondary hover:text-t-primary'
+                              onClick={() => copyPairingCode(pairing.code)}
+                            >
+                              <Copy size={13} />
+                              <code className='rounded-4px bg-fill-3 px-5px py-1px'>{pairing.code}</code>
+                            </button>
+                          </Tooltip>
+                        </div>
+                        <div className='mt-4px text-11px leading-16px text-t-secondary'>
+                          Expires in {getPairingMinutesLeft(pairing.expiresAt)}. Approving lets this Discord account
+                          talk to Hermes through Agent Club.
+                        </div>
+                      </div>
+                      <div className='flex shrink-0 items-center gap-8px'>
+                        <Button
+                          type='primary'
+                          size='small'
+                          icon={<CheckOne size={14} />}
+                          onClick={() => void handleApproveHermesNativePairing(pairing.code)}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          type='secondary'
+                          size='small'
+                          status='danger'
+                          icon={<CloseOne size={14} />}
+                          onClick={() => void handleRejectHermesNativePairing(pairing.code)}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Empty
+                  description={
+                    status?.enabled
+                      ? 'No pending pairing yet. In Discord, DM the bot or mention it in a server channel to generate one.'
+                      : 'Turn on Discord first, then DM or mention the bot to generate a pairing request.'
+                  }
+                />
+              )}
+
+              <div className='mt-10px rounded-8px border border-dashed border-[var(--color-border-2)] bg-fill-2 px-10px py-9px'>
+                <div className='mb-6px text-12px font-600 leading-17px text-t-primary'>Have a code?</div>
+                <div className='flex flex-col gap-8px sm:flex-row sm:items-center'>
+                  <Input
+                    value={hermesNativeManualPairingCode}
+                    maxLength={6}
+                    placeholder='Paste six digit code'
+                    onChange={(value) => setHermesNativeManualPairingCode(value.replace(/\D/g, '').slice(0, 6))}
+                    onPressEnter={() => void handleApproveHermesNativePairing(hermesNativeManualPairingCode)}
+                  />
+                  <Button
+                    type='primary'
+                    icon={<CheckOne size={14} />}
+                    disabled={hermesNativeManualPairingCode.trim().length === 0}
+                    onClick={() => void handleApproveHermesNativePairing(hermesNativeManualPairingCode)}
+                  >
+                    Approve code
+                  </Button>
+                </div>
+                <div className='mt-6px text-11px leading-16px text-t-secondary'>
+                  Use this if the Discord message has a code but the pending request has not appeared above yet. Codes
+                  expire after 10 minutes, so send a fresh DM or mention if approval fails.
+                </div>
+              </div>
+
+              {discordAuthorizedUsers.length > 0 ? (
+                <div className='mt-10px rounded-8px bg-[rgba(var(--green-6),0.08)] px-10px py-8px text-12px leading-18px text-t-secondary'>
+                  Authorized Discord users:{' '}
+                  <span className='font-600 text-t-primary'>
+                    {discordAuthorizedUsers.map((user) => user.displayName || user.platformUserId).join(', ')}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className='mt-10px text-11px leading-16px text-t-secondary'>
+                What to expect: DMs should work directly. In server channels, mention the bot first; Agent Club ignores
+                ordinary server chatter unless the bot is mentioned.
+              </div>
+
+              <div className='mt-8px rounded-8px bg-fill-2 px-10px py-8px text-11px leading-17px text-t-secondary'>
+                <div className='font-600 text-t-primary'>Quick test guide</div>
+                <div>Step 1: In Discord, DM the bot or mention it in a server channel with a short message.</div>
+                <div>Step 2: Expect a six digit code from the bot.</div>
+                <div>Step 3: Paste the code here or click Approve on the matching pending request.</div>
+                <div>Step 4: Send another DM or mention; Hermes should answer through Agent Club.</div>
+              </div>
+            </div>
+          ) : null}
+
           {status?.error ? <div className='text-12px leading-18px text-red-500'>{status.error}</div> : null}
         </div>
       );
     },
-    [hermesNativeStatuses, hermesNativeFieldValues, updateHermesNativeFieldValue, webuiStatus]
+    [
+      copyPairingCode,
+      getPairingMinutesLeft,
+      handleApproveHermesNativePairing,
+      handleRejectHermesNativePairing,
+      hermesNativeAuthorizedUsers,
+      hermesNativeFieldValues,
+      hermesNativeManualPairingCode,
+      hermesNativePairingLoading,
+      hermesNativePendingPairings,
+      hermesNativeStatuses,
+      loadHermesNativePairingState,
+      updateHermesNativeFieldValue,
+      webuiStatus,
+    ]
   );
 
   // Build channel configurations

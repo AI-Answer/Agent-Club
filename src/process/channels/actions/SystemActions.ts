@@ -626,7 +626,7 @@ export const handleSettingsShow: ActionHandler = async (context) => {
       '',
       'Channel settings need to be configured in the Agent Club app.',
       '',
-      'Open Agent Club → WebUI → Channels',
+      'Open Agent Club → Settings → Remote → Channels',
     ].join('\n'),
     parseMode: 'HTML',
     replyMarkup: createMainMenuKeyboard(),

@@ -170,6 +170,8 @@ export class DiscordPlugin extends BasePlugin {
     if (!message.content) return;
     if (message.guild_id && !message.mentions?.some((mention) => mention.id === this.botUser?.id)) return;
 
+    const text = this.stripBotMention(message.content);
+
     this.activeUsers.add(author.id);
     await this.emitMessage({
       id: message.id,
@@ -181,8 +183,8 @@ export class DiscordPlugin extends BasePlugin {
         displayName: author.global_name || author.username || `Discord ${author.id}`,
       },
       content: {
-        type: message.guild_id ? 'command' : 'text',
-        text: this.stripBotMention(message.content),
+        type: text.startsWith('/') ? 'command' : 'text',
+        text,
       },
       timestamp: message.timestamp ? Date.parse(message.timestamp) : Date.now(),
       replyToMessageId: message.referenced_message?.id,

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IActionContext, IActionResult, IRegisteredAction, ActionHandler } from './types';
+import type { IRegisteredAction, ActionHandler } from './types';
 import { PlatformActionNames, createSuccessResponse, createErrorResponse } from './types';
 import { getPairingService } from '../pairing/PairingService';
 import {
@@ -86,6 +86,33 @@ function getPairingHelpMarkup(platform: string) {
   return createPairingCodeKeyboard();
 }
 
+function getAgentClubChannelSettingsPath(platform: string): string {
+  const channelName =
+    platform === 'discord'
+      ? 'Discord'
+      : platform === 'slack'
+        ? 'Slack'
+        : platform === 'imessage'
+          ? 'iMessage'
+          : 'the channel';
+  return `Agent Club → Settings → Remote → Channels → ${channelName}`;
+}
+
+function getHermesPairingBoxTitle(platform: string): string {
+  if (platform === 'discord') return 'Pair Discord to Hermes';
+  if (platform === 'slack') return 'Pair Slack to Hermes';
+  if (platform === 'imessage') return 'Pair iMessage to Hermes';
+  return 'Pending Pairing Requests';
+}
+
+function shouldUsePlainPairingText(platform: string): boolean {
+  return platform === 'discord' || platform === 'slack' || platform === 'imessage';
+}
+
+function getErrorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * Handle pairing.show - Show pairing code to user
  * Called when user sends /start or first message
@@ -96,6 +123,20 @@ export const handlePairingShow: ActionHandler = async (context) => {
 
   // Check if user is already authorized
   if (await pairingService.isUserAuthorized(context.userId, platform)) {
+    if (shouldUsePlainPairingText(platform)) {
+      return createSuccessResponse({
+        type: 'text',
+        text: [
+          'Authorized',
+          '',
+          'This account is already paired and ready to use.',
+          '',
+          'DMs should work directly. In server channels, mention the bot first.',
+        ].join('\n'),
+        replyMarkup: getMainMenuMarkup(platform),
+      });
+    }
+
     return createSuccessResponse({
       type: 'text',
       text: [
@@ -115,6 +156,31 @@ export const handlePairingShow: ActionHandler = async (context) => {
     const { code, expiresAt } = await pairingService.generatePairingCode(context.userId, platform, context.displayName);
 
     const expiresInMinutes = Math.ceil((expiresAt - Date.now()) / 1000 / 60);
+    const settingsPath = getAgentClubChannelSettingsPath(platform);
+
+    if (shouldUsePlainPairingText(platform)) {
+      const pairingBoxTitle = getHermesPairingBoxTitle(platform);
+      return createSuccessResponse({
+        type: 'text',
+        text: [
+          'Device pairing',
+          '',
+          'Approve this account in Agent Club:',
+          '',
+          `Pairing code: ${code}`,
+          `Valid for: ${expiresInMinutes} minutes`,
+          '',
+          'Where to approve it:',
+          `1. Open ${settingsPath}`,
+          `2. Find the "${pairingBoxTitle}" approval box`,
+          '3. Click Approve next to your name and code',
+          '',
+          'What to expect after approval:',
+          'DMs should work directly. In server channels, mention the bot first; ordinary server chatter is ignored.',
+        ].join('\n'),
+        replyMarkup: getPairingCodeMarkup(platform, code),
+      });
+    }
 
     return createSuccessResponse({
       type: 'text',
@@ -129,14 +195,14 @@ export const handlePairingShow: ActionHandler = async (context) => {
         '',
         '<b>Steps:</b>',
         '1. Open Agent Club app',
-        '2. Go to WebUI → Channels',
+        '2. Go to Settings → Remote → Channels',
         '3. Click "Approve" in pending pairing requests',
       ].join('\n'),
       parseMode: 'HTML',
       replyMarkup: getPairingCodeMarkup(platform, code),
     });
-  } catch (error: any) {
-    return createErrorResponse(`Failed to generate pairing code: ${error.message}`);
+  } catch (error) {
+    return createErrorResponse(`Failed to generate pairing code: ${getErrorText(error)}`);
   }
 };
 
@@ -149,6 +215,14 @@ export const handlePairingRefresh: ActionHandler = async (context) => {
 
   // Check if user is already authorized
   if (await pairingService.isUserAuthorized(context.userId, platform)) {
+    if (shouldUsePlainPairingText(platform)) {
+      return createSuccessResponse({
+        type: 'text',
+        text: 'You are already paired. No need to refresh the pairing code.',
+        replyMarkup: getMainMenuMarkup(platform),
+      });
+    }
+
     return createSuccessResponse({
       type: 'text',
       text: '✅ You are already paired. No need to refresh the pairing code.',
@@ -162,6 +236,24 @@ export const handlePairingRefresh: ActionHandler = async (context) => {
     const { code, expiresAt } = await pairingService.refreshPairingCode(context.userId, platform, context.displayName);
 
     const expiresInMinutes = Math.ceil((expiresAt - Date.now()) / 1000 / 60);
+    const settingsPath = getAgentClubChannelSettingsPath(platform);
+
+    if (shouldUsePlainPairingText(platform)) {
+      const pairingBoxTitle = getHermesPairingBoxTitle(platform);
+      return createSuccessResponse({
+        type: 'text',
+        text: [
+          'New pairing code',
+          '',
+          `Pairing code: ${code}`,
+          `Valid for: ${expiresInMinutes} minutes`,
+          '',
+          `Open ${settingsPath}`,
+          `Then use the "${pairingBoxTitle}" box to approve this request.`,
+        ].join('\n'),
+        replyMarkup: getPairingCodeMarkup(platform, code),
+      });
+    }
 
     return createSuccessResponse({
       type: 'text',
@@ -177,8 +269,8 @@ export const handlePairingRefresh: ActionHandler = async (context) => {
       parseMode: 'HTML',
       replyMarkup: getPairingCodeMarkup(platform, code),
     });
-  } catch (error: any) {
-    return createErrorResponse(`Failed to refresh pairing code: ${error.message}`);
+  } catch (error) {
+    return createErrorResponse(`Failed to refresh pairing code: ${getErrorText(error)}`);
   }
 };
 
@@ -191,6 +283,20 @@ export const handlePairingCheck: ActionHandler = async (context) => {
 
   // Check if user is already authorized
   if (await pairingService.isUserAuthorized(context.userId, platform)) {
+    if (shouldUsePlainPairingText(platform)) {
+      return createSuccessResponse({
+        type: 'text',
+        text: [
+          'Pairing successful',
+          '',
+          'Your account is paired and ready to use.',
+          '',
+          'Send a DM or mention the bot in a server channel to chat with Hermes.',
+        ].join('\n'),
+        replyMarkup: getMainMenuMarkup(platform),
+      });
+    }
+
     return createSuccessResponse({
       type: 'text',
       text: [
@@ -210,6 +316,24 @@ export const handlePairingCheck: ActionHandler = async (context) => {
 
   if (pendingRequest) {
     const expiresInMinutes = Math.ceil((pendingRequest.expiresAt - Date.now()) / 1000 / 60);
+    const settingsPath = getAgentClubChannelSettingsPath(platform);
+
+    if (shouldUsePlainPairingText(platform)) {
+      const pairingBoxTitle = getHermesPairingBoxTitle(platform);
+      return createSuccessResponse({
+        type: 'text',
+        text: [
+          'Waiting for approval',
+          '',
+          `Pairing code: ${pendingRequest.code}`,
+          `Time remaining: ${expiresInMinutes} minutes`,
+          '',
+          `Open ${settingsPath}`,
+          `Then use the "${pairingBoxTitle}" box to approve this request.`,
+        ].join('\n'),
+        replyMarkup: getPairingStatusMarkup(platform, pendingRequest.code),
+      });
+    }
 
     return createSuccessResponse({
       type: 'text',
@@ -242,7 +366,37 @@ export const handlePairingHelp: ActionHandler = async (context) => {
         ? 'DingTalk'
         : platform === 'wecom'
           ? 'WeCom'
-          : 'Telegram';
+          : platform === 'discord'
+            ? 'Discord'
+            : platform === 'slack'
+              ? 'Slack'
+              : platform === 'imessage'
+                ? 'iMessage'
+                : 'Telegram';
+  const settingsPath = getAgentClubChannelSettingsPath(platform);
+
+  if (shouldUsePlainPairingText(platform)) {
+    const pairingBoxTitle = getHermesPairingBoxTitle(platform);
+    return createSuccessResponse({
+      type: 'text',
+      text: [
+        'Pairing help',
+        '',
+        `Pairing links your ${platformName} account with the local Agent Club application.`,
+        '',
+        'Steps:',
+        '1. Send a DM to the bot, or mention it in a server channel',
+        '2. Copy the six digit pairing code from the bot reply',
+        `3. Open ${settingsPath}`,
+        `4. Use the "${pairingBoxTitle}" box to approve the request`,
+        '',
+        'Notes:',
+        'Pairing codes are valid for 10 minutes.',
+        'Agent Club must be running.',
+        'Server channels require an @mention before Hermes responds.',
+      ].join('\n'),
+    });
+  }
 
   return createSuccessResponse({
     type: 'text',
@@ -256,7 +410,7 @@ export const handlePairingHelp: ActionHandler = async (context) => {
       '<b>Pairing steps:</b>',
       '1. Get pairing code (send any message)',
       '2. Open Agent Club app',
-      '3. Go to WebUI → Channels',
+      '3. Go to Settings → Remote → Channels',
       '4. Click "Approve" in pending requests',
       '',
       '<b>FAQ:</b>',
