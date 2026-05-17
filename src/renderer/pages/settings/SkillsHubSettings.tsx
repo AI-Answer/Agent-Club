@@ -1,10 +1,12 @@
 import { ipcBridge } from '@/common';
 import type { JourneyKitSummary, JourneyKitsConfigPublic, JourneyKitsVisibility } from '@/common/types/journeyKits';
-import { Button, Message, Modal, Typography, Input, Dropdown, Menu } from '@arco-design/web-react';
+import { Button, Message, Modal, Typography, Input, Dropdown, Menu, Switch } from '@arco-design/web-react';
 import { Delete, Download, FolderOpen, Info, Lightning, Puzzle, Search, Plus, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAgentVaultKeys } from '@/renderer/hooks/useAgentVaultKeys';
+import AgentVaultSecretEditor from './components/AgentVaultSecretEditor';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
 
 // Skill 信息类型 / Skill info type
@@ -14,6 +16,7 @@ interface SkillInfo {
   location: string;
   isCustom: boolean;
   source?: 'builtin' | 'custom' | 'extension';
+  requiredEnv?: string[];
 }
 
 // 外部来源类型 / External source type
@@ -78,6 +81,14 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   const [journeyOwnedLoading, setJourneyOwnedLoading] = useState(false);
   const [journeyPublishingSkill, setJourneyPublishingSkill] = useState<string | null>(null);
 
+  const vaultSnapshot = useAgentVaultKeys();
+  const [vaultEnabled, setVaultEnabled] = useState(false);
+
+  const skillsWithEnvRequirements = useMemo(
+    () => availableSkills.filter((skill) => skill.requiredEnv && skill.requiredEnv.length > 0),
+    [availableSkills]
+  );
+
   const mySkills = useMemo(() => availableSkills.filter((s) => s.source !== 'extension'), [availableSkills]);
   const extensionSkills = useMemo(() => availableSkills.filter((s) => s.source === 'extension'), [availableSkills]);
 
@@ -120,6 +131,12 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!vaultSnapshot.loading) {
+      setVaultEnabled(vaultSnapshot.enabled);
+    }
+  }, [vaultSnapshot.enabled, vaultSnapshot.loading]);
 
   const fetchJourneyKits = useCallback(
     async (query = '') => {
@@ -585,6 +602,49 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className='px-[16px] md:px-[32px] py-24px bg-base rd-16px md:rd-24px mb-16px shadow-sm border border-b-base'>
+          <div className='mb-16px flex flex-col gap-12px md:flex-row md:items-start md:justify-between'>
+            <div className='min-w-0'>
+              <span className='text-16px md:text-18px text-t-primary font-bold tracking-tight'>
+                {t('settings.skillsHub.skillSecretsTitle', { defaultValue: 'Skill API keys' })}
+              </span>
+              <Typography.Text className='mt-6px block text-13px text-t-secondary max-w-3xl leading-relaxed'>
+                {t('settings.skillsHub.skillSecretsSubtitle', {
+                  defaultValue:
+                    'Store environment variables here so enabled skills can use them in agent runs. Values are kept in your local Agent Vault.',
+                })}
+              </Typography.Text>
+            </div>
+            <Switch checked={vaultEnabled} onChange={setVaultEnabled} disabled={vaultSnapshot.loading} />
+          </div>
+
+          <AgentVaultSecretEditor
+            vaultEnabled={vaultEnabled || vaultSnapshot.enabled}
+            onVaultEnabledChange={setVaultEnabled}
+            loading={vaultSnapshot.loading}
+            compact
+            onSaved={() => {
+              void vaultSnapshot.refresh();
+            }}
+          />
+
+          {skillsWithEnvRequirements.length > 0 && (
+            <div className='mt-16px'>
+              <Typography.Text className='mb-8px block text-12px font-medium text-t-secondary'>
+                {t('settings.skillsHub.skillSecretsDeclared', { defaultValue: 'Skills that declare required variables' })}
+              </Typography.Text>
+              <div className='flex flex-col gap-8px'>
+                {skillsWithEnvRequirements.map((skill) => (
+                  <div key={skill.name} className='rounded-8px bg-fill-1 px-12px py-9px text-13px text-t-primary'>
+                    <span className='font-medium'>{skill.name}</span>
+                    <span className='text-t-secondary'> — {skill.requiredEnv?.join(', ')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ======== JourneyKits ======== */}

@@ -15,6 +15,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { existsSync } from 'fs';
+import { parseSkillFrontmatter } from '@/common/skills/skillFrontmatter';
 import { getSkillsDir, getBuiltinSkillsCopyDir, getAutoSkillsDir } from '@process/utils/initStorage';
 import { ExtensionRegistry } from '@process/extensions';
 
@@ -29,6 +30,8 @@ export interface SkillDefinition {
   description: string;
   /** 文件路径 / File path */
   location: string;
+  /** Environment variables this skill expects in Agent Vault */
+  requiredEnv?: string[];
   /** 完整内容（延迟加载）/ Full content (lazy loaded) */
   body?: string;
 }
@@ -40,37 +43,7 @@ export interface SkillDefinition {
 export interface SkillIndex {
   name: string;
   description: string;
-}
-
-/**
- * 解析 SKILL.md 的 frontmatter
- * Parse frontmatter from SKILL.md
- */
-function parseFrontmatter(content: string): {
-  name?: string;
-  description?: string;
-} {
-  const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
-  if (!frontmatterMatch) {
-    return {};
-  }
-
-  const frontmatter = frontmatterMatch[1];
-  const result: { name?: string; description?: string } = {};
-
-  // 解析 name
-  const nameMatch = frontmatter.match(/^name:\s*['"]?([^'"\n]+)['"]?\s*$/m);
-  if (nameMatch) {
-    result.name = nameMatch[1].trim();
-  }
-
-  // 解析 description（支持单引号、双引号、无引号）
-  const descMatch = frontmatter.match(/^description:\s*['"]?(.+?)['"]?\s*$/m);
-  if (descMatch) {
-    result.description = descMatch[1].trim();
-  }
-
-  return result;
+  requiredEnv?: string[];
 }
 
 /**
@@ -179,12 +152,13 @@ export class AcpSkillManager {
 
         try {
           const content = await fs.readFile(skillFile, 'utf-8');
-          const { name, description } = parseFrontmatter(content);
+          const { name, description, requiredEnv } = parseSkillFrontmatter(content);
 
           const skillDef: SkillDefinition = {
             name: name || skillName,
             description: description || `Builtin Skill: ${skillName}`,
             location: skillFile,
+            requiredEnv,
             // body 不在这里加载，按需获取
           };
 
@@ -311,12 +285,13 @@ export class AcpSkillManager {
 
           try {
             const content = await fs.readFile(skillFile, 'utf-8');
-            const { name, description } = parseFrontmatter(content);
+            const { name, description, requiredEnv } = parseSkillFrontmatter(content);
 
             this.skills.set(skillName, {
               name: name || skillName,
               description: description || `Skill: ${skillName}`,
               location: skillFile,
+              requiredEnv,
             });
           } catch (error) {
             console.warn(`[AcpSkillManager] Failed to load skill ${skillName}:`, error);
@@ -349,6 +324,7 @@ export class AcpSkillManager {
       allSkills.push({
         name: skill.name,
         description: skill.description,
+        requiredEnv: skill.requiredEnv,
       });
     }
 
@@ -357,6 +333,7 @@ export class AcpSkillManager {
       allSkills.push({
         name: skill.name,
         description: skill.description,
+        requiredEnv: skill.requiredEnv,
       });
     }
 
@@ -365,6 +342,7 @@ export class AcpSkillManager {
       allSkills.push({
         name: skill.name,
         description: skill.description,
+        requiredEnv: skill.requiredEnv,
       });
     }
 
@@ -379,7 +357,15 @@ export class AcpSkillManager {
     return Array.from(this.autoSkills.values()).map((skill) => ({
       name: skill.name,
       description: skill.description,
+      requiredEnv: skill.requiredEnv,
     }));
+  }
+
+  /**
+   * Skills currently loaded in this manager instance (optional + builtin auto + extension).
+   */
+  getLoadedSkillDefinitions(): SkillDefinition[] {
+    return [...this.skills.values(), ...this.autoSkills.values(), ...this.extensionSkills.values()];
   }
 
   /**

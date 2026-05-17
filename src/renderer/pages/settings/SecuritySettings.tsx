@@ -10,6 +10,7 @@ import { Alert, Button, Input, Message, Switch } from '@arco-design/web-react';
 import { CheckOne, Connection, FileCode, FolderOpen, Install, LinkOne, Refresh, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import AgentVaultSecretEditor from './components/AgentVaultSecretEditor';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
 
 const ONE_PASSWORD_CLI_DOCS_URL = 'https://www.1password.dev/cli/get-started';
@@ -263,7 +264,14 @@ const SecuritySettings: React.FC = () => {
             </div>
 
             <Alert type='warning' showIcon content={t('settings.securityPage.vaultWarning')} />
-            <div className='text-12px text-t-tertiary'>{t('settings.securityPage.vaultHiddenNote')}</div>
+            <AgentVaultSecretEditor
+              vaultEnabled={vaultEnabled}
+              onVaultEnabledChange={setVaultEnabled}
+              loading={loading}
+              onSaved={() => {
+                void loadState();
+              }}
+            />
 
             <div className='flex flex-col gap-8px md:flex-row md:items-center md:justify-between'>
               <div className='min-w-0 text-12px text-t-tertiary'>

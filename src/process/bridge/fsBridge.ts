@@ -13,6 +13,7 @@ import https from 'node:https';
 import http from 'node:http';
 import JSZip from 'jszip';
 import { ipcBridge } from '@/common';
+import { parseSkillFrontmatter } from '@/common/skills/skillFrontmatter';
 import {
   getSystemDir,
   getAssistantsDir,
@@ -1355,6 +1356,7 @@ export function initFsBridge(): void {
         location: string;
         isCustom: boolean;
         source: 'builtin' | 'custom' | 'extension';
+        requiredEnv?: string[];
       };
       const skills: SkillEntry[] = [];
 
@@ -1375,21 +1377,16 @@ export function initFsBridge(): void {
 
             try {
               const content = await fs.readFile(skillMdPath, 'utf-8');
-              // 解析 YAML front matter
-              const frontMatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
-              if (frontMatterMatch) {
-                const yaml = frontMatterMatch[1];
-                const nameMatch = yaml.match(/^name:\s*(.+)$/m);
-                const descMatch = yaml.match(/^description:\s*['"]?(.+?)['"]?$/m);
-                if (nameMatch) {
-                  skills.push({
-                    name: nameMatch[1].trim(),
-                    description: descMatch ? descMatch[1].trim() : '',
-                    location: skillMdPath,
-                    isCustom: source === 'custom',
-                    source,
-                  });
-                }
+              const { name, description, requiredEnv } = parseSkillFrontmatter(content);
+              if (name) {
+                skills.push({
+                  name,
+                  description: description || '',
+                  location: skillMdPath,
+                  isCustom: source === 'custom',
+                  source,
+                  requiredEnv,
+                });
               }
             } catch {
               // Skill directory without SKILL.md, skip

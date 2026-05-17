@@ -9,6 +9,7 @@ export type SkillInfo = {
   location: string;
   isCustom: boolean;
   source: SkillSource;
+  requiredEnv?: string[];
 };
 
 // External source type

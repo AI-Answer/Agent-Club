@@ -5,6 +5,8 @@
  */
 
 import { getSkillsDir, getBuiltinSkillsCopyDir, loadSkillsContent } from '@process/utils/initStorage';
+import { buildAgentClubVaultRunnerHint, buildSkillVaultEnvHints } from '@/common/skills/agentVaultContent';
+import { getAgentVaultRuntimeStateSync } from '@process/services/security/agentVaultRuntime';
 import { AcpSkillManager, buildSkillsIndexText, type SkillIndex } from './AcpSkillManager';
 import { getTeamGuidePrompt } from '@process/team/prompts/teamGuidePrompt.ts';
 import { resolveLeaderAssistantLabel } from '@process/team/prompts/teamGuideAssistant.ts';
@@ -137,10 +139,18 @@ export async function prepareFirstMessageWithSkillsIndex(
       const builtinSkillsCopyDir = getBuiltinSkillsCopyDir();
       const builtinSkillsDir = builtinSkillsCopyDir + '/_builtin';
       const indexText = buildSkillsIndexText(skillsIndex);
+      const vaultRuntime = getAgentVaultRuntimeStateSync();
+      const envHints = buildSkillVaultEnvHints(skillManager.getLoadedSkillDefinitions(), vaultRuntime.keys);
+      const envSection = envHints ? `\n\n${envHints}` : '';
+      const vaultRunner = buildAgentClubVaultRunnerHint({
+        enabled: vaultRuntime.enabled,
+        filePath: vaultRuntime.filePath,
+      });
+      const vaultSection = vaultRunner ? `\n\n${vaultRunner}` : '';
 
       // 告诉 Agent skills 文件的位置，让它按需读取
       // Tell Agent where skills files are located for on-demand reading
-      const skillsInstruction = `${indexText}
+      const skillsInstruction = `${indexText}${envSection}${vaultSection}
 
 [Skills Location]
 Skills are stored in three locations:
@@ -209,7 +219,20 @@ export async function buildSystemInstructionsWithSkillsIndex(config: FirstMessag
     const skillsIndex = skillManager.getSkillsIndex().filter((s) => !excludeSet.has(s.name));
     if (skillsIndex.length > 0) {
       const indexText = buildSkillsIndexText(skillsIndex);
-      instructions.push(indexText);
+      const vaultRuntime = getAgentVaultRuntimeStateSync();
+      const envHints = buildSkillVaultEnvHints(skillManager.getLoadedSkillDefinitions(), vaultRuntime.keys);
+      const vaultRunner = buildAgentClubVaultRunnerHint({
+        enabled: vaultRuntime.enabled,
+        filePath: vaultRuntime.filePath,
+      });
+      const parts = [indexText];
+      if (envHints) {
+        parts.push(envHints);
+      }
+      if (vaultRunner) {
+        parts.push(vaultRunner);
+      }
+      instructions.push(parts.join('\n\n'));
     }
   }
 

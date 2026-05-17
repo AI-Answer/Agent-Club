@@ -9,8 +9,10 @@ import EmojiPicker from '@/renderer/components/chat/EmojiPicker';
 import MarkdownView from '@/renderer/components/Markdown';
 import { Avatar, Button, Checkbox, Collapse, Drawer, Input, Select, Tag, Typography } from '@arco-design/web-react';
 import { Close, Delete, Plus, Robot } from '@icon-park/react';
+import { useAgentVaultKeys } from '@/renderer/hooks/useAgentVaultKeys';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import SkillEnvRequirementsBanner from '../components/SkillEnvRequirementsBanner';
 
 type AssistantEditDrawerProps = {
   // Drawer visibility
@@ -135,6 +137,7 @@ const AssistantEditDrawer: React.FC<AssistantEditDrawerProps> = ({
 
   const agentOptions = availableBackends;
 
+  const vaultSnapshot = useAgentVaultKeys();
   const customSkillItems = availableSkills.filter((skill) => skill.source === 'custom');
   const builtinSkillItems = availableSkills.filter((skill) => skill.source === 'builtin');
   const extensionSkillItems = availableSkills.filter((skill) => skill.source === 'extension');
@@ -424,6 +427,14 @@ const AssistantEditDrawer: React.FC<AssistantEditDrawerProps> = ({
                   {t('settings.addSkills', { defaultValue: 'Add Skills' })}
                 </Button>
               </div>
+
+              <SkillEnvRequirementsBanner
+                className='mb-12px'
+                skills={availableSkills}
+                selectedSkillNames={selectedSkills}
+                vaultKeys={vaultSnapshot.keys}
+                vaultEnabled={vaultSnapshot.enabled}
+              />
 
               <Collapse defaultActiveKey={['custom-skills']} data-testid='skills-collapse'>
                 {/* Custom Skills (Pending + Imported) */}

@@ -11,6 +11,7 @@ import type { IConversationService, CreateConversationParams } from '@process/se
 import type { IWorkerTaskManager } from '@process/task/IWorkerTaskManager';
 import type { TeamSessionService } from '@process/team/TeamSessionService';
 import { ipcBridge } from '@/common';
+import { buildAgentClubVaultRunnerHint } from '@/common/skills/agentVaultContent';
 import { removeFromMessageCache } from '@process/utils/message';
 import {
   getSkillsDir,
@@ -19,6 +20,7 @@ import {
   ProcessChat,
   ProcessConfig,
 } from '@process/utils/initStorage';
+import { getAgentVaultRuntimeStateSync } from '@process/services/security/agentVaultRuntime';
 import type AcpAgentManager from '../task/AcpAgentManager';
 import type { GeminiAgentManager } from '../task/GeminiAgentManager';
 import { AionrsApprovalStore, type AionrsManager } from '../task/AionrsManager';
@@ -577,9 +579,15 @@ export function initConversationBridge(
       // e.g. "skills/star-office-helper/scripts/..." → "${skillsDir}/star-office-helper/scripts/..."
       const skillsDir = getSkillsDir();
       const builtinSkillsCopyDir = getBuiltinSkillsCopyDir();
+      const vaultRuntime = getAgentVaultRuntimeStateSync();
+      const vaultHint = buildAgentClubVaultRunnerHint({
+        enabled: vaultRuntime.enabled,
+        filePath: vaultRuntime.filePath,
+      });
+      const vaultBlock = vaultHint ? `\n\n${vaultHint}` : '';
       agentContent = agentContent.replace(
         '[User Request]',
-        `[Skills Directory]\nBuiltin skills: ${builtinSkillsCopyDir}\nUser skills: ${skillsDir}\nWhen skill instructions reference relative paths like "skills/{name}/scripts/...", resolve them under the appropriate directory.\n\n[User Request]`
+        `[Skills Directory]\nBuiltin skills: ${builtinSkillsCopyDir}\nUser skills: ${skillsDir}\nWhen skill instructions reference relative paths like "skills/{name}/scripts/...", resolve them under the appropriate directory.${vaultBlock}\n\n[User Request]`
       );
     }
     try {

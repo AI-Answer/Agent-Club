@@ -412,6 +412,7 @@ export const fs = {
       location: string;
       isCustom: boolean;
       source: 'builtin' | 'custom' | 'extension';
+      requiredEnv?: string[];
     }>,
     void
   >('list-available-skills'),
