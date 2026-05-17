@@ -60,6 +60,12 @@ type CommandResult = {
   stderr: string;
 };
 
+type ResolvedCommand = {
+  command: string;
+  argsPrefix: string[];
+  envPatch?: NodeJS.ProcessEnv;
+};
+
 type AgentManagerPrewarmRoute = {
   path: string;
   label: string;
@@ -935,7 +941,8 @@ export class AgentManagerService {
         }
       } else {
         this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} web UI`);
-        this.spawnManaged('pnpm', ['dev:web'], repoDir, env, 'web');
+        const pnpm = this.resolvePnpmCommand();
+        this.spawnManaged(pnpm.command, [...pnpm.argsPrefix, 'dev:web'], repoDir, { ...env, ...pnpm.envPatch }, 'web');
       }
       await this.waitForHttp(frontendUrl, 120000);
 
@@ -1355,7 +1362,12 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   }
 
   private async ensureDependencies(repoDir: string, env: NodeJS.ProcessEnv): Promise<void> {
-    this.assertCommand('pnpm', ['--version'], `pnpm is required to start ${AGENT_MANAGER_NAME}.`);
+    const pnpm = this.resolvePnpmCommand();
+    this.assertResolvedCommand(
+      pnpm,
+      ['--version'],
+      `pnpm is required to start ${AGENT_MANAGER_NAME}. The packaged app should include pnpm; reinstall Agent Club from the latest release if this appears.`
+    );
     this.assertCommand('go', ['version'], `Go is required to start the ${AGENT_MANAGER_NAME} backend.`);
 
     if (fs.existsSync(path.join(repoDir, 'node_modules', '.modules.yaml'))) {
@@ -1363,7 +1375,46 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     }
 
     this.updateStatus('starting', `Installing ${AGENT_MANAGER_NAME} dependencies`);
-    await this.runCommand('pnpm', ['install'], repoDir, env, 'pnpm install', 240000);
+    await this.runCommand(
+      pnpm.command,
+      [...pnpm.argsPrefix, 'install'],
+      repoDir,
+      { ...env, ...pnpm.envPatch },
+      'pnpm install',
+      240000
+    );
+  }
+
+  private resolvePnpmCommand(): ResolvedCommand {
+    const bundledPnpm = this.resolveBundledPnpmPath();
+    if (bundledPnpm) {
+      return {
+        command: process.execPath,
+        argsPrefix: [bundledPnpm],
+        envPatch: { ELECTRON_RUN_AS_NODE: '1' },
+      };
+    }
+
+    return { command: 'pnpm', argsPrefix: [] };
+  }
+
+  private resolveBundledPnpmPath(): string | null {
+    const candidates = [];
+
+    if (app.isPackaged) {
+      candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'));
+      candidates.push(path.join(process.resourcesPath, 'app.asar', 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'));
+    }
+
+    candidates.push(path.join(process.cwd(), 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'));
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 
   private async ensurePostgres(repoDir: string, runtimeDir: string, env: NodeJS.ProcessEnv): Promise<void> {
@@ -1437,6 +1488,19 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   private assertCommand(command: string, args: string[], message: string): void {
     const result = spawnSync(command, args, {
       env: { ...process.env, PATH: this.withToolPaths(process.env.PATH || '') },
+    });
+    if (result.error || result.status !== 0) {
+      throw new Error(message);
+    }
+  }
+
+  private assertResolvedCommand(resolved: ResolvedCommand, args: string[], message: string): void {
+    const result = spawnSync(resolved.command, [...resolved.argsPrefix, ...args], {
+      env: {
+        ...process.env,
+        ...resolved.envPatch,
+        PATH: this.withToolPaths(process.env.PATH || ''),
+      },
     });
     if (result.error || result.status !== 0) {
       throw new Error(message);
