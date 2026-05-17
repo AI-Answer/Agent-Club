@@ -452,10 +452,26 @@ export class AgentManagerService {
   }
 
   private async getReadyApiContext(): Promise<{ backendUrl: string; token: string }> {
-    const readyStatus = await this.ensureReadyForApi();
-    const backendUrl = readyStatus.backendUrl || this.getBackendUrl();
+    const backendUrl = await this.ensureBackendReadyForApi();
     const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
     return { backendUrl, token };
+  }
+
+  private async ensureBackendReadyForApi(): Promise<string> {
+    const backendUrl = this.status.backendUrl || this.getBackendUrl();
+    const healthUrl = `${backendUrl.replace(/\/$/, '')}/health`;
+
+    if (this.status.state === 'ready' || (await this.isHttpAvailable(healthUrl, 750))) {
+      return backendUrl;
+    }
+
+    if (process.env.AGENT_MANAGER_AUTOSTART === '0') {
+      throw new Error(`${AGENT_MANAGER_NAME} autostart is disabled`);
+    }
+
+    void this.start();
+    await this.waitForHttp(healthUrl, 90000);
+    return backendUrl;
   }
 
   private buildAgentManagerAppLink(nextPath: string): string {
