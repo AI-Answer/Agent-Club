@@ -120,19 +120,19 @@ The installer clones or updates the repo, checks the required local tools, insta
 #### macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/main/scripts/install-mac.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-mac.sh | bash
 ```
 
 To install without starting the app:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/main/scripts/install-mac.sh | bash -s -- --no-start
+curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-mac.sh | bash -s -- --no-start
 ```
 
 #### Windows PowerShell
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/main/scripts/install-windows.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-windows.ps1 | iex"
 ```
 
 The source installer uses these defaults:
@@ -152,7 +152,7 @@ AGENT_CLUB_REPO="https://github.com/Samin12/Agent-Club.git" AGENT_CLUB_DIR="$HOM
 ```powershell
 $env:AGENT_CLUB_REPO="https://github.com/Samin12/Agent-Club.git"
 $env:AGENT_CLUB_DIR="$HOME\Code\Agent-Club"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/main/scripts/install-windows.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-windows.ps1 | iex"
 ```
 
 ### Copy-Paste Setup Prompt For An Agent
@@ -164,9 +164,9 @@ Set up Agent Club from source on this computer.
 
 Use the official installer scripts from the Agent Club repo:
 - On macOS, run:
-  curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/main/scripts/install-mac.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-mac.sh | bash
 - On Windows PowerShell, run:
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/main/scripts/install-windows.ps1 | iex"
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-windows.ps1 | iex"
 
 Please do the full setup:
 1. Detect whether this is macOS or Windows.
