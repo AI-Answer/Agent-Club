@@ -61,6 +61,12 @@ type CommandResult = {
   stderr: string;
 };
 
+type ResolvedCommand = {
+  command: string;
+  argsPrefix: string[];
+  envPatch?: NodeJS.ProcessEnv;
+};
+
 type AgentManagerPrewarmRoute = {
   path: string;
   label: string;
@@ -449,10 +455,26 @@ export class AgentManagerService {
   }
 
   private async getReadyApiContext(): Promise<{ backendUrl: string; token: string }> {
-    const readyStatus = await this.ensureReadyForApi();
-    const backendUrl = readyStatus.backendUrl || this.getBackendUrl();
+    const backendUrl = await this.ensureBackendReadyForApi();
     const token = await this.createLocalSessionToken({ NEXT_PUBLIC_API_URL: backendUrl } as NodeJS.ProcessEnv);
     return { backendUrl, token };
+  }
+
+  private async ensureBackendReadyForApi(): Promise<string> {
+    const backendUrl = this.status.backendUrl || this.getBackendUrl();
+    const healthUrl = `${backendUrl.replace(/\/$/, '')}/health`;
+
+    if (this.status.state === 'ready' || (await this.isHttpAvailable(healthUrl, 750))) {
+      return backendUrl;
+    }
+
+    if (process.env.AGENT_MANAGER_AUTOSTART === '0') {
+      throw new Error(`${AGENT_MANAGER_NAME} autostart is disabled`);
+    }
+
+    void this.start();
+    await this.waitForHttp(healthUrl, 90000);
+    return backendUrl;
   }
 
   private buildAgentManagerAppLink(nextPath: string): string {
@@ -939,7 +961,8 @@ export class AgentManagerService {
         }
       } else {
         this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} web UI`);
-        this.spawnManaged('pnpm', ['dev:web'], repoDir, env, 'web');
+        const pnpm = this.resolvePnpmCommand();
+        this.spawnManaged(pnpm.command, [...pnpm.argsPrefix, 'dev:web'], repoDir, { ...env, ...pnpm.envPatch }, 'web');
       }
       await this.waitForHttp(frontendUrl, 120000);
 
@@ -1376,7 +1399,12 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   }
 
   private async ensureDependencies(repoDir: string, env: NodeJS.ProcessEnv): Promise<void> {
-    this.assertCommand('pnpm', ['--version'], `pnpm is required to start ${AGENT_MANAGER_NAME}.`);
+    const pnpm = this.resolvePnpmCommand();
+    this.assertResolvedCommand(
+      pnpm,
+      ['--version'],
+      `pnpm is required to start ${AGENT_MANAGER_NAME}. The packaged app should include pnpm; reinstall Agent Club from the latest release if this appears.`
+    );
     this.assertCommand(this.getGoExecutable(), ['version'], `Go is required to start the ${AGENT_MANAGER_NAME} backend.`);
 
     if (fs.existsSync(path.join(repoDir, 'node_modules', '.modules.yaml'))) {
@@ -1384,7 +1412,46 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     }
 
     this.updateStatus('starting', `Installing ${AGENT_MANAGER_NAME} dependencies`);
-    await this.runCommand('pnpm', ['install'], repoDir, env, 'pnpm install', 240000);
+    await this.runCommand(
+      pnpm.command,
+      [...pnpm.argsPrefix, 'install'],
+      repoDir,
+      { ...env, ...pnpm.envPatch },
+      'pnpm install',
+      240000
+    );
+  }
+
+  private resolvePnpmCommand(): ResolvedCommand {
+    const bundledPnpm = this.resolveBundledPnpmPath();
+    if (bundledPnpm) {
+      return {
+        command: process.execPath,
+        argsPrefix: [bundledPnpm],
+        envPatch: { ELECTRON_RUN_AS_NODE: '1' },
+      };
+    }
+
+    return { command: 'pnpm', argsPrefix: [] };
+  }
+
+  private resolveBundledPnpmPath(): string | null {
+    const candidates = [];
+
+    if (app.isPackaged) {
+      candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'));
+      candidates.push(path.join(process.resourcesPath, 'app.asar', 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'));
+    }
+
+    candidates.push(path.join(process.cwd(), 'node_modules', 'pnpm', 'bin', 'pnpm.cjs'));
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 
   private async ensurePostgres(repoDir: string, runtimeDir: string, env: NodeJS.ProcessEnv): Promise<void> {
@@ -1474,6 +1541,20 @@ ON CONFLICT (workspace_id, name) DO UPDATE
         ? result.error.message
         : `exit code ${result.status}${stderrText ? ` — ${stderrText.trim().slice(0, 400)}` : ''}`;
       throw new Error(`${message} (${detail})`);
+    }
+  }
+
+  private assertResolvedCommand(resolved: ResolvedCommand, args: string[], message: string): void {
+    const enhanced = getEnhancedEnv();
+    const result = spawnSync(resolved.command, [...resolved.argsPrefix, ...args], {
+      env: {
+        ...process.env,
+        ...resolved.envPatch,
+        PATH: this.withToolPaths(enhanced.PATH || process.env.PATH || ''),
+      },
+    });
+    if (result.error || result.status !== 0) {
+      throw new Error(message);
     }
   }
 

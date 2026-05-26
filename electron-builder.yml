@@ -52,6 +52,8 @@ files:
   - node_modules/tree-sitter-bash/**/*
   # Bundled Hermes desktop-control MCP runner
   - node_modules/@steipete/peekaboo/**/*
+  # Runtime package manager used to bootstrap bundled Local Agent Manager dependencies.
+  - node_modules/pnpm/**/*
   # CRITICAL: Exclude ALL tree-sitter native binaries to prevent signing issues
   - '!**/node_modules/tree-sitter-*/prebuilds/**'
   - '!**/node_modules/tree-sitter-*/build/**'
@@ -233,6 +235,8 @@ asarUnpack:
   - '**/node_modules/tree-sitter-bash/**/*'
   # Peekaboo ships a native macOS binary that external MCP node processes launch.
   - '**/node_modules/@steipete/peekaboo/**/*'
+  # Local Agent Manager launches pnpm through Electron's embedded Node runtime.
+  - '**/node_modules/pnpm/**/*'
   # skills/ and assistant/ no longer need asarUnpack:
   # initStorage copies them from asar to config/builtin-skills/ and config/assistants/
   # at startup, so all runtime reads go through the user directory, not asar.
