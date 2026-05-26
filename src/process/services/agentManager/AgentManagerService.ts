@@ -6,6 +6,7 @@ import * as net from 'net';
 import * as os from 'os';
 import * as path from 'path';
 import { ipcBridge } from '@/common';
+import { getEnhancedEnv, getPnpmStandaloneBinDirs, resolveGoExecutablePath } from '@process/utils/shellEnv';
 import {
   AGENT_MANAGER_LOCAL_CODE,
   AGENT_MANAGER_LOCAL_EMAIL,
@@ -111,6 +112,8 @@ export class AgentManagerService {
   private prewarmPromise: Promise<void> | null = null;
   private prewarmStatus: AgentManagerPrewarmStatus = this.createPrewarmStatus('idle', []);
   private status: AgentManagerStatus = this.createStatus('idle', `${AGENT_MANAGER_NAME} is idle`);
+  /** Reset each `startInternal` run; see `resolveGoExecutablePath` in shellEnv. */
+  private resolvedGoExecutable: string | undefined;
 
   getStatus(): AgentManagerStatus {
     return this.status;
@@ -863,6 +866,7 @@ export class AgentManagerService {
     this.updateStatus('starting', `Preparing ${AGENT_MANAGER_NAME}`);
 
     try {
+      this.resolvedGoExecutable = undefined;
       const repoDir = this.resolveRepoDir();
       if (!fs.existsSync(repoDir)) {
         throw new Error(`Multica checkout not found at ${repoDir}`);
@@ -880,7 +884,7 @@ export class AgentManagerService {
       await this.ensurePostgres(repoDir, runtimeDir, env);
 
       this.updateStatus('starting', `Running ${AGENT_MANAGER_NAME} migrations`);
-      await this.runCommand('go', ['run', './cmd/migrate', 'up'], path.join(repoDir, 'server'), env, 'migrate', 120000);
+      await this.runCommand(this.getGoExecutable(), ['run', './cmd/migrate', 'up'], path.join(repoDir, 'server'), env, 'migrate', 120000);
       await this.seedLocalWorkspace(repoDir, env);
 
       const backendHealthUrl = `${env.NEXT_PUBLIC_API_URL}/health`;
@@ -888,7 +892,7 @@ export class AgentManagerService {
         console.log(`[AgentManager] reusing existing ${AGENT_MANAGER_NAME} backend`);
       } else {
         this.updateStatus('starting', `Starting ${AGENT_MANAGER_NAME} backend`);
-        this.spawnManaged('go', ['run', './cmd/server'], path.join(repoDir, 'server'), env, 'backend');
+        this.spawnManaged(this.getGoExecutable(), ['run', './cmd/server'], path.join(repoDir, 'server'), env, 'backend');
       }
       await this.waitForHttp(backendHealthUrl, 90000);
 
@@ -970,10 +974,15 @@ export class AgentManagerService {
     const frontendUrl = `http://localhost:${frontendPort}`;
     const backendUrl = `http://localhost:${backendPort}`;
     const wsUrl = `ws://localhost:${backendPort}/ws`;
-    const pathValue = this.withToolPaths(process.env.PATH || '', [path.join(runtimeDir, 'bin')]);
+    const enhanced = getEnhancedEnv();
+    const pathValue = this.withToolPaths(enhanced.PATH || process.env.PATH || '', [
+      path.join(runtimeDir, 'bin'),
+    ]);
 
     return {
       ...process.env,
+      ...(enhanced.GOROOT ? { GOROOT: enhanced.GOROOT } : {}),
+      ...(enhanced.GOPATH ? { GOPATH: enhanced.GOPATH } : {}),
       PATH: pathValue,
       POSTGRES_DB: 'multica',
       POSTGRES_USER: 'multica',
@@ -1262,11 +1271,23 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   }
 
   private withToolPaths(pathValue: string, prependPaths: string[] = []): string {
+    // Standalone pnpm must precede Homebrew and the rest of PATH: brew (or nvm)
+    // may expose a Corepack/broken `pnpm` that would otherwise shadow ~/Library/pnpm/bin.
+    const pnpmFirst = getPnpmStandaloneBinDirs();
     const existing = new Set(pathValue.split(path.delimiter).filter(Boolean));
     const prepend = prependPaths.filter((item) => item && fs.existsSync(item) && !existing.has(item));
     prepend.forEach((item) => existing.add(item));
     const additions = HOMEBREW_BIN_PATHS.filter((item) => fs.existsSync(item) && !existing.has(item));
-    return [...prepend, ...additions, pathValue].filter(Boolean).join(path.delimiter);
+    return [...pnpmFirst, ...prepend, ...additions, pathValue].filter(Boolean).join(path.delimiter);
+  }
+
+  private getGoExecutable(): string {
+    if (this.resolvedGoExecutable !== undefined) {
+      return this.resolvedGoExecutable;
+    }
+    const enhanced = getEnhancedEnv();
+    this.resolvedGoExecutable = resolveGoExecutablePath(enhanced.GOROOT) ?? 'go';
+    return this.resolvedGoExecutable;
   }
 
   private async ensureMulticaCli(repoDir: string, runtimeDir: string, env: NodeJS.ProcessEnv): Promise<string> {
@@ -1291,7 +1312,7 @@ ON CONFLICT (workspace_id, name) DO UPDATE
     fs.mkdirSync(binDir, { recursive: true });
     this.updateStatus('starting', `Building ${AGENT_MANAGER_NAME} CLI`);
     await this.runCommand(
-      'go',
+      this.getGoExecutable(),
       ['build', '-trimpath', '-ldflags', this.getMulticaCliLdflags(), '-o', cliPath, './cmd/multica'],
       path.join(repoDir, 'server'),
       env,
@@ -1356,7 +1377,7 @@ ON CONFLICT (workspace_id, name) DO UPDATE
 
   private async ensureDependencies(repoDir: string, env: NodeJS.ProcessEnv): Promise<void> {
     this.assertCommand('pnpm', ['--version'], `pnpm is required to start ${AGENT_MANAGER_NAME}.`);
-    this.assertCommand('go', ['version'], `Go is required to start the ${AGENT_MANAGER_NAME} backend.`);
+    this.assertCommand(this.getGoExecutable(), ['version'], `Go is required to start the ${AGENT_MANAGER_NAME} backend.`);
 
     if (fs.existsSync(path.join(repoDir, 'node_modules', '.modules.yaml'))) {
       return;
@@ -1435,11 +1456,24 @@ ON CONFLICT (workspace_id, name) DO UPDATE
   }
 
   private assertCommand(command: string, args: string[], message: string): void {
+    const enhanced = getEnhancedEnv();
+    const toolchain: NodeJS.ProcessEnv = {};
+    if (enhanced.GOROOT) toolchain.GOROOT = enhanced.GOROOT;
+    if (enhanced.GOPATH) toolchain.GOPATH = enhanced.GOPATH;
     const result = spawnSync(command, args, {
-      env: { ...process.env, PATH: this.withToolPaths(process.env.PATH || '') },
+      env: {
+        ...process.env,
+        ...toolchain,
+        PATH: this.withToolPaths(enhanced.PATH || process.env.PATH || ''),
+      },
     });
     if (result.error || result.status !== 0) {
-      throw new Error(message);
+      const stderrText =
+        typeof result.stderr === 'string' ? result.stderr : result.stderr?.toString('utf8') ?? '';
+      const detail = result.error
+        ? result.error.message
+        : `exit code ${result.status}${stderrText ? ` — ${stderrText.trim().slice(0, 400)}` : ''}`;
+      throw new Error(`${message} (${detail})`);
     }
   }
 
@@ -1452,7 +1486,10 @@ ON CONFLICT (workspace_id, name) DO UPDATE
 
     for (const candidate of candidates) {
       const result = spawnSync(candidate, ['--version'], {
-        env: { ...process.env, PATH: this.withToolPaths(process.env.PATH || '') },
+        env: {
+          ...process.env,
+          PATH: this.withToolPaths(getEnhancedEnv().PATH || process.env.PATH || ''),
+        },
       });
       if (!result.error && result.status === 0) {
         return candidate;

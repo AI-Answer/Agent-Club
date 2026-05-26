@@ -48,6 +48,43 @@ import { SystemActionNames, createErrorResponse, createSuccessResponse } from '.
 import { GOOGLE_AUTH_PROVIDER_ID } from '@/common/config/constants';
 import { buildChannelConversationExtra, resolveChannelAgentPreference } from '../utils';
 
+/** Provider platforms valid for channel Gemini conversations (embedded Gemini agent). */
+const GEMINI_CHANNEL_PLATFORMS = new Set(['gemini', 'gemini-with-google-auth', 'gemini-vertex-ai']);
+
+function isGeminiChannelPlatform(platform: string | undefined): boolean {
+  if (!platform) return false;
+  const lower = platform.toLowerCase();
+  return GEMINI_CHANNEL_PLATFORMS.has(lower) || lower.includes('gemini-with-google-auth');
+}
+
+function getAssistantAgentConfigKey(platform: PluginType): Parameters<typeof ProcessConfig.get>[0] {
+  return `assistant.${platform}.agent` as Parameters<typeof ProcessConfig.get>[0];
+}
+
+/**
+ * Map in-channel agent selection (keyboard) to persisted assistant.agent settings.
+ */
+export function channelAgentTypeToPreference(agentType: ChannelAgentType): {
+  backend: string;
+  name?: string;
+} {
+  if (agentType === 'gemini') {
+    return { backend: 'gemini', name: 'Gemini' };
+  }
+  if (agentType === 'codex') {
+    return { backend: 'codex', name: 'Codex' };
+  }
+  if (agentType === 'openclaw-gateway') {
+    return { backend: 'openclaw-gateway', name: 'OpenClaw' };
+  }
+  for (const agent of agentRegistry.getDetectedAgents()) {
+    if (backendToChannelAgentType(agent.backend) === 'acp') {
+      return { backend: agent.backend, name: agent.name };
+    }
+  }
+  return { backend: 'claude', name: 'Claude Code' };
+}
+
 /**
  * Get the default model for Channel assistant (Telegram/Lark)
  * Reads from saved config or falls back to default Gemini model
@@ -137,13 +174,20 @@ export async function getChannelDefaultModel(platform: PluginType): Promise<TPro
         }
         // Otherwise fall through to general fallback below
       } else {
-        // For regular (API-key-based) providers, look up full config
+        // For regular (API-key-based) providers, look up full config (Gemini-family only).
         const result = findProviderWithApiKey(savedModel.id, savedModel.useModel);
-        if (result) return result;
+        if (result && isGeminiChannelPlatform(result.platform)) {
+          return result;
+        }
+        if (result) {
+          console.warn(
+            `[SystemActions] Saved channel model provider "${result.platform}" is not Gemini-compatible (${platform}), ignoring`
+          );
+        }
       }
     }
 
-    // Fallback: try to get any Gemini provider with valid credentials
+    // Fallback: try to get any Gemini (AI Studio) provider with valid credentials
     const geminiProvider = providerList.find((p) => p.platform === 'gemini' && hasProviderAuth(p) && p.model?.length);
     if (geminiProvider) {
       return {
@@ -152,13 +196,13 @@ export async function getChannelDefaultModel(platform: PluginType): Promise<TPro
       } as TProviderWithModel;
     }
 
-    // Last resort: any provider with valid credentials
-    const anyProvider = providerList.find((p) => hasProviderAuth(p) && p.model?.length);
-    if (anyProvider) {
-      console.warn(`[SystemActions] No Gemini provider with API key, using ${anyProvider.platform} provider`);
+    const vertexProvider = providerList.find(
+      (p) => p.platform === 'gemini-vertex-ai' && hasProviderAuth(p) && p.model?.length
+    );
+    if (vertexProvider) {
       return {
-        ...anyProvider,
-        useModel: anyProvider.model[0],
+        ...vertexProvider,
+        useModel: vertexProvider.model[0],
       } as TProviderWithModel;
     }
 
@@ -718,8 +762,17 @@ export const handleAgentSelect: ActionHandler = async (context, params) => {
   }
   await sessionManager.clearSession(context.channelUser.id, context.chatId);
 
-  // Create new session with the selected agent type (scoped by chatId)
-  const session = await sessionManager.createSession(context.channelUser, newAgentType, undefined, context.chatId);
+  const agentPreference = channelAgentTypeToPreference(newAgentType);
+  try {
+    await ProcessConfig.set(getAssistantAgentConfigKey(context.platform), agentPreference);
+    const manager = getChannelManager();
+    if (manager.isInitialized()) {
+      await manager.syncChannelSettings(context.platform, agentPreference);
+    }
+  } catch (error) {
+    console.error(`[SystemActions] Failed to persist channel agent selection:`, error);
+    return createErrorResponse('Failed to save agent selection');
+  }
 
   const markup =
     context.platform === 'lark'

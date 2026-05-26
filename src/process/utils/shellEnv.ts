@@ -94,6 +94,8 @@ export function getBunGlobalBinDir(): string {
  */
 const SHELL_INHERITED_ENV_VARS = [
   'PATH', // Required for finding CLI tools (e.g., ~/.npm-global/bin, ~/.nvm/...)
+  'GOROOT',
+  'GOPATH',
   'NODE_EXTRA_CA_CERTS', // Custom CA certificates
   'SSL_CERT_FILE',
   'SSL_CERT_DIR',
@@ -343,6 +345,9 @@ function getWindowsExtraToolPaths(): string[] {
   const currentPath = process.env.PATH || '';
 
   const candidates = [
+    // Go official installer (Windows)
+    path.join(programFiles, 'Go', 'bin'),
+    path.join(programFilesX86, 'Go', 'bin'),
     // npm global packages (most common - installed with Node.js)
     path.join(appData, 'npm'),
     // Node.js official installer
@@ -405,6 +410,8 @@ function getPosixExtraToolPaths(): string[] {
   const currentPath = process.env.PATH || '';
 
   const candidates = [
+    // Go official installer (darwin/linux) — `go` lives here, not under ~/go/bin
+    path.join('/', 'usr', 'local', 'go', 'bin'),
     // bun global packages
     getBunGlobalBinDir(),
     // cargo (Rust)
@@ -418,6 +425,84 @@ function getPosixExtraToolPaths(): string[] {
   ];
 
   return candidates.filter((p) => existsSync(p) && !currentPath.includes(p));
+}
+
+/**
+ * Directories that contain a real `pnpm` binary from the standalone installer
+ * (or PNPM_HOME). Prepended to PATH in getEnhancedEnv so they win over broken
+ * Corepack shims that ship with nvm-managed Node.
+ */
+export function getPnpmStandaloneBinDirs(): string[] {
+  if (process.platform === 'win32') return [];
+
+  const homeDir = os.homedir();
+  const dirs: string[] = [];
+
+  const pushIfHasPnpm = (dir: string) => {
+    if (!dir || dirs.includes(dir)) return;
+    const pnpmBin = path.join(dir, 'pnpm');
+    if (existsSync(pnpmBin)) {
+      dirs.push(dir);
+    }
+  };
+
+  const pnpmHome = process.env.PNPM_HOME;
+  if (pnpmHome) {
+    pushIfHasPnpm(path.join(pnpmHome, 'bin'));
+    pushIfHasPnpm(pnpmHome);
+  }
+  if (process.platform === 'darwin') {
+    pushIfHasPnpm(path.join(homeDir, 'Library', 'pnpm', 'bin'));
+  }
+  pushIfHasPnpm(path.join(homeDir, '.local', 'share', 'pnpm'));
+
+  return dirs;
+}
+
+/**
+ * Find a `go` binary on disk in standard install locations without relying on PATH.
+ *
+ * Why this exists: `getEnhancedEnv()` merges PATH from `loginShell -l -c env`, which is
+ * **non-interactive**. On zsh, login shells read `.zprofile` / `.zlogin` but **not** `.zshrc`.
+ * Many developers only append Go to PATH in `.zshrc`, so Terminal works while Electron
+ * never sees that directory — a deterministic mismatch, not random flakiness.
+ *
+ * @returns Absolute path to `go` (or `go.exe` on Windows), or null if not found in known locations.
+ */
+export function resolveGoExecutablePath(gorootFromShell?: string): string | null {
+  const goroot = gorootFromShell || process.env.GOROOT;
+
+  if (process.platform === 'win32') {
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const candidates = [
+      path.join(programFiles, 'Go', 'bin', 'go.exe'),
+      path.join(programFilesX86, 'Go', 'bin', 'go.exe'),
+    ];
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  const candidates: string[] = [];
+  if (goroot) {
+    candidates.push(path.join(goroot, 'bin', 'go'));
+  }
+  if (process.env.GOROOT && process.env.GOROOT !== goroot) {
+    candidates.push(path.join(process.env.GOROOT, 'bin', 'go'));
+  }
+  candidates.push(path.join('/', 'usr', 'local', 'go', 'bin', 'go'));
+  candidates.push(path.join('/', 'opt', 'homebrew', 'bin', 'go'));
+  candidates.push(path.join('/', 'usr', 'local', 'bin', 'go'));
+  if (process.platform === 'linux') {
+    candidates.push(path.join('/', 'usr', 'bin', 'go'));
+  }
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
 }
 
 /**
@@ -451,6 +536,11 @@ export function getEnhancedEnv(customEnv?: Record<string, string>): Record<strin
   const posixExtraPaths = getPosixExtraToolPaths();
   if (posixExtraPaths.length > 0) {
     mergedPath = mergePaths(mergedPath, posixExtraPaths.join(':'));
+  }
+
+  const pnpmStandaloneBins = getPnpmStandaloneBinDirs();
+  if (pnpmStandaloneBins.length > 0) {
+    mergedPath = mergePaths(pnpmStandaloneBins.join(':'), mergedPath);
   }
 
   // Prepend bundled bun directory (highest priority — ensures extensions always

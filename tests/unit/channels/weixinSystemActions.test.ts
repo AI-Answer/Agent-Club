@@ -6,7 +6,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { GOOGLE_AUTH_PROVIDER_ID } from '@/common/config/constants';
-import { getChannelDefaultModel } from '@process/channels/actions/SystemActions';
+import { channelAgentTypeToPreference, getChannelDefaultModel } from '@process/channels/actions/SystemActions';
 import { buildChannelConversationExtra, getChannelEnabledSkills } from '@process/channels/utils';
 
 const { mockGet, mockGetDetectedAgents } = vi.hoisted(() => ({
@@ -189,6 +189,61 @@ describe('SystemActions weixin platform handling', () => {
     expect(result.useModel).toBe('gemini-2.5-pro');
   });
 
+  it('does not fall back to a non-Gemini provider when only Anthropic is configured', async () => {
+    mockGet.mockImplementation((key: string) => {
+      if (key === 'model.config') {
+        return Promise.resolve([
+          {
+            id: 'anthropic-api',
+            platform: 'anthropic',
+            apiKey: 'sk-ant-test',
+            model: ['claude-sonnet-4-20250514'],
+          },
+        ]);
+      }
+      return Promise.resolve(undefined);
+    });
+    vi.spyOn(os, 'homedir').mockReturnValue('/tmp/test-home');
+    vi.spyOn(fs.promises, 'readFile').mockRejectedValue(new Error('missing creds'));
+
+    const result = await getChannelDefaultModel('telegram');
+
+    expect(result.platform).toBe('gemini');
+    expect(result.id).toBe('gemini_default');
+    expect(result.apiKey).toBe('');
+  });
+
+  it('ignores a saved non-Gemini provider id and uses a Gemini API-key provider instead', async () => {
+    mockGet.mockImplementation((key: string) => {
+      if (key === 'model.config') {
+        return Promise.resolve([
+          {
+            id: 'anthropic-api',
+            platform: 'anthropic',
+            apiKey: 'sk-ant-test',
+            model: ['claude-sonnet-4-20250514'],
+          },
+          {
+            id: 'gemini-api',
+            platform: 'gemini',
+            apiKey: 'gemini-key',
+            model: ['gemini-2.0-flash'],
+          },
+        ]);
+      }
+      if (key === 'assistant.telegram.defaultModel') {
+        return Promise.resolve({ id: 'anthropic-api', useModel: 'claude-sonnet-4-20250514' });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const result = await getChannelDefaultModel('telegram');
+
+    expect(result.id).toBe('gemini-api');
+    expect(result.platform).toBe('gemini');
+    expect(result.useModel).toBe('gemini-2.0-flash');
+  });
+
   it('falls back to Google Auth credentials when no API-key provider exists', async () => {
     mockGet.mockImplementation((key: string) => {
       if (key === 'model.config') return Promise.resolve([]);
@@ -202,6 +257,12 @@ describe('SystemActions weixin platform handling', () => {
     expect(result.id).toBe(GOOGLE_AUTH_PROVIDER_ID);
     expect(result.platform).toBe('gemini-with-google-auth');
     expect(result.useModel).toBe('gemini-2.0-flash');
+  });
+
+  it('channelAgentTypeToPreference maps acp to claude when no ACP agent is detected', () => {
+    mockGetDetectedAgents.mockReturnValue([]);
+    expect(channelAgentTypeToPreference('acp')).toEqual({ backend: 'claude', name: 'Claude Code' });
+    expect(channelAgentTypeToPreference('gemini')).toEqual({ backend: 'gemini', name: 'Gemini' });
   });
 
   it('enables weixin-file-send only for weixin channel conversations', () => {
