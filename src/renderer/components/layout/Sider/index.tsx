@@ -8,9 +8,11 @@ import { useLayoutContext } from '@renderer/hooks/context/LayoutContext';
 import { blurActiveElement } from '@renderer/utils/ui/focus';
 import { useThemeContext } from '@renderer/hooks/context/ThemeContext';
 import { useAllCronJobs } from '@renderer/pages/cron/useCronJobs';
+import { JARVIS_MODE_ENABLED } from '@/common/config/constants';
 import {
   SiderAgentManagerEntry,
   SiderDashboardEntry,
+  SiderJarvisEntry,
   SiderMonthMapEntry,
   SiderToolbar,
   SiderSearchEntry,
@@ -142,6 +144,19 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
     }
   };
 
+  const handleJarvisClick = () => {
+    cleanupSiderTooltips();
+    blurActiveElement();
+    closePreview();
+    setIsBatchMode(false);
+    Promise.resolve(navigate('/jarvis')).catch((error) => {
+      console.error('Navigation failed:', error);
+    });
+    if (onSessionClick) {
+      onSessionClick();
+    }
+  };
+
   const handleQuickThemeToggle = () => {
     void setTheme(theme === 'dark' ? 'light' : 'dark');
   };
@@ -252,6 +267,16 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
               siderTooltipProps={siderTooltipProps}
               onClick={handleAgentManagerClick}
             />
+            {/* Jarvis Mode launcher — the live voice HUD */}
+            {JARVIS_MODE_ENABLED && (
+              <SiderJarvisEntry
+                isMobile={isMobile}
+                isActive={pathname === '/jarvis'}
+                collapsed={collapsed}
+                siderTooltipProps={siderTooltipProps}
+                onClick={handleJarvisClick}
+              />
+            )}
             {/* Divider between fixed top nav and scrollable content area */}
             <div
               className={classNames(
