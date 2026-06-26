@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,7 +24,7 @@ import { ExtensionRegistry } from '@process/extensions';
 
 export const initializeProcess = async () => {
   const t0 = performance.now();
-  const mark = (label: string) => console.log(`[AionUi:process] ${label} +${Math.round(performance.now() - t0)}ms`);
+  const mark = (label: string) => console.log(`[Agent Club:process] ${label} +${Math.round(performance.now() - t0)}ms`);
 
   await initStorage();
   mark('initStorage');

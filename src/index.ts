@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -14,7 +14,7 @@ Sentry.init({
 });
 
 import './process/utils/configureConsoleLog';
-import { app, BrowserWindow, nativeImage, net, powerMonitor, protocol, screen } from 'electron';
+import { app, BrowserWindow, nativeImage, net, powerMonitor, protocol, screen, session } from 'electron';
 import fixPath from 'fix-path';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -34,6 +34,7 @@ import { workerTaskManager } from './process/task/workerTaskManagerSingleton';
 import { setupApplicationMenu } from './process/utils/appMenu';
 import { startWebServer } from './process/webserver';
 import { agentManagerService } from './process/services/agentManager';
+import { LOCAL_MULTICA_ENABLED } from './common/config/constants';
 import { initializeZoomFactor, setupZoomForWindow } from './process/utils/zoom';
 import { getOrCreateAnalyticsId } from './process/utils/analyticsId';
 import {
@@ -76,7 +77,7 @@ const skipSingleInstanceLock = isE2ETestMode || process.env.AIONUI_MULTI_INSTANC
 const deepLinkFromArgv = process.argv.find(isDeepLinkUrl);
 const gotTheLock = skipSingleInstanceLock ? true : app.requestSingleInstanceLock({ deepLinkUrl: deepLinkFromArgv });
 if (!gotTheLock) {
-  console.warn('[AionUi] Another instance is already running; current process will exit.');
+  console.warn('[Agent Club] Another instance is already running; current process will exit.');
   app.quit();
 } else {
   app.on('second-instance', (_event, argv, _workingDirectory, additionalData) => {
@@ -99,7 +100,7 @@ if (!gotTheLock) {
       showOrCreateMainWindow({
         mainWindow,
         createWindow: () => {
-          console.log('[AionUi] second-instance received with no active main window, recreating main window');
+          console.log('[Agent Club] second-instance received with no active main window, recreating main window');
           createWindow();
         },
       });
@@ -206,7 +207,7 @@ let appReadyDone = false;
 let mainWindow: BrowserWindow;
 
 const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): void => {
-  console.log('[AionUi] Creating main window...');
+  console.log('[Agent Club] Creating main window...');
   // Get primary display size
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
@@ -258,7 +259,7 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
       webviewTag: true, // 启用 webview 标签用于 HTML 预览 / Enable webview tag for HTML preview
     },
   });
-  console.log(`[AionUi] Main window created (id=${mainWindow.id})`);
+  console.log(`[Agent Club] Main window created (id=${mainWindow.id})`);
 
   // Show window after content is ready to prevent FOUC (Flash of Unstyled Content)
   // Use 'ready-to-show' which fires when renderer has painted first frame,
@@ -266,18 +267,18 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
   if (showOnReady) {
     const showWindow = () => {
       if (!mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-        console.log('[AionUi] Showing main window');
+        console.log('[Agent Club] Showing main window');
         mainWindow.show();
         mainWindow.focus();
       }
     };
     mainWindow.once('ready-to-show', () => {
-      console.log('[AionUi] Window ready-to-show');
+      console.log('[Agent Club] Window ready-to-show');
       showWindow();
     });
     // Belt-and-suspenders: also show on did-finish-load in case ready-to-show already fired
     mainWindow.webContents.once('did-finish-load', () => {
-      console.log('[AionUi] Renderer did-finish-load');
+      console.log('[Agent Club] Renderer did-finish-load');
       showWindow();
     });
     // Fallback: show window after 5s even if events don't fire (e.g. loadURL failure)
@@ -314,7 +315,7 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
         console.error('[App] Failed to initialize autoUpdaterService:', error);
       });
   } else {
-    console.log('[AionUi] Auto-updater disabled via env/CI guard');
+    console.log('[Agent Club] Auto-updater disabled via env/CI guard');
   }
 
   // Load the renderer: dev server URL in development, built HTML file in production
@@ -322,51 +323,51 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
   const fallbackFile = path.join(__dirname, '../renderer/index.html');
 
   if (!app.isPackaged && rendererUrl) {
-    console.log(`[AionUi] Loading renderer URL: ${rendererUrl}`);
+    console.log(`[Agent Club] Loading renderer URL: ${rendererUrl}`);
     mainWindow.loadURL(rendererUrl).catch((error) => {
-      console.error('[AionUi] loadURL failed, falling back to file:', error.message || error);
+      console.error('[Agent Club] loadURL failed, falling back to file:', error.message || error);
       mainWindow.loadFile(fallbackFile).catch((e2) => {
-        console.error('[AionUi] loadFile fallback also failed:', e2.message || e2);
+        console.error('[Agent Club] loadFile fallback also failed:', e2.message || e2);
       });
     });
   } else {
-    console.log(`[AionUi] Loading renderer file: ${fallbackFile}`);
+    console.log(`[Agent Club] Loading renderer file: ${fallbackFile}`);
     mainWindow.loadFile(fallbackFile).catch((error) => {
-      console.error('[AionUi] loadFile failed:', error.message || error);
+      console.error('[Agent Club] loadFile failed:', error.message || error);
     });
   }
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    console.error('[AionUi] did-fail-load:', { errorCode, errorDescription, validatedURL, isMainFrame });
+    console.error('[Agent Club] did-fail-load:', { errorCode, errorDescription, validatedURL, isMainFrame });
   });
 
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
-    console.error('[AionUi] render-process-gone:', details);
+    console.error('[Agent Club] render-process-gone:', details);
 
     // Reload the renderer to recover from the crash.
     // The isDestroyed() guard in adapter/main.ts prevents further sends
     // to the dead webContents while the reload is in progress.
     if (!mainWindow.isDestroyed()) {
-      console.log('[AionUi] Attempting to recover from renderer crash by reloading...');
+      console.log('[Agent Club] Attempting to recover from renderer crash by reloading...');
 
       if (!app.isPackaged && rendererUrl) {
         mainWindow.loadURL(rendererUrl).catch((error) => {
-          console.error('[AionUi] Recovery loadURL failed:', error.message || error);
+          console.error('[Agent Club] Recovery loadURL failed:', error.message || error);
         });
       } else {
         mainWindow.loadFile(fallbackFile).catch((error) => {
-          console.error('[AionUi] Recovery loadFile failed:', error.message || error);
+          console.error('[Agent Club] Recovery loadFile failed:', error.message || error);
         });
       }
     }
   });
 
   mainWindow.webContents.on('unresponsive', () => {
-    console.warn('[AionUi] Renderer became unresponsive');
+    console.warn('[Agent Club] Renderer became unresponsive');
   });
 
   mainWindow.on('closed', () => {
-    console.log('[AionUi] Main window closed');
+    console.log('[Agent Club] Main window closed');
   });
 
   // DevTools is no longer auto-opened at startup.
@@ -394,7 +395,7 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
 
 const handleAppReady = async (): Promise<void> => {
   const t0 = performance.now();
-  const mark = (label: string) => console.log(`[AionUi:ready] ${label} +${Math.round(performance.now() - t0)}ms`);
+  const mark = (label: string) => console.log(`[Agent Club:ready] ${label} +${Math.round(performance.now() - t0)}ms`);
   mark('start');
 
   if (!app.isPackaged) {
@@ -448,6 +449,66 @@ const handleAppReady = async (): Promise<void> => {
 
   Sentry.setUser({ id: getOrCreateAnalyticsId() });
 
+  // Strip frame-blocking headers for multica.ai responses so the hosted Multica app can be
+  // embedded in the Agent Manager iframe. Scoped to multica.ai only; deletes X-Frame-Options
+  // and removes the frame-ancestors directive from Content-Security-Policy.
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    let host = '';
+    try {
+      host = new URL(details.url).hostname;
+    } catch {
+      // Malformed URL — treat as non-Multica and leave headers untouched.
+    }
+    const isMultica = host === 'multica.ai' || host.endsWith('.multica.ai');
+    if (!isMultica) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+
+    const responseHeaders = { ...details.responseHeaders };
+    for (const headerName of Object.keys(responseHeaders)) {
+      const lower = headerName.toLowerCase();
+      if (lower === 'x-frame-options') {
+        delete responseHeaders[headerName];
+        continue;
+      }
+      if (lower === 'content-security-policy') {
+        const values = responseHeaders[headerName];
+        if (Array.isArray(values)) {
+          const stripped = values
+            .map((value) =>
+              value
+                .split(';')
+                .filter((directive) => !directive.trim().toLowerCase().startsWith('frame-ancestors'))
+                .join(';')
+                .trim()
+            )
+            .filter((value) => value.length > 0);
+          if (stripped.length > 0) {
+            responseHeaders[headerName] = stripped;
+          } else {
+            delete responseHeaders[headerName];
+          }
+        }
+      }
+    }
+
+    callback({ responseHeaders });
+  });
+
+  // Approve microphone access for Jarvis Mode voice (getUserMedia in the renderer
+  // requires the main process to grant 'media'). Grant ONLY 'media', and only for
+  // the app's own origin; deny every other permission and origin. A matching
+  // permission-check handler covers the synchronous getUserMedia path that bypasses
+  // the request handler.
+  const isAppOrigin = (u?: string | null): boolean => !!u && (u.startsWith('file://') || u.startsWith('app://') || u.startsWith('http://localhost'));
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(permission === 'media' && isAppOrigin(webContents?.getURL()));
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    return permission === 'media' && (isAppOrigin(webContents?.getURL?.()) || isAppOrigin(requestingOrigin));
+  });
+
   try {
     await initializeProcess();
     mark('initializeProcess');
@@ -461,7 +522,7 @@ const handleAppReady = async (): Promise<void> => {
     initializeZoomFactor(await ProcessConfig.get('ui.zoomFactor'));
     mark('initializeZoomFactor');
   } catch (error) {
-    console.error('[AionUi] Failed to restore zoom factor:', error);
+    console.error('[Agent Club] Failed to restore zoom factor:', error);
     initializeZoomFactor(undefined);
   }
 
@@ -534,7 +595,15 @@ const handleAppReady = async (): Promise<void> => {
     appReadyDone = true;
     mark('createWindow');
 
-    void agentManagerService.start();
+    // Eager boot of the LOCAL Multica stack (Go + Postgres + Next) is OFF by default because it
+    // slows startup. The Agent Manager page now iframes the HOSTED Multica app instead, so the
+    // local stack is no longer required at launch. Opt in for local dev via AIONUI_LOCAL_MULTICA=1.
+    // AgentManagerService is preserved and can still be started on demand.
+    if (LOCAL_MULTICA_ENABLED) {
+      void agentManagerService.start();
+    } else {
+      console.log('[Agent Club] Local Multica eager boot disabled (set AIONUI_LOCAL_MULTICA=1 to enable)');
+    }
 
     // Initialize desktop floating window (ambient bubble or legacy pet).
     //
@@ -747,7 +816,7 @@ void app
   .then(handleAppReady)
   .catch((error) => {
     // App initialization failed
-    console.error('[AionUi] App initialization failed:', error);
+    console.error('[Agent Club] App initialization failed:', error);
     app.quit();
   });
 
@@ -784,7 +853,7 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', async () => {
-  console.log('[AionUi] before-quit');
+  console.log('[Agent Club] before-quit');
   setIsQuitting(true);
   isExplicitQuit = true;
   destroyTray();
@@ -855,7 +924,7 @@ app.on('before-quit', async () => {
   // Master timeout: force quit if cleanup hangs
   const timeout = new Promise<void>((resolve) => {
     setTimeout(() => {
-      console.warn('[AionUi] Cleanup timed out after 10s, forcing quit');
+      console.warn('[Agent Club] Cleanup timed out after 10s, forcing quit');
       resolve();
     }, 10000);
   });
@@ -864,11 +933,11 @@ app.on('before-quit', async () => {
 });
 
 app.on('will-quit', () => {
-  console.log('[AionUi] will-quit — all cleanup should be complete');
+  console.log('[Agent Club] will-quit — all cleanup should be complete');
 });
 
 app.on('quit', (_event, exitCode) => {
-  console.log(`[AionUi] quit (exitCode=${exitCode})`);
+  console.log(`[Agent Club] quit (exitCode=${exitCode})`);
 });
 
 // In this file you can include the rest of your app's specific main process

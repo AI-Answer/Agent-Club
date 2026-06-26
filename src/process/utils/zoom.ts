@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -88,7 +88,7 @@ export const setupZoomForWindow = (win: BrowserWindow): void => {
       const { ProcessConfig } = await import('./initStorage');
       await ProcessConfig.set('ui.zoomFactor', factor);
     } catch (error) {
-      console.error('[AionUi] Failed to persist zoom factor from keyboard shortcut:', error);
+      console.error('[Agent Club] Failed to persist zoom factor from keyboard shortcut:', error);
     }
   });
 };

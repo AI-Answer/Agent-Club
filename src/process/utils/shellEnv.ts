@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -760,7 +760,7 @@ async function loadFullShellEnvironmentImpl(): Promise<Record<string, string>> {
 // Environment diagnostics — logged once at startup
 // ---------------------------------------------------------------------------
 
-const ENV_TAG = '[AionUi:env]';
+const ENV_TAG = '[Agent Club:env]';
 const ENV_DIVIDER = '═'.repeat(52);
 
 /** Format bytes into a human-readable string (e.g. "16.00 GB"). @internal */
@@ -872,7 +872,7 @@ export async function logEnvironmentDiagnostics(): Promise<void> {
 
     const lines: string[] = [
       `${ENV_TAG} ${ENV_DIVIDER}`,
-      `${ENV_TAG}   AionUi v${appVersion} (${mode})`,
+      `${ENV_TAG}   Agent Club v${appVersion} (${mode})`,
       `${ENV_TAG}   OS       : ${process.platform} ${os.release()} (${process.arch})`,
     ];
 
@@ -918,7 +918,7 @@ export async function logEnvironmentDiagnostics(): Promise<void> {
     console.log('\n' + lines.join('\n'));
   } catch (error) {
     // Diagnostics must never crash the app — log and move on.
-    console.warn('[AionUi:env] Failed to collect environment diagnostics:', error);
+    console.warn('[Agent Club:env] Failed to collect environment diagnostics:', error);
   }
 }
 

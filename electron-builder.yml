@@ -169,6 +169,8 @@ mac:
   gatekeeperAssess: false
   entitlements: entitlements.plist
   entitlementsInherit: entitlements.plist
+  extendInfo:
+    NSMicrophoneUsageDescription: Agent Club uses your microphone for Jarvis Mode voice.
 
 dmg:
   # Use UDZO format which is more reliable on CI

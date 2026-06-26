@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AppLoader from '@renderer/components/layout/AppLoader';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
-import { TEAM_MODE_ENABLED } from '@/common/config/constants';
+import { TEAM_MODE_ENABLED, JARVIS_MODE_ENABLED } from '@/common/config/constants';
 const Conversation = React.lazy(() => import('@renderer/pages/conversation'));
 const Guid = React.lazy(() => import('@renderer/pages/guid'));
 const AgentSettings = React.lazy(() => import('@renderer/pages/settings/AgentSettings'));
@@ -24,6 +24,7 @@ const ComponentsShowcase = React.lazy(() => import('@renderer/pages/TestShowcase
 const ScheduledTasksPage = React.lazy(() => import('@renderer/pages/cron/ScheduledTasksPage'));
 const TaskDetailPage = React.lazy(() => import('@renderer/pages/cron/ScheduledTasksPage/TaskDetailPage'));
 const TeamIndex = React.lazy(() => import('@renderer/pages/team'));
+const JarvisIndex = React.lazy(() => import('@renderer/pages/jarvis'));
 const AgentManagerPage = React.lazy(() => import('@renderer/pages/AgentManagerPage'));
 const DashboardPage = React.lazy(() => import('@renderer/pages/dashboard/DashboardPage'));
 const MonthMapPage = React.lazy(() => import('@renderer/pages/dashboard/MonthMapPage'));
@@ -66,6 +67,10 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route
             path='/team/:id'
             element={TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to='/guid' replace />}
+          />
+          <Route
+            path='/jarvis'
+            element={JARVIS_MODE_ENABLED ? withRouteFallback(JarvisIndex) : <Navigate to='/guid' replace />}
           />
           <Route path='/settings/gemini' element={withRouteFallback(GeminiSettings)} />
           <Route path='/settings/model' element={withRouteFallback(ModeSettings)} />

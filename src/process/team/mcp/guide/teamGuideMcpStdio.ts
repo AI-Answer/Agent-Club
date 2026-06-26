@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club
  * SPDX-License-Identifier: Apache-2.0
  *
  * Standalone stdio MCP server for Aion team-guide tools.

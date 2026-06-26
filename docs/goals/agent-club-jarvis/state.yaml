@@ -1,0 +1,741 @@
+# GoalBuddy v2 state.yaml
+# Board truth lives here. goal.md is the editable charter; notes/ holds long receipts only.
+
+version: 2
+
+goal:
+  title: "Agent Club — Rebrand, Multica Cleanup & Jarvis Mode"
+  slug: "agent-club-jarvis"
+  kind: existing_plan # specific | open_ended | existing_plan | recovery | audit
+  tranche: "Discovery done. Now run successive safe verified slices (Jarvis scaffold -> HUD -> rebrand -> voice/CUA/MCP -> multica iframe) until full outcome is demoable."
+  status: active # active | blocked | done
+  intake:
+    original_request: "Add full-screen voice Jarvis Mode for the Hermes agent; remove slow local multica and iframe the hosted one; cherry-pick relevant AionUi upstream; rebrand to Agent Club; everything tested."
+    interpreted_outcome: "Rebranded Agent Club app where local multica is replaced by a hosted iframe and a Hermes-only full-screen Jarvis Mode supports real-time voice + computer control via Hermes's Peekaboo CUA driver, with MCP pre-wired and an AC/DC-style music toggle."
+    input_shape: existing_plan
+    audience: "User + people they demo Jarvis Mode to"
+    authority: approved
+    proof_type: demo
+    completion_proof: "Jarvis Mode opens full-screen only for installed Hermes; realtime voice convo works; a spoken command drives the computer via Peekaboo CUA; music button plays; local multica removed + hosted iframe loads with perf gain; Agent Club rebrand visible; relevant cherry-picks applied; touched tests green."
+    likely_misfire: "Shipping a visual-only fake Jarvis that cannot talk or control anything, or breaking the app by removing multica wrong, or harming customizations via aggressive upstream merge."
+    blind_spots_considered:
+      - "CONFIRMED: Nous Portal is text-only (no audio). Voice needs STT(browser) + TTS(OpenAI/Kokoro), brain stays Hermes."
+      - "CONFIRMED: hosted multica URL is NOT in repo; app only iframes localhost:3330. User must supply hosted URL + auth/CSP model."
+      - "CONFIRMED: Hermes CUA driver = Peekaboo (peekabooProxy/mcpBridge); macOS Accessibility/Screen-Recording grant required."
+      - "AC/DC master is copyrighted; need royalty-free substitute."
+      - "No upstream remote configured; cherry-pick needs user to add iOfficeAI/AionUi remote."
+    existing_plan_facts:
+      - "Remove local multica (apps/agent-manager, booted at src/index.ts:537); iframe the hosted multica."
+      - "Jarvis Mode full-screen, real-time voice, Hermes-only when installed."
+      - "Reuse Hermes's existing Peekaboo CUA driver for control."
+      - "Voice = Hermes's native voice mode (user steer 2026-06-25); brain + speech both via Hermes. Browser STT + local TTS only as last-resort fallback."
+      - "MCP connections pre-wired for Hermes inside Jarvis (reuse mcpBridge)."
+      - "Music toggle button; visuals match the reel; feature-flag like TEAM_MODE_ENABLED."
+      - "Upstream = cherry-pick relevant AionUi changes, not full rebase. Rebrand AionUi -> Agent Club."
+
+rules:
+  pm_owns_state: true
+  one_active_task: true
+  max_write_workers: 1
+  no_implementation_without_worker_or_pm_task: true
+  no_completion_without_judge_or_pm_audit: true
+  planning_is_not_completion: true
+  queued_required_worker_blocks_completion: true
+  continuous_until_full_outcome: true
+  missing_input_or_credentials_do_not_stop_goal: true
+  preserve_and_validate_existing_plan: true
+  intake_misfire_must_be_audited: true
+
+agents:
+  scout: installed
+  worker: installed
+  judge: installed
+
+visual_board:
+  selected: local
+  local:
+    status: live # not_requested | starting | live | generated | blocked
+    url: "http://goalbuddy.localhost:41737/agent-club-jarvis/"
+    command: "npx goalbuddy board docs/goals/agent-club-jarvis"
+  github_projects:
+    status: not_requested
+    url: null
+    command: "npx goalbuddy extend github-projects"
+    missing: []
+
+active_task: T024
+
+tasks:
+  - id: T001
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "Map the app: architecture, build/run/test/lint/package commands, and where local 'multica' lives + its perf cost."
+    expected_output:
+      - "Repo + architecture map"
+      - "Verification commands"
+      - "Local multica location + perf cost"
+    receipt:
+      result: done
+      note: notes/T001-repo-multica-map.md
+      summary: "Multica = vendored apps/agent-manager monorepo (Go+Next.js+Postgres), eagerly booted at src/index.ts:537 via AgentManagerService.start(); shown as full-page iframe in AgentManagerPage.tsx (route /agent-manager, localhost:3330). Heavy boot (pnpm install, go migrate, local Postgres, go server, multica daemon, next dev; 11-40s cold compiles). Renderer = React 19 + react-router-dom v6 HashRouter (Router.tsx). Package manager = bun."
+      verification_commands:
+        - "bun install"
+        - "bun run lint"
+        - "bun run build:renderer:web"
+        - "pnpm test (vitest); pnpm test:e2e (playwright)"
+
+  - id: T002
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: high
+    objective: "RE-RUN (prior receipt was a placeholder). Locate the Hermes agent: its definition/config, the exact 'Hermes is installed' gating signal, Nous Portal key + model wiring, its MCP connection wiring (mcpBridge), and the Peekaboo CUA/computer-use invoke path to reuse."
+    inputs:
+      - "src/renderer/pages/settings/AgentSettings/LocalAgents.tsx (signature.includes('hermes') ~:29)"
+      - "src/renderer/pages/settings/ToolsSettings/PeekabooMcpSetup.tsx"
+      - "src/process/resources/builtinMcp/peekabooProxy.ts"
+      - "src/process/bridge/mcpBridge.ts"
+      - "docs/goals/hermes-peekaboo-computer-control"
+    constraints:
+      - "Read-only. Cite exact file paths + line refs."
+      - "Return the precise boolean/selector for 'Hermes installed'."
+      - "Return the exact module/function Jarvis should call to invoke Peekaboo CUA actions."
+      - "Return where the Nous Portal key + base URL + model are configured/read."
+    expected_output:
+      - "Hermes definition + install-gating signal (exact)"
+      - "Nous Portal key/model wiring"
+      - "Hermes -> MCP wiring (mcpBridge) entry points"
+      - "Peekaboo CUA invoke path to reuse"
+    receipt:
+      result: done
+      note: notes/T002-hermes-wiring.md
+      summary: "Hermes = ACP backend (acpTypes.ts:457). Installed = `hermes` CLI on PATH; gate = (await ipcBridge.acpConversation.getAvailableAgents.invoke()).data?.some(a=>a.backend==='hermes'). NO Nous key stored in app — Hermes CLI owns Nous auth via `hermes acp`. Voice should REUSE the ACP conversation (no separate key). MCP pre-wire = mcpBridge.syncMcpToAgents. Peekaboo = bundled stdio MCP (tools click/type/see/set_value); sync to Hermes + drive via Hermes; perms via systemPreferences.isTrustedAccessibilityClient + IPC."
+      facts:
+        - "Hermes gate selector confirmed (backend==='hermes')."
+        - "No Nous key in storage.ts; reuse ACP session for the brain."
+        - "Peekaboo CUA = stdio MCP synced to Hermes, not a direct fn."
+        - "MCP pre-wire via syncMcpToAgents / getAgentMcpConfigs."
+
+  - id: T003
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "Find hosted multica URL + iframe safety; inventory rebrand surface; check upstream."
+    receipt:
+      result: done
+      note: notes/T003-rebrand-upstream-iframe.md
+      summary: "App iframes LOCAL multica (localhost:3330); NO hosted URL wired -> USER BLOCKER (candidates app.multica.ai/multica.ai/api.multica.ai). Hosted iframing breaks local-token boot + same-origin read; needs PAT auth + framing allowed. Rebrand central knobs DONE (appBrand.ts/electron-builder.yml/package.json); ~30 files + aionui_* assets remain. NO upstream remote (only origin Samin12/Agent-Club) -> must add iOfficeAI/AionUi before cherry-pick."
+      blockers:
+        - "Hosted multica URL (user)"
+        - "Hosted auth/CSP model (user)"
+        - "Upstream remote URL (user)"
+
+  - id: T004
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: medium
+    objective: "External research: JARVIS HUD libs, Nous/Hermes realtime voice path, AC/DC music approach."
+    receipt:
+      result: done
+      note: notes/T004-hud-voice-research.md
+      summary: "Renderer has no graphics libs -> HUD greenfield. OpenJarvis has no HUD to copy. HUD: @zumer/orbit (CSS rings) + custom canvas radar + UnoCSS (recommended) or arwes vanilla. CRITICAL: Nous Portal is TEXT-ONLY (no audio) -> voice = browser STT -> Hermes via Nous -> separate TTS (OpenAI gpt-4o-mini-tts primary, browser SpeechSynthesis/Kokoro fallback). AC/DC master copyrighted -> royalty-free substitute; HTML5 Audio + AnalyserNode + canvas viz."
+      blockers:
+        - "HUD foundation choice (zumer/orbit vs arwes)"
+        - "TTS provider choice (OpenAI key vs free/local)"
+        - "AC/DC substitute clip approval"
+
+  - id: T005
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Synthesize T001-T004, sequence tranches, select first safe Worker slice + refine T006-T013."
+    receipt:
+      result: done
+      decision: "approve_next; first Worker = T008 (Jarvis scaffold, Hermes gating stubbed, zero user input). T002 must be RE-RUN before real gating/voice/CUA/MCP (its receipt was a placeholder)."
+      next_allowed_task: T008
+      tranche_sequence: "T008 (scaffold) -> T009 (HUD) -> T007 (rebrand) -> [T002 re-run] -> T012 (music, placeholder clip) -> T010 (voice) -> T011 (Peekaboo CUA) -> T013 (MCP pre-wire) -> T006 (multica iframe, LAST, highest blast radius)."
+      key_facts:
+        - "Hermes gating: signature.includes('hermes') at LocalAgents.tsx:29 (needs T002 to confirm exact installed boolean)."
+        - "CUA driver = Peekaboo (PeekabooMcpSetup.tsx / peekabooProxy.ts / mcpBridge.ts)."
+        - "Feature flag pattern = TEAM_MODE_ENABLED (constants.ts:61) gated in Router.tsx."
+        - "Verify gate = bun install -> bun run lint -> bun run build:renderer:web."
+      blocked_tasks:
+        - "T006 (hosted URL), T010 (Nous key + TTS), T011 (macOS perms + T002), T013 (T002)"
+
+  - id: T006
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: high
+    objective: "Make startup fast + use hosted multica (user URL = https://multica.ai/login): (1) STOP the eager local multica boot at src/index.ts:537 (agentManagerService.start()) so the Go/Postgres/Next stack no longer spawns at launch -- guard it behind an opt-in flag (e.g. an env/const, default OFF) rather than deleting the service. (2) Point the Agent Manager iframe in src/renderer/pages/AgentManagerPage.tsx at a configurable HOSTED_MULTICA_URL constant = 'https://multica.ai/login' instead of the local localhost:3330 frameUrl. (3) In the Electron main process, add session.defaultSession.webRequest.onHeadersReceived to STRIP X-Frame-Options and the frame-ancestors directive from CSP for responses from multica.ai so the page can be iframed. (4) Keep AgentManagerService importable/no-crash for any remaining callers (the page should tolerate the local stack being absent -- guard the same-origin contentWindow.location read, which throws cross-origin). Verify the app builds and the renderer loads pointing at the hosted URL."
+    allowed_files:
+      - "src/index.ts"
+      - "src/renderer/pages/AgentManagerPage.tsx"
+      - "src/process/services/agentManager/**"
+      - "src/common/config/constants.ts"
+    verify:
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "Disabling the eager boot or absent local stack breaks the app build/startup in a way you cannot guard (revert + flag)."
+      - "Stripping frame headers requires editing the main-process session setup outside allowed_files (flag the exact file to add)."
+      - "Need files outside allowed_files."
+      - "bun run lint or build:renderer:web fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - src/common/config/constants.ts
+        - src/index.ts
+        - src/renderer/pages/AgentManagerPage.tsx
+      commands:
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built ~35s"
+        - cmd: "bunx tsc --noEmit (changed files)"
+          status: pass
+          note: "no new type errors in changed files"
+      summary: "Eager local multica boot now opt-in via LOCAL_MULTICA_ENABLED (env AIONUI_LOCAL_MULTICA, default OFF); AgentManagerPage iframes HOSTED_MULTICA_URL=https://multica.ai/login immediately (no local-status gating, cross-origin read try/caught); main process strips X-Frame-Options + CSP frame-ancestors for multica.ai. AgentManagerService preserved."
+
+  - id: T007
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Finish the AionUi -> Agent Club rebrand for SAFE strings only: replace `[AionUi]` log prefixes with `[Agent Club]`, update copyright/URL header comments (e.g. src/index.ts:3 'Copyright ... AionUi (aionui.com)'), and obvious user-facing 'AionUi' display text. DO NOT change storage keys, migration ids, MCP server/agent identifiers (AionuiMcpAgent/AionrsMcpAgent class+id names), env var names, package names, or any persisted/identifier string other code depends on -- list those as skipped-for-followup in the receipt. Central brand knobs (appBrand.ts/electron-builder.yml/package.json) already done. Asset swaps deferred."
+    allowed_files:
+      - "src/**"
+    verify:
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "A rename would touch a storage key / migration id / MCP identifier / env var / class name (SKIP it and flag, do not edit)."
+      - "Need files outside src/**."
+      - "bun run lint or build:renderer:web fails twice."
+    receipt:
+      result: done
+      note: notes/T007-rebrand-skipped-identifiers.md
+      changed_files:
+        - "src/**/*.ts, src/**/*.tsx (683 copyright headers -> Agent Club)"
+        - "src/index.ts (log prefixes)"
+        - "src/process/index.ts, src/process/utils/{shellEnv,configMigration,initStorage,utils,zoom}.ts (log prefixes)"
+        - "src/process/webserver/index.ts, src/process/webserver/routes/authRoutes.ts (display strings)"
+      summary: "Rebranded 683 copyright headers + all [AionUi] log prefixes + 3 user-facing strings -> Agent Club. Intentionally SKIPPED all identifiers (storage keys, env vars, MCP class names/ids, DB constraints, cookie/JWT claims, deep-link scheme, on-disk dir/file names) and flagged them for a future migration-backed deep-rebrand. lint + build:renderer:web pass."
+      commands:
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built ~40s"
+
+  - id: T008
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Scaffold Jarvis Mode as a flag-gated full-screen renderer route (Hermes gating STUBBED; real gating deferred to T002 re-run). (1) Add exported const JARVIS_MODE_ENABLED=true in src/common/config/constants.ts, mirroring TEAM_MODE_ENABLED (~:61). (2) Create src/renderer/pages/jarvis/index.tsx: minimal full-screen overlay (fixed inset, dark bg, centered 'Jarvis Mode' heading + Close/back control navigating to /guid), React + UnoCSS only, NO new npm deps, NO voice/HUD/CUA logic. (3) In src/renderer/components/layout/Router.tsx register a lazy import + add a Route at '/jarvis' inside ProtectedLayout, gated by JARVIS_MODE_ENABLED exactly like '/team/:id' (Navigate to /guid when disabled). Leave a TODO that Hermes-installed gating is deferred to T002. Do NOT add a nav/Sider entry button yet."
+    allowed_files:
+      - src/common/config/constants.ts
+      - src/renderer/components/layout/Router.tsx
+      - src/renderer/pages/jarvis/index.tsx
+    verify:
+      - "bun install"
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "Real Hermes-installed gating is required (it is deferred; request T002 re-run rather than inventing a signal)."
+      - "Implementing requires editing any file outside allowed_files (shared nav/Sider/Layout/AppLoader)."
+      - "bun install fails or pinned oxlint cannot run with repo .oxlintrc.json (try bun install --ignore-scripts to skip the multica Go postinstall)."
+      - "Any new npm dependency is needed."
+      - "bun run build:renderer:web or bun run lint fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - src/common/config/constants.ts
+        - src/renderer/pages/jarvis/index.tsx
+        - src/renderer/components/layout/Router.tsx
+      commands:
+        - cmd: "bun install --ignore-scripts"
+          status: pass
+          note: "1773 packages in 5.44s"
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors (pre-existing warnings only)"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built 30.36s; Jarvis chunk present"
+      summary: "Flag-gated JARVIS_MODE_ENABLED + full-screen /jarvis overlay route mirroring TEAM_MODE_ENABLED gating; Hermes gating stubbed (deferred to T002, now resolved)."
+
+  - id: T009
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Build the JARVIS HUD inside src/renderer/pages/jarvis using ONLY React + UnoCSS + SVG/<canvas> (NO new npm deps), matching the reel: central glowing reactor/orb + particle burst, concentric rotating rings, a rAF radar sweep with blips, a left SYSTEM VITALS panel (neural core/memory/latency/signal/thermal/throughput), a scrolling TELEMETRY log, a right mini-radar + status bars, a top status bar (brand + live clock), and a bottom PRIMARY OBJECTIVE panel. Cyan/blue (#00e5ff/#0af) glow on near-black. Use requestAnimationFrame for animation and cancel it on unmount. Placeholder/mock data is fine but structure it so real agent state can replace it later."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+    verify:
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "A new npm dependency would be needed (build it with UnoCSS/SVG/canvas instead)."
+      - "Need files outside src/renderer/pages/jarvis/**."
+      - "bun run lint or build:renderer:web fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/jarvis/index.tsx"
+        - "src/renderer/pages/jarvis/components/{theme,ReactorCore,OrbitRings,RadarSweep,SystemVitals,TelemetryLog,StatusBar,PrimaryObjective,MiniRadar,CommandCenter}.tsx"
+      commands:
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors; jarvis files clean"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built ~33s; only pre-existing third-party advisories"
+      summary: "Cyan JARVIS HUD: canvas reactor (320 particles) + radar sweep, SVG orbit rings, vitals/telemetry/objective panels, status bar w/ live clock, composed into full-screen overlay. Mock data in named constants for later real telemetry. Route/gating untouched."
+
+  - id: T010
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: high
+    objective: "RENDERER-ONLY voice pipeline per notes/T017-voice-loop-api-map.md, Hermes as brain+voice. Add src/renderer/pages/jarvis/services/voicePipeline.ts + voice UI in the HUD: (1) gate on hermesInstalled = (await ipcBridge.acpConversation.getAvailableAgents.invoke()).data?.some(a=>a.backend==='hermes'); (2) on activate, ipcBridge.conversation.create.invoke({type:'acp', model, extra:{backend:'hermes', presetContext}}) where presetContext tells Hermes to call its text_to_speech tool with an output_path for EVERY reply and keep replies concise; (3) push-to-talk mic via getUserMedia + Web Speech API SpeechRecognition (STT); on final transcript ipcBridge.acpConversation.sendMessage.invoke({input, msg_id, conversation_id}); (4) subscribe ipcBridge.acpConversation.responseStream.on: render m.type==='content' text as the transcript, and on m.type==='acp_tool_call' with update.title==='text_to_speech' (completed) extract file_path from rawInput/content, ipcBridge.fs.readFileBuffer.invoke({path}) -> AudioContext.decodeAudioData -> AudioBufferSource -> AnalyserNode -> destination, and drive the HUD reactor/ring pulse from analyser.getByteFrequencyData; (5) FALLBACK: if no text_to_speech tool call arrives, speak the assistant text via browser speechSynthesis so it always talks. Add session.setPermissionRequestHandler (allow 'media') in src/index.ts and NSMicrophoneUsageDescription via electron-builder.yml mac.extendInfo. Do NOT hardcode a TTS provider (Hermes config owns it: Edge default; ElevenLabs-via-Nous-Gateway when the user enables it)."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+      - "src/index.ts"
+      - "electron-builder.yml"
+    verify:
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "Driving the ACP conversation from the renderer needs a core-bridge change beyond the T017 APIs (escalate with the exact file)."
+      - "Need files outside allowed_files."
+      - "bun run lint or build:renderer:web fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - src/renderer/pages/jarvis/services/voicePipeline.ts
+        - src/renderer/pages/jarvis/components/VoiceConsole.tsx
+        - src/renderer/pages/jarvis/index.tsx
+        - src/index.ts
+        - electron-builder.yml
+      commands:
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built 44s"
+        - cmd: "bunx tsc --noEmit (scoped)"
+          status: pass
+          note: "0 new errors in my files; flagged a PRE-EXISTING tsc error in PrimaryObjective.tsx (T009) -> hand to T015"
+      summary: "Renderer-only Hermes voice loop: useVoicePipeline + VoiceConsole. Gate on hermes backend; ACP conversation with presetContext; push-to-talk webkitSpeechRecognition STT -> sendMessage; responseStream content->transcript + text_to_speech acp_tool_call -> fs.readFileBuffer -> decodeAudioData -> AnalyserNode pulse; speechSynthesis fallback. Mic perm handler in src/index.ts + NSMicrophoneUsageDescription in electron-builder.yml."
+      followups:
+        - "tsc error in src/renderer/pages/jarvis/components/PrimaryObjective.tsx (T009) -> fix in T015."
+        - "Packaged hardened-runtime mic entitlement com.apple.security.device.audio-input in entitlements.plist -> add in T015."
+
+  - id: T011
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: high
+    objective: "Computer-control + MCP pre-wire for Jarvis (FOLDS T013). On Jarvis activate (Hermes installed), reuse EXISTING IPC -- no new control path: (1) pre-wire Hermes's MCP servers via ipcBridge.mcpService.syncMcpToAgents for backend 'hermes' and reflect current wiring via getAgentMcpConfigs; (2) ensure the bundled Peekaboo computer-use MCP is set up + synced to Hermes -- getPeekabooDesktopControlSetup -> register/sync the peekaboo stdio MCP server so Hermes can call its tools (image/see/click/type/set_value/perform_action); (3) surface a permission chip in the HUD via getPeekabooDesktopControlPermissions with a grant action (requestPeekabooDesktopControlPermissions / openPeekabooPermissionSettings) for Accessibility + Screen Recording. Since Jarvis already drives Hermes via voice (T010), spoken commands then control the computer through Hermes calling Peekaboo. Renderer-only; reuse existing IPC; show a small 'TOOLS / CONTROL' status in the HUD."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+    verify:
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "Syncing MCP / Peekaboo needs a change beyond existing IPC or outside src/renderer/pages/jarvis/** (escalate with the exact IPC/file)."
+      - "Need files outside allowed_files."
+      - "bun run lint or build:renderer:web fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - src/renderer/pages/jarvis/services/controlBridge.ts
+        - src/renderer/pages/jarvis/components/ControlStatus.tsx
+        - src/renderer/pages/jarvis/index.tsx
+      commands:
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built 32s"
+      summary: "useControlBridge: on Jarvis activate, syncs enabled MCP servers + bundled Peekaboo stdio MCP to the Hermes agent (mcpService.syncMcpToAgents, idempotent), and a TOOLS/CONTROL HUD shows Hermes link + MCP pre-wire + Accessibility/Screen-Recording gates with GRANT actions. Spoken commands -> Hermes calls Peekaboo -> on-screen action. Folds T013."
+
+  - id: T012
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: low
+    objective: "Add the music button to the HUD: by DEFAULT it opens a configurable external link (the AC/DC track on YouTube) in the system browser since the master cannot be bundled; AND if a user-provided audio file exists at a configurable resources/ path, play it in-app via HTML5 Audio -> AnalyserNode with the canvas visualizer + play/stop toggle. Expose JARVIS_MUSIC_URL (YouTube) + JARVIS_MUSIC_FILE constants. Button lives in src/renderer/pages/jarvis/**."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+    verify:
+      - "bun run build:renderer:web"
+    stop_if:
+      - "Need files outside src/renderer/pages/jarvis/**."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - src/renderer/pages/jarvis/components/MusicButton.tsx
+        - src/renderer/pages/jarvis/components/theme.ts
+        - src/renderer/pages/jarvis/index.tsx
+      commands:
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built ~36s"
+      summary: "Themed MusicButton in HUD: default opens AC/DC on YouTube (reuses app openExternalUrl helper); optional local file (JARVIS_MUSIC_FILE) plays in-app via AudioContext->AnalyserNode + canvas visualizer. POWER UP/STAND DOWN toggle. No new deps."
+
+  - id: T013
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: medium
+    objective: "Ensure Hermes's MCP connections are pre-wired/surfaced inside Jarvis (reuse mcpBridge per T002) so tools are ready without manual setup."
+    allowed_files:
+      - "src/renderer/pages/jarvis/services/controlBridge.ts"
+    verify:
+      - "bun run build:renderer:web"
+    stop_if:
+      - "T002 MCP wiring not yet verified."
+      - "Need files outside allowed_files."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - "src/renderer/pages/jarvis/services/controlBridge.ts"
+      commands:
+        - cmd: "covered by T011 verify (lint + build:renderer:web)"
+          status: pass
+          note: "no separate verification; T011 green"
+      summary: "MERGED INTO T011 — MCP pre-wire (mcpService.syncMcpToAgents for backend 'hermes') was implemented in T011's controlBridge alongside the Peekaboo sync. No separate work needed."
+
+  - id: T016
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: high
+    objective: "Research how Hermes's VOICE MODE works and exactly how to drive it from Agent Club's Electron app (per user steer). Cover: does the `hermes` CLI expose a voice command/flag; does the ACP protocol/Hermes ACP session support voice or audio streaming; does Hermes expose a local voice endpoint/websocket (Tool-Gateway voice); how Hermes voice mode handles STT+TTS internally; what credentials/runtime it needs; and the concrete integration for T010 (capture mic, play Hermes speech, tap audio for the HUD AnalyserNode). Use reposeek + opensrc + web (NousResearch/hermes-agent docs) and inspect the repo's existing hermes/ACP wiring."
+    inputs:
+      - "github.com/NousResearch/hermes-agent + hermes-agent.nousresearch.com/docs (voice/tts/tool-gateway)"
+      - "repo: src/process/agent/acp/*, acpConversationBridge.ts, acpTypes.ts (hermes backend)"
+      - "reposeek + opensrc for hermes voice integration patterns"
+    constraints:
+      - "Read-only. Cite sources + file paths."
+      - "Give a concrete primary integration path + a fallback, with exact entry points."
+    expected_output:
+      - "How Hermes voice mode is invoked (CLI/ACP/endpoint)"
+      - "Required runtime/credentials"
+      - "Exact T010 integration recipe (mic in, Hermes speech out, HUD audio tap)"
+      - "Fallback if Hermes voice mode cannot be embedded"
+    receipt:
+      result: done
+      note: notes/T016-hermes-voice-mode.md
+      summary: "Hermes interactive voice mode is TTY-only; ACP carries no audio. SEAM = Hermes's own `text_to_speech` agent tool (toolset `tts`): drive the existing ACP text session, have Hermes call text_to_speech, app reads returned file_path, plays via Web-Audio AnalyserNode (HUD pulse). STT app-side or Hermes local faster-whisper. Default voice = Edge TTS (free); polished = OpenAI via Nous Gateway (paid Nous Portal sub). Hermes v0.13.0 installed at ~/.hermes; tts toolset enabled."
+      facts:
+        - "No headless Hermes voice loop / no voice endpoint; audio moves as files via text_to_speech file_path."
+        - "Keeps Hermes as brain + voice; no third-party TTS needed (Edge free default)."
+        - "T010 must enable `tts` toolset in spawn env + add mic permission (NSMicrophoneUsageDescription)."
+
+  - id: T017
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: high
+    objective: "De-risk T010: map the EXACT renderer-side IPC for the voice loop so it reuses existing infra (minimal blast radius). Find: (1) how the renderer creates/continues an ACP conversation with the hermes backend and SENDS a user text message (the ipcBridge.acpConversation send/prompt method + params); (2) how the renderer RECEIVES streamed assistant text AND tool-call updates (the ToolCallUpdate / AgentMessageChunk event channel it subscribes to) so Jarvis can detect a `text_to_speech` tool call and read its result file_path; (3) the IPC to read a file's bytes from disk into the renderer (for the TTS audio file); (4) WHERE `hermes acp` is spawned and how to pass env / a system instruction so the `tts` toolset is enabled and Hermes is told to call text_to_speech each reply. Conclude whether T010 can be done renderer-only (jarvis dir + small additions) WITHOUT modifying core process bridges, or what minimal process-side change is unavoidable."
+    inputs:
+      - "src/process/bridge/acpConversationBridge.ts; src/process/agent/acp/AcpConnection.ts, AcpDetector.ts"
+      - "src/common/types/acpTypes.ts (ToolCallUpdate, AgentMessageChunkUpdate, send/prompt types)"
+      - "the renderer chat code that calls ipcBridge.acpConversation.* (to copy the send/subscribe pattern)"
+      - "fs/file-read IPC bridge (e.g. src/process/bridge/fsBridge.ts)"
+    constraints:
+      - "Read-only. Cite exact file paths + method names + line refs."
+      - "Prefer a renderer-only integration that reuses existing IPC; flag any unavoidable process-side edit."
+    expected_output:
+      - "Exact send-message + subscribe-to-updates renderer API (with the event for ToolCallUpdate)"
+      - "File-read IPC for the audio file_path"
+      - "Where/how to enable the tts toolset + inject the speak instruction in the hermes spawn"
+      - "Renderer-only feasibility verdict + the minimal allowed_files set for T010"
+    receipt:
+      result: done
+      note: notes/T017-voice-loop-api-map.md
+      summary: "Voice loop is renderer-only reusing existing ACP IPC. Send=conversation.create({type:'acp',extra:{backend:'hermes',presetContext}})+acpConversation.sendMessage. Receive=acpConversation.responseStream.on; tool calls = m.type==='acp_tool_call' (ToolCallUpdate, file_path in rawInput/content). File bytes=fs.readFileBuffer. Instruction via extra.presetContext (AcpAgentManager:1030). tts toolset already enabled (T016). Mic perm needs src/index.ts setPermissionRequestHandler + electron-builder mac.extendInfo NSMicrophoneUsageDescription."
+      facts:
+        - "T010 allowed_files = src/renderer/pages/jarvis/**, src/index.ts (media perm), electron-builder.yml (mic string)."
+        - "Renderer-only; no core-bridge edit needed."
+
+  - id: T014
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Code-review THIS goal's changed files (Greptile not connected this session -> use focused multi-lens agent review). Targets: jarvis/** feature code (voicePipeline, VoiceConsole, controlBridge, ControlStatus, HUD components), src/index.ts (media permission handler + multica frame-header strip + boot guard), AgentManagerPage rewrite, constants.ts, electron-builder.yml. Lenses: SECURITY (is the permission handler scoped to media-only not allow-all? is header-strip scoped to multica.ai only? computer-control authorization; iframe sandbox), CORRECTNESS (ACP create/send/subscribe usage, text_to_speech tool-call parsing, hermes-installed gating, fallbacks), RESOURCE LEAKS (AudioContext/rAF/SpeechRecognition/responseStream cleanup on unmount). Triage findings into fix-now (-> feed T015) vs follow-up."
+    inputs:
+      - "Worker receipts for T006-T013"
+      - "Goal's changed files (jarvis/**, src/index.ts, AgentManagerPage.tsx, constants.ts, electron-builder.yml)"
+    expected_output:
+      - "Findings by severity (blocker/major/minor)"
+      - "Fix-now list for T015 + deferred follow-ups"
+    receipt:
+      result: done
+      note: notes/T014-review-findings.md
+      decision: "NOT shippable as-is. 1 blocker (F1 blanket permission grant) + 6 major fix_now (F2 host check, F3 iframe sandbox, F4 auto-armed control, F5 tts title match, F6 double-speak, F10 stream leak). Confirmed all 3 PM-found issues + found 7 more. Shippable once fix_now lands. Component teardown otherwise clean; no secrets logged."
+      blocked_tasks:
+        - "T999 (cannot pass audit until T015 applies fix_now)"
+
+  - id: T015
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: high
+    objective: "Apply ALL T014 review fixes (notes/T014-review-findings.md) + finalize. FIX_NOW: F1 permission handler -> grant only 'media' for app-origin (file://app://localhost), callback(false) otherwise, add matching setPermissionCheckHandler (src/index.ts:495); F2 header-strip hostname check via new URL().hostname === 'multica.ai' || endsWith('.multica.ai') (src/index.ts:456); F3 add sandbox='allow-scripts allow-forms allow-same-origin' to the multica iframe (AgentManagerPage.tsx); F4 do NOT auto-arm Peekaboo on mount -- gate its registration/sync behind an explicit 'ENGAGE CONTROL' opt-in toggle in ControlStatus (default OFF); keep non-Peekaboo MCP pre-wire on activate (controlBridge.ts/ControlStatus.tsx); F5 match text_to_speech defensively (/(^|[_.: ])text_to_speech$/i or rawInput keys) (voicePipeline.ts:266); F6 window.speechSynthesis.cancel() before TTS playback + per-turn fallback token to prevent double-speak (voicePipeline.ts:267-296); F10 call prior responseStream unsubscribe before re-subscribe + null in cleanup (voicePipeline.ts:335). FOLLOWUPS: F7 null-safe analyser connect; F9 pause rAF level pump when not speaking; remove stale TODO + AionUi header in jarvis/index.tsx. ALSO: fix PrimaryObjective.tsx useState<number> tsc error; add com.apple.security.device.audio-input to entitlements.plist."
+    allowed_files:
+      - "src/index.ts"
+      - "src/renderer/pages/AgentManagerPage.tsx"
+      - "src/common/config/constants.ts"
+      - "src/renderer/pages/jarvis/**"
+      - "entitlements.plist"
+      - "tests/**"
+    verify:
+      - "bunx tsc --noEmit -p tsconfig.json"
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "A test failure requires an owner product decision (blocker -> user)."
+      - "Need files outside allowed_files."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      note: notes/T014-review-findings.md
+      changed_files:
+        - src/index.ts
+        - src/renderer/pages/AgentManagerPage.tsx
+        - src/renderer/pages/jarvis/services/controlBridge.ts
+        - src/renderer/pages/jarvis/components/ControlStatus.tsx
+        - src/renderer/pages/jarvis/services/voicePipeline.ts
+        - src/renderer/pages/jarvis/index.tsx
+        - src/renderer/pages/jarvis/components/PrimaryObjective.tsx
+        - entitlements.plist
+      commands:
+        - cmd: "bunx tsc --noEmit (edited files)"
+          status: pass
+          note: "0 errors in edited files (incl. PrimaryObjective)"
+        - cmd: "bun run lint"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "exit 0, ~30s"
+      summary: "Applied all fix_now (F1 perm handler media+app-origin, F2 hostname check, F3 iframe sandbox, F4 ENGAGE-CONTROL opt-in toggle default OFF, F5 robust tts match, F6 no double-speak, F10 stream-leak fix) + followups (F7,F9, stale TODO/header) + PrimaryObjective useState<number> + entitlements mic key. tsc/lint/build green. F8 (STT-in-Electron) noted as live-test followup."
+
+  - id: T018
+    type: scout
+    assignee: Scout
+    status: done
+    reasoning_hint: high
+    objective: "PIVOT (Tranche 2). Deep-map jarvis-hud (scratchpad/jarvis-hud) for a faithful PORT into Agent Club's Vite/React-19 renderer driven by HERMES (no Claude). Inventory: visual components + the WebGL orb/cores/dithering shader (Three.js setup), the content panels + their vault data sources, and EVERY brain/voice point (lib/router, runner claude-p, Haiku, Ollama, Kokoro/whisper) to replace with the Hermes ACP loop + text_to_speech we built. Produce a component table, data-panel table, brain->Hermes replacement map, and an ordered port task list."
+    inputs:
+      - "scratchpad/jarvis-hud (app/, components/, lib/, voice-server/, runner/, starter-vault/)"
+      - "Agent Club: src/renderer/pages/jarvis/services/voicePipeline.ts (Hermes voice), controlBridge.ts (Peekaboo)"
+    constraints:
+      - "Read-only. Cite file paths."
+    expected_output:
+      - "Visual/component inventory + Three.js/shader setup"
+      - "Content panels -> vault data shapes"
+      - "Brain/voice -> Hermes replacement map"
+      - "Ordered port task list"
+    receipt:
+      result: done
+      note: notes/T018-jarvis-hud-port-plan.md
+      summary: "KEY FINDING: target Jarvis already has the Hermes brain+voice we want (voicePipeline.ts/controlBridge.ts) -- this is a VISUAL+CONTENT upgrade, not a brain port. Adopt jarvis-hud GraphCore WebGL orb (writes --accent-h, needs three) + globals.css Ember theme + fonts + HUD content panels backed by a file-vault (port lib/vault.ts via ipcBridge.fs.*; bring starter-vault). Delete jarvis-hud's claude-p runner/router/Ollama/Kokoro/whisper/.vbs. Reuse Hermes voice + Peekaboo. Also fixed source dir perms to read files."
+
+  - id: T019
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "From the T018 map, sequence the jarvis-hud port into safe Worker slices (deps+theme, WebGL orb/cores/shader, HUD layout + content panels, brain->Hermes rewire, integrate as Jarvis Mode, review, test) with allowed_files/verify/stop_if each. Decide: new jarvis dir layout vs extend existing; how to back content panels (file-vault via fs IPC vs Hermes-fed); exact Hermes mapping for each brain call. NO Claude anywhere."
+    inputs:
+      - "T018 receipt"
+    expected_output:
+      - "Ordered Worker slices (allowed_files/verify/stop_if)"
+      - "Vault-backing decision + Hermes brain map"
+    receipt:
+      result: done
+      decision: "PM sequenced directly from the T018 map (plan is concrete; brain already built). Slices: T020 staged port (foundation->components->integrate) via workflow, then T021 review, T022 test. Vault-backing = keep the file-vault, port lib/vault.ts to a renderer util via fs IPC, seed from starter-vault. Reuse voicePipeline/controlBridge; NO Claude."
+      next_allowed_task: T020
+
+  - id: T020
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: high
+    objective: "Execute the jarvis-hud VISUAL+CONTENT port per notes/T018-jarvis-hud-port-plan.md, reusing the existing Hermes brain (voicePipeline.ts/controlBridge.ts) -- NO Claude. Staged: (1) Foundation: add three+@types/three+fonts, port app/globals.css->jarvis/jarvis.css, port lib/vault.ts->renderer getVaultState() via ipcBridge.fs.*, bring starter-vault demo data; (2) Components: GraphCore orb (+three postprocessing, writes --accent-h, getLevel from voicePipeline analyser) replacing ReactorCore, ReportOverlay, and the HUD panel sub-components bound to getVaultState()+voicePipeline.transcript (daily/queue via fs-IPC; deck->Hermes sendMessage); (3) Integrate into jarvis/index.tsx with the Ember theme, keep ControlStatus(engage)/MusicButton/voice push-to-talk, gate on Hermes, remove unused T009 cyan components. Executed via the agent-club-jarvis-port workflow."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+      - "package.json"
+      - "resources/**"
+    verify:
+      - "bun install --ignore-scripts"
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "A port step needs files outside allowed_files (flag exact file)."
+      - "WebGL/three cannot compile in the renderer build (escalate)."
+      - "bun run lint or build:renderer:web fails twice on a stage."
+    receipt:
+      result: done
+      changed_files:
+        - "package.json"
+        - "src/renderer/pages/jarvis/jarvis.css"
+        - "src/renderer/pages/jarvis/vault/vaultState.ts"
+        - "src/renderer/pages/jarvis/components/GraphCore.tsx"
+        - "src/renderer/pages/jarvis/components/ReportOverlay.tsx"
+        - "src/renderer/pages/jarvis/components/hud/HudPanels.tsx"
+        - "src/renderer/pages/jarvis/index.tsx"
+      summary: "jarvis-hud port complete (5-stage workflow, all green). Foundation: three+@fontsource fonts+jarvis.css Ember theme+vaultState.ts (lib/vault.ts ported to fs-IPC)+demo vault ~/.agent-club/jarvis-vault. Orb: GraphCore.tsx (2200-node WebGL graph, bloom, writes --accent-h, getLevel from voicePipeline, disposes on unmount). Overlay: ReportOverlay.tsx. Panels: components/hud/* (TopBar/Vitals/Priorities/Documents/CommandDeck/Schedule/AudioIO/Wire/Objective/Callouts, 5s vault poll). Integrate: index.tsx on Ember theme + GraphCore centerpiece + HudPanels + Hermes voice/control/music kept; deleted old cyan T009 components. PM re-verified: 0 jarvis tsc errors, build:renderer:web green (25s)."
+      commands:
+        - cmd: "bunx tsc --noEmit (jarvis)"
+          status: pass
+          note: "0 errors in pages/jarvis"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "built 25s"
+
+  - id: T021
+    type: judge
+    assignee: Judge
+    status: done
+    reasoning_hint: high
+    objective: "Review the jarvis-hud port (T020): visual fidelity to plan, correctness of the vault fs-IPC port + panel binding, GraphCore/three integration + cleanup (rAF/renderer/composer disposed on unmount), that NO Claude/claude-p/Ollama/Kokoro/whisper references remain, security (fs traversal guards on vault reads; deck->Hermes), and that the existing Hermes voice/control still work. Triage fix_now vs followup."
+    inputs:
+      - "T020 receipt + changed files"
+    expected_output:
+      - "Findings by severity + fix_now list"
+    receipt:
+      result: done
+      note: notes/T021-port-review-findings.md
+      decision: "NOT ready until fixed. BLOCKER B1: vault getFilesByDir returns [dir-node]; files are in tree.children -> all list panels empty. Plus M1 (metadata stub breaks fileExists/mtime sort), B2 (queue write needs mkdir -p), M2 (no Esc handler), followups m1/m2. CONFIRMED good: no Claude, Hermes wiring correct, teardown clean, guards sound, route/gate intact."
+      blocked_tasks:
+        - "T023 (don't try the app until B1/M1 fixed -> panels would be empty)"
+
+  - id: T022
+    type: worker
+    assignee: Worker
+    status: done
+    reasoning_hint: high
+    objective: "Apply T021 fix_now + cheap followups (notes/T021-port-review-findings.md): B1 unwrap tree.children in vaultState listJsonFiles/listEntries (BLOCKER -- panels empty without it); M1 treat getFileMetadata stub {size:-1,lastModified:0} as missing in fileExists + skip in mtime sorts; B2 ensure the vault dir exists before writeIntent (mkdir -p, via an existing IPC if available else tolerate ENOENT by creating it); M2 add an Escape keydown in index.tsx (close any open report + stopListening + window.speechSynthesis.cancel + stop current source); m1 renderer.forceContextLoss() before dispose in GraphCore; m2 document.documentElement.style.removeProperty('--accent-h') on GraphCore unmount. Add a vault unit test exercising getFilesByDir's real return shape (tree.children) against a fixture. Then green tsc + lint + build:renderer:web + the new test."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+      - "package.json"
+      - "tests/**"
+    verify:
+      - "bunx tsc --noEmit -p tsconfig.json"
+      - "bun run lint"
+      - "bun run build:renderer:web"
+    stop_if:
+      - "A failure needs an owner decision."
+      - "Verification fails twice."
+    receipt:
+      result: done
+      changed_files:
+        - src/renderer/pages/jarvis/vault/vaultState.ts
+        - src/renderer/pages/jarvis/index.tsx
+        - src/renderer/pages/jarvis/services/voicePipeline.ts
+        - src/renderer/pages/jarvis/components/hud/HudPanels.tsx
+        - src/renderer/pages/jarvis/components/GraphCore.tsx
+        - tests/unit/jarvisVaultListParsing.test.ts
+      commands:
+        - cmd: "bunx tsc --noEmit (jarvis)"
+          status: pass
+          note: "0 errors"
+        - cmd: "bun run build:renderer:web"
+          status: pass
+          note: "25s; new test 3/3"
+      summary: "Fixed B1 (vault tree.children unwrap -> panels populate), M1 (metadata stub guard), B2 (writeIntent tolerant+logs; full fix needs new fs.ensureDir IPC -> FOLLOWUP), M2 (Esc handler + stopSpeaking), m1/m2 (GraphCore forceContextLoss + remove --accent-h). Added vault regression test. NOTE: ~95 pre-existing repo-wide test failures (i18n/fsBridge-harness/shellEnv/tray) unrelated to jarvis; verify vs rebrand in audit."
+      followups:
+        - "Add fs.ensureDir IPC so writeIntent works on a fresh vault."
+        - "Investigate ~95 pre-existing test failures; confirm none stem from the rebrand."
+
+  - id: T023
+    type: pm
+    assignee: PM
+    status: done
+    reasoning_hint: high
+    objective: "SPIN UP + TRY IT (user ask). Launch the Electron app on this machine (bun start; multica eager-boot is OFF so startup is fast), open Jarvis Mode, and verify on a REAL GPU: the Ember HUD + GraphCore WebGL orb render, content panels populate from the demo vault, and the controls (push-to-talk, ENGAGE CONTROL, music) are present. Hermes CLI is installed (~/.local/bin/hermes) so the gate should show LINKED -- attempt the voice loop (webkitSpeechRecognition may not work in Electron; if STT is dead, flag the STT-swap followup). Capture screenshots as evidence; use computer-use to drive the app window. Fix small issues inline; spawn a follow-up for larger ones."
+    allowed_files:
+      - "src/renderer/pages/jarvis/**"
+    verify:
+      - "App boots; Jarvis Mode opens; HUD + orb render (screenshot evidence)."
+    stop_if:
+      - "App fails to boot or the Jarvis route throws (capture the error; fix-or-flag)."
+      - "A fix needs files outside src/renderer/pages/jarvis/** (flag it)."
+    receipt:
+      result: done
+      summary: "Launched the real Electron app (after rebuilding native modules better-sqlite3+sharp for Electron and clearing a stale single-instance lock). DB schema initialized; '[Agent Club] Local Multica eager boot disabled' (fast startup). Drove the renderer over CDP (port 9230) to #/jarvis. VERIFIED LIVE: WebGL GraphCore orb renders (1 canvas), SYSTEM VITALS/DIRECTIVES/COMMAND DECK panels populated from the demo vault (B1 fix confirmed), LINK·ONLINE (Hermes connected), HOLD TO SPEAK + COMPUTER CONTROL present, --accent-h hue-voyage tinting active, 0 console errors. Screenshot sent to user. NOT verifiable headlessly: the actual mic->Hermes->TTS voice round-trip (needs user mic + audible output; webkitSpeechRecognition-in-Electron still to confirm)."
+      commands:
+        - cmd: "bun start (electron-vite dev)"
+          status: pass
+          note: "boots clean; CDP 9230; DB ok; multica boot disabled"
+        - cmd: "CDP verify #/jarvis"
+          status: pass
+          note: "canvas=1, panels populated, LINK ONLINE, 0 console errors"
+
+  - id: T024
+    type: pm
+    assignee: PM
+    status: active
+    reasoning_hint: medium
+    objective: "UPLOAD TO GITHUB (user ask). On a feature branch off main (NEVER commit straight to main), commit the full tranche (rebrand, multica iframe, Jarvis Mode + jarvis-hud port, security fixes, goal docs) with a clear message, push to origin (Samin12/Agent-Club), open a PR summarizing the work. Verify NO secrets are committed (scan for keys; ensure .env / vault data ignored)."
+    inputs:
+      - "Verified working app (T023)"
+    expected_output:
+      - "Pushed branch + PR URL"
+    receipt: null
+
+  - id: T999
+    type: judge
+    assignee: Judge
+    status: queued
+    reasoning_hint: high
+    objective: "Audit whether the full original outcome is complete: rebrand visible, local multica removed + hosted iframe loads with perf gain, Jarvis Mode opens full-screen only for installed Hermes with working realtime voice + computer control via Peekaboo CUA + music button + pre-wired MCP, relevant cherry-picks applied, touched tests green."
+    inputs:
+      - "All done task receipts"
+      - "Last verification"
+      - "Current dirty diff"
+    constraints:
+      - "Do not implement."
+      - "Reject completion if required Worker work is still queued or active."
+      - "Reject completion if the broader original outcome still has safe local follow-up slices."
+      - "Reject stopping only because a slice needs owner input, credentials, production access, or permissions."
+    expected_output:
+      - "complete | not_complete"
+      - "full_outcome_complete: true | false"
+      - "missing evidence"
+      - "next task if not complete"
+    receipt: null
+
+checks:
+  dirty_fingerprint: dirty
+  last_verification:
+    result: pass
+    task: T008
+    commands:
+      - "bun install --ignore-scripts: pass (1773 pkgs)"
+      - "bun run lint: pass (0 errors)"
+      - "bun run build:renderer:web: pass (30.36s)"

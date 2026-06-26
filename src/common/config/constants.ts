@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 Agent Club
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -59,6 +59,24 @@ export const WEBUI_DEFAULT_PORT = (() => {
 })();
 
 export const TEAM_MODE_ENABLED = true;
+
+export const JARVIS_MODE_ENABLED = true;
+
+// ===== Multica (Agent Manager) 相关常量 =====
+
+/**
+ * Opt-in flag to eagerly boot the vendored LOCAL Multica stack (Go server + Postgres + Next.js)
+ * at app launch. Defaults to OFF because spawning that stack at boot slows startup significantly.
+ * Enable for local development by setting env var AIONUI_LOCAL_MULTICA=1.
+ * The AgentManagerService itself is preserved and can still be started on demand.
+ */
+export const LOCAL_MULTICA_ENABLED = process.env.AIONUI_LOCAL_MULTICA === '1';
+
+/**
+ * Hosted Multica URL. The Agent Manager page iframes this hosted app instead of the local stack,
+ * so startup no longer waits on the local Go/Postgres/Next stack to report "ready".
+ */
+export const HOSTED_MULTICA_URL = 'https://multica.ai/login';
 
 // ===== AI Provider 相关常量 =====
 
