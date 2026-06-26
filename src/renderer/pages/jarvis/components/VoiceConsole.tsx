@@ -43,7 +43,7 @@ const statusLabel: Record<string, string> = {
  * standalone (no prop) it owns its own pipeline for backward compatibility.
  */
 const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
-  const { status, hermesInstalled, transcript, level, error, speechSupported } = voice;
+  const { status, hermesInstalled, transcript, level, error, speechSupported, voiceMode, toggleVoiceMode } = voice;
 
   // 0..1 pulse strength; while listening, show a steady glow even pre-audio.
   const pulse = useMemo(() => {
@@ -67,7 +67,10 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
     );
   }
 
-  const micActive = status === 'listening';
+  const listening = status === 'listening';
+  // Voice mode is the engaged toggle; while on, the chrome lights up regardless
+  // of which leg of the loop (listening / thinking / speaking) we're in.
+  const voiceLive = voiceMode;
   const micDisabled = status === 'checking' || !speechSupported;
 
   return (
@@ -90,7 +93,7 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
       {/* live transcript */}
       <div className='max-h-160px min-h-64px overflow-y-auto rounded-8px border border-[#00e5ff]/15 bg-[#03060f]/60 px-12px py-10px'>
         {transcript.length === 0 ? (
-          <p className='font-mono text-10px tracking-[0.08em] text-[#7fdfff]/40'>{micActive ? 'listening...' : 'hold the mic and speak'}</p>
+          <p className='font-mono text-10px tracking-[0.08em] text-[#7fdfff]/40'>{listening ? 'listening…' : voiceLive ? 'voice mode engaged — speak any time' : 'tap engage to start a voice conversation'}</p>
         ) : (
           <div className='flex flex-col gap-6px'>
             {transcript.slice(-8).map((line) => (
@@ -107,39 +110,30 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
         )}
       </div>
 
-      {/* push-to-talk control */}
+      {/* hands-free voice-mode toggle */}
       <button
         type='button'
         disabled={micDisabled}
-        onPointerDown={(e) => {
-          e.preventDefault();
-          voice.startListening();
-        }}
-        onPointerUp={(e) => {
-          e.preventDefault();
-          voice.stopListening();
-        }}
-        onPointerLeave={() => {
-          if (micActive) voice.stopListening();
-        }}
+        onClick={() => toggleVoiceMode()}
+        aria-pressed={voiceLive}
         className='flex items-center justify-center gap-10px rounded-8px border px-16px py-10px font-mono text-11px font-600 tracking-[0.2em] transition-all'
         style={{
           cursor: micDisabled ? 'not-allowed' : 'pointer',
           opacity: micDisabled ? 0.4 : 1,
-          borderColor: micActive ? withAlpha(cyan, 0.8) : withAlpha(cyan, 0.4),
-          background: micActive ? withAlpha(cyan, 0.18) : withAlpha(cyan, 0.05),
-          color: micActive ? JARVIS_COLORS.cyanBright : '#7fdfff',
-          boxShadow: micActive ? `0 0 18px ${withAlpha(cyan, 0.5)}` : 'none',
+          borderColor: voiceLive ? withAlpha(cyan, 0.8) : withAlpha(cyan, 0.4),
+          background: voiceLive ? withAlpha(cyan, 0.18) : withAlpha(cyan, 0.05),
+          color: voiceLive ? JARVIS_COLORS.cyanBright : '#7fdfff',
+          boxShadow: voiceLive ? `0 0 18px ${withAlpha(cyan, 0.5)}` : 'none',
         }}
       >
         <span
-          className='h-9px w-9px rounded-full'
+          className={`h-9px w-9px rounded-full ${voiceLive && (listening || status === 'speaking') ? 'animate-pulse' : ''}`}
           style={{
-            background: micActive ? JARVIS_COLORS.cyanBright : cyan,
-            boxShadow: micActive ? `0 0 12px ${cyan}` : 'none',
+            background: voiceLive ? JARVIS_COLORS.cyanBright : cyan,
+            boxShadow: voiceLive ? `0 0 12px ${cyan}` : 'none',
           }}
         />
-        {micActive ? 'RELEASE TO SEND' : 'HOLD TO SPEAK'}
+        {voiceLive ? 'END VOICE MODE' : 'ENGAGE VOICE MODE'}
       </button>
 
       {!speechSupported && <p className='font-mono text-9px tracking-[0.06em] text-[#ff8da0]/70'>speech recognition unavailable in this runtime</p>}

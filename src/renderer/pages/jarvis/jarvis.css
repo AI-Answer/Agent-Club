@@ -687,6 +687,22 @@ body {
   animation: blip 0.8s ease-in-out infinite;
 }
 
+/* right cell: utility controls (music / disengage) stacked above the clock so
+   they share the top-bar grid instead of floating on top of it. */
+.topbar-right {
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .clock-wrap {
   justify-self: end;
   text-align: right;

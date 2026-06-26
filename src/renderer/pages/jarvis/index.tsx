@@ -89,7 +89,9 @@ const JarvisPage: React.FC = () => {
   );
 
   // Push-to-talk: hold Space to record, release to send. Ignore repeats and
-  // typing into inputs. Gated on Hermes being present.
+  // typing into inputs. Gated on Hermes being present and OFF while hands-free
+  // voice mode is engaged (the loop owns the mic then). It remains a quick
+  // one-shot alternative to the toggle.
   useEffect(() => {
     if (!hermesInstalled) return;
     const isTyping = (t: EventTarget | null): boolean => {
@@ -98,12 +100,12 @@ const JarvisPage: React.FC = () => {
       return tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable === true;
     };
     const down = (e: KeyboardEvent) => {
-      if (e.code !== 'Space' || e.repeat || isTyping(e.target)) return;
+      if (voice.voiceMode || e.code !== 'Space' || e.repeat || isTyping(e.target)) return;
       e.preventDefault();
       startListening();
     };
     const up = (e: KeyboardEvent) => {
-      if (e.code !== 'Space' || isTyping(e.target)) return;
+      if (voice.voiceMode || e.code !== 'Space' || isTyping(e.target)) return;
       e.preventDefault();
       stopListening();
     };
@@ -113,7 +115,19 @@ const JarvisPage: React.FC = () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
     };
-  }, [hermesInstalled, startListening, stopListening]);
+  }, [hermesInstalled, startListening, stopListening, voice.voiceMode]);
+
+  // Utility controls (music + disengage) live in the TopBar's right cell, above
+  // the clock, so they share the grid with it rather than floating on top.
+  const topControls = (
+    <>
+      <MusicButton />
+      <button type='button' className='jarvis-disengage' onClick={() => navigate('/guid')}>
+        <span className='jarvis-disengage-dot' />
+        DISENGAGE
+      </button>
+    </>
+  );
 
   return (
     <main className='stage' style={{ zIndex: 9999 }}>
@@ -129,23 +143,14 @@ const JarvisPage: React.FC = () => {
       {/* ported HUD: panels + callouts + report overlay, bound to getVaultState
           on a 5s poll. Voice status drives the chrome mode + AudioIO wave; the
           deck seam forwards skills to Hermes. */}
-      <HudPanels voiceStatus={status} transcript={voice.transcript} onDeckSendMessage={onDeckSendMessage} escapeSignal={escapeSignal} />
+      <HudPanels voiceStatus={status} transcript={voice.transcript} onDeckSendMessage={onDeckSendMessage} escapeSignal={escapeSignal} topControls={topControls} />
 
-      {/* KEPT Hermes brain UI — voice console (push-to-talk) + computer-control
-          ENGAGE toggle. Floated bottom-right over the orb. */}
+      {/* KEPT Hermes brain UI — voice console (voice-mode toggle) + computer-
+          control ENGAGE toggle. Floated bottom-left over the orb. */}
       <aside className='jarvis-hermes-dock'>
         <ControlStatus active />
         <VoiceConsole voice={voice} />
       </aside>
-
-      {/* top-right controls: music + disengage */}
-      <div className='jarvis-topright'>
-        <MusicButton />
-        <button type='button' className='jarvis-disengage' onClick={() => navigate('/guid')}>
-          <span className='jarvis-disengage-dot' />
-          DISENGAGE
-        </button>
-      </div>
 
       {/* film grain over everything (purely atmospheric) */}
       <div className='grain' aria-hidden='true' />
@@ -162,16 +167,6 @@ const JarvisPage: React.FC = () => {
           max-width: 34vw;
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          pointer-events: auto;
-        }
-        .jarvis-topright {
-          position: absolute;
-          top: 18px;
-          right: 22px;
-          z-index: 50;
-          display: flex;
-          align-items: center;
           gap: 12px;
           pointer-events: auto;
         }

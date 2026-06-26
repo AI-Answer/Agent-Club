@@ -64,9 +64,11 @@ export interface HudPanelsProps {
    *  Each change closes any open report overlay — the report state lives here,
    *  so the parent signals rather than reaching into it. */
   escapeSignal?: number;
+  /** Utility controls (music / disengage) rendered in the TopBar right cell. */
+  topControls?: React.ReactNode;
 }
 
-const HudPanels: React.FC<HudPanelsProps> = ({ voiceStatus = 'idle', onDeckSendMessage, pollMs = 5000, escapeSignal = 0 }) => {
+const HudPanels: React.FC<HudPanelsProps> = ({ voiceStatus = 'idle', onDeckSendMessage, pollMs = 5000, escapeSignal = 0, topControls }) => {
   const { state, error, refresh } = useVaultPoll(pollMs);
   const { callouts, dismiss, clear } = useCallouts(state);
   const [report, setReport] = useState<{ path: string; content: string } | null>(null);
@@ -119,7 +121,7 @@ const HudPanels: React.FC<HudPanelsProps> = ({ voiceStatus = 'idle', onDeckSendM
 
   return (
     <div className="hud">
-      <TopBar state={state} online={!error} mode={mode} />
+      <TopBar state={state} online={!error} mode={mode} controls={topControls} />
 
       <div className="hud-left">
         {state && <Vitals state={state} />}

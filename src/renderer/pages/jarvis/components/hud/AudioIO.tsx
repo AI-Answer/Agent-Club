@@ -27,7 +27,7 @@ const AudioIO = memo(function AudioIO({ mode }: { mode: CoreMode }): React.React
       </div>
       <div className="audio-meta">
         <span>voice link · {live ? mode : 'standby'}</span>
-        <span>hold SPACE to talk · ESC to stop</span>
+        <span>tap VOICE LINK to toggle · ESC to stop</span>
       </div>
     </section>
   );

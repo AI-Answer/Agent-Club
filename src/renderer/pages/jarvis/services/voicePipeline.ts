@@ -78,7 +78,16 @@ export interface VoicePipeline {
   level: number;
   error: string | null;
   speechSupported: boolean;
-  /** Begin push-to-talk capture. */
+  /**
+   * Whether hands-free voice mode is engaged. While on, the pipeline keeps a
+   * continuous listen → Hermes → speak → listen loop running (the closest thing
+   * to Hermes's TTY-only "voice mode" we can drive over the ACP + text_to_speech
+   * seam — see docs/goals/agent-club-jarvis/notes/T016-hermes-voice-mode.md).
+   */
+  voiceMode: boolean;
+  /** Toggle hands-free voice mode on/off. */
+  toggleVoiceMode: () => void;
+  /** Begin a single push-to-talk capture. */
   startListening: () => void;
   /** End push-to-talk capture (sends the final transcript). */
   stopListening: () => void;
@@ -135,9 +144,13 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [voiceMode, setVoiceMode] = useState(false);
 
   const speechSupported = !!getSpeechRecognitionCtor();
 
+  // Mirror of voiceMode for use inside async callbacks (STT handlers / timers)
+  // that capture a stale closure of the state value.
+  const voiceModeRef = useRef(false);
   const conversationIdRef = useRef<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -459,8 +472,16 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
       });
     };
     rec.onerror = (e) => {
-      if (e?.error && e.error !== 'no-speech' && e.error !== 'aborted') {
-        setError(`STT: ${e.error}`);
+      const code = e?.error;
+      if (code && code !== 'no-speech' && code !== 'aborted') {
+        setError(`STT: ${code}`);
+        // These won't recover by re-listening (no STT backend reachable, or mic
+        // denied). In hands-free mode that would spin the re-arm loop, so drop
+        // out of voice mode and let the user re-engage deliberately.
+        if (code === 'network' || code === 'not-allowed' || code === 'service-not-allowed') {
+          voiceModeRef.current = false;
+          setVoiceMode(false);
+        }
       }
     };
     rec.onend = () => {
@@ -542,9 +563,38 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     [hermesInstalled]
   );
 
+  // Hands-free voice mode: a single toggle that engages a continuous
+  // listen → Hermes → speak → listen conversation. Turning it on arms STT once;
+  // the re-arm effect below restarts STT every time the pipeline returns to idle
+  // (after a reply finishes speaking) until the user toggles it off.
+  const toggleVoiceMode = useCallback(() => {
+    const next = !voiceModeRef.current;
+    voiceModeRef.current = next;
+    setVoiceMode(next);
+    if (next) {
+      startListening();
+    } else {
+      stopListening();
+      stopSpeaking();
+    }
+  }, [startListening, stopListening, stopSpeaking]);
+
+  // Re-arm STT whenever we settle back to idle while voice mode is engaged, so
+  // the loop keeps listening hands-free. The short delay lets the reply's audio
+  // tail finish and avoids re-capturing it. Guarded on no recognition already
+  // running so a stray idle tick can't stack two recognizers.
+  useEffect(() => {
+    if (!voiceMode || status !== 'idle') return;
+    const t = setTimeout(() => {
+      if (voiceModeRef.current && !recognitionRef.current) startListening();
+    }, 350);
+    return () => clearTimeout(t);
+  }, [voiceMode, status, startListening]);
+
   // Teardown everything on unmount.
   useEffect(() => {
     return () => {
+      voiceModeRef.current = false;
       if (offStreamRef.current) {
         offStreamRef.current();
         offStreamRef.current = null;
@@ -580,6 +630,8 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     level,
     error,
     speechSupported,
+    voiceMode,
+    toggleVoiceMode,
     startListening,
     stopListening,
     stopSpeaking,
