@@ -211,7 +211,6 @@ const UpdateModal: React.FC = () => {
             releaseNotes: evt.releaseNotes,
           });
           setStatus('available');
-          setVisible(true);
           break;
         case 'not-available':
           setStatus('upToDate');
@@ -302,14 +301,33 @@ const UpdateModal: React.FC = () => {
 
       case 'upToDate':
         return (
-          <div className='flex flex-col items-center justify-center py-48px'>
-            <div className='w-56px h-56px bg-[rgb(var(--success-6))]/12 rounded-full flex items-center justify-center mb-20px'>
-              <CheckOne theme='filled' size='28' fill='rgb(var(--success-6))' />
+          <div className='flex flex-col h-full'>
+            <div className='flex flex-col items-center py-32px px-24px'>
+              <div className='w-56px h-56px bg-[rgb(var(--success-6))]/12 rounded-full flex items-center justify-center mb-20px'>
+                <CheckOne theme='filled' size='28' fill='rgb(var(--success-6))' />
+              </div>
+              <div className='text-16px text-t-primary font-600 mb-8px'>{t('update.upToDateTitle')}</div>
+              <div className='text-13px text-t-tertiary'>
+                {t('update.currentVersion', { version: currentVersion || '-' })}
+              </div>
             </div>
-            <div className='text-16px text-t-primary font-600 mb-8px'>{t('update.upToDateTitle')}</div>
-            <div className='text-13px text-t-tertiary'>
-              {t('update.currentVersion', { version: currentVersion || '-' })}
-            </div>
+            {(updateInfo?.body || updateInfo?.name) && (
+              <div className='flex-1 min-h-0 overflow-y-auto border-t border-border-2 px-24px py-16px custom-scrollbar'>
+                <div className='text-12px text-t-tertiary font-500 uppercase tracking-wide mb-8px'>
+                  {t('update.latestReleaseTitle')}
+                </div>
+                {updateInfo?.name && (
+                  <div className='text-14px font-500 text-t-primary mb-12px'>{updateInfo.name}</div>
+                )}
+                {updateInfo?.body ? (
+                  <div className='text-13px text-t-secondary leading-relaxed'>
+                    <MarkdownView allowHtml>{updateInfo.body}</MarkdownView>
+                  </div>
+                ) : (
+                  <div className='text-13px text-t-tertiary italic'>{t('update.noReleaseNotes')}</div>
+                )}
+              </div>
+            )}
           </div>
         );
 
@@ -464,14 +482,14 @@ const UpdateModal: React.FC = () => {
     <AionModal
       visible={visible}
       onCancel={handleClose}
-      size={status === 'available' ? 'medium' : 'small'}
+      size={status === 'available' || (status === 'upToDate' && updateInfo?.body) ? 'medium' : 'small'}
       header={{
         title: t('update.modalTitle'),
         showClose: true,
       }}
       footer={{ render: () => null }}
       contentStyle={{
-        height: status === 'available' ? '420px' : 'auto',
+        height: status === 'available' || (status === 'upToDate' && updateInfo?.body) ? '420px' : 'auto',
         padding: 0,
         overflow: 'hidden',
       }}

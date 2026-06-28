@@ -17,6 +17,7 @@ import { ipcBridge } from '@/common';
 import { APP_BRAND_NAME } from '@/common/config/appBrand';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import WindowControls from '../WindowControls';
+import UpdateTitlebarButton from './UpdateTitlebarButton';
 import { WORKSPACE_STATE_EVENT, dispatchWorkspaceToggleEvent } from '@renderer/utils/workspace/workspaceEvents';
 import type { WorkspaceStateDetail } from '@renderer/utils/workspace/workspaceEvents';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
@@ -346,6 +347,7 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
         )}
       </div>
       <div ref={toolbarRef} className='app-titlebar__toolbar'>
+        <UpdateTitlebarButton iconSize={iconSize} isMobile={layout?.isMobile} />
         {showNewConversationButton && (
           <button
             type='button'

@@ -2093,6 +2093,7 @@ export type I18nKey =
   | 'update.errorTitle'
   | 'update.goToRelease'
   | 'update.installNow'
+  | 'update.latestReleaseTitle'
   | 'update.modalTitle'
   | 'update.noCompatibleAsset'
   | 'update.noCompatibleAssetManual'
@@ -2101,7 +2102,8 @@ export type I18nKey =
   | 'update.readyToInstall'
   | 'update.readyToInstallDesc'
   | 'update.showInFolder'
-  | 'update.upToDateTitle';
+  | 'update.upToDateTitle'
+  | 'update.updateAvailableButton';
 
 export type I18nModule =
   | 'common'
