@@ -54,12 +54,12 @@ const AboutModalContent: React.FC = () => {
   const linkItems: LinkItem[] = [
     {
       title: t('settings.helpDocumentation'),
-      url: 'https://github.com/Samin12/Agent-Club',
+      url: 'https://github.com/AI-Answer/Agent-Club',
       icon: <Right theme='outline' size='16' />,
     },
     {
       title: t('settings.updateLog'),
-      url: 'https://github.com/Samin12/Agent-Club/releases',
+      url: 'https://github.com/AI-Answer/Agent-Club/releases',
       icon: <Right theme='outline' size='16' />,
     },
     {
@@ -79,7 +79,7 @@ const AboutModalContent: React.FC = () => {
     },
     {
       title: t('settings.officialWebsite'),
-      url: 'https://github.com/Samin12/Agent-Club',
+      url: 'https://github.com/AI-Answer/Agent-Club',
       icon: <Right theme='outline' size='16' />,
     },
   ];
@@ -109,7 +109,7 @@ const AboutModalContent: React.FC = () => {
               <div
                 className='text-t-primary cursor-pointer hover:text-t-secondary transition-colors p-4px'
                 onClick={() =>
-                  openLink('https://github.com/Samin12/Agent-Club').catch((error) =>
+                  openLink('https://github.com/AI-Answer/Agent-Club').catch((error) =>
                     console.error('Failed to open link:', error)
                   )
                 }

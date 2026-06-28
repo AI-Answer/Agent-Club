@@ -31,5 +31,5 @@ export const GOOSE_YOLO_ENV_VALUE = 'auto' as const;
  * Both versions support `opencode acp` command, so the integration is compatible with either.
  * Currently, OpenCode does not support --yolo flag for auto-approve mode.
  *
- * @see https://github.com/Samin12/Agent-Club
+ * @see https://github.com/AI-Answer/Agent-Club
  */

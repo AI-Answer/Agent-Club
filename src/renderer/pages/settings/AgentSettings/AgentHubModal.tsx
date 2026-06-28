@@ -13,7 +13,7 @@ interface AgentHubModalProps {
   onCancel: () => void;
 }
 
-const AGENT_CLUB_REPO_URL = 'https://github.com/Samin12/Agent-Club';
+const AGENT_CLUB_REPO_URL = 'https://github.com/AI-Answer/Agent-Club';
 
 export const AgentHubModal: React.FC<AgentHubModalProps> = ({ visible, onCancel }) => {
   const { t } = useTranslation();

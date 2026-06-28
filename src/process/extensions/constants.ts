@@ -40,7 +40,7 @@ export const HUB_SUPPORTED_SCHEMA_VERSION = 1;
  * Example: AIONUI_HUB_URL=http://localhost:3000/,http://staging.example.com/
  */
 const HUB_DEFAULT_URLS = [
-  'https://raw.githubusercontent.com/Samin12/Agent-Club/main/resources/hub/',
+  'https://raw.githubusercontent.com/AI-Answer/Agent-Club/main/resources/hub/',
 ];
 
 function resolveHubRemoteUrls(): string[] {

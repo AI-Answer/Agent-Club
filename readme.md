@@ -1,7 +1,7 @@
 # Agent Club
 
 <p>
-  <a href="https://github.com/Samin12/Agent-Club/releases/latest">
+  <a href="https://github.com/AI-Answer/Agent-Club/releases/latest">
     <img alt="Download Agent Club" src="https://img.shields.io/badge/Download%20Agent%20Club-Latest%20Release-0f172a?style=for-the-badge&logo=apple&logoColor=white">
   </a>
 </p>
@@ -105,7 +105,7 @@ Teams let multiple agents work in the same space with shared files and per-agent
 
 The easiest way to install Agent Club on a Mac is from the latest GitHub release:
 
-https://github.com/Samin12/Agent-Club/releases/latest
+https://github.com/AI-Answer/Agent-Club/releases/latest
 
 For Apple Silicon Macs, download the latest file ending in `mac-arm64.dmg`, open it, and drag `AgentClub.app` into your Applications folder.
 
@@ -119,7 +119,7 @@ If you use Codex, ChatGPT, Claude Code, or another assistant that can access you
 Install Agent Club on this Mac from GitHub.
 
 Release page:
-https://github.com/Samin12/Agent-Club/releases/latest
+https://github.com/AI-Answer/Agent-Club/releases/latest
 
 Please do the full install for me:
 1. Check the Mac architecture with `uname -m`.
@@ -138,7 +138,7 @@ Use terminal commands where possible instead of making me do manual steps.
 ### Manual Mac Install
 
 1. Open the latest release page:
-   https://github.com/Samin12/Agent-Club/releases/latest
+   https://github.com/AI-Answer/Agent-Club/releases/latest
 2. Download `Agent-Club-*-mac-arm64.dmg`.
 3. Open the DMG.
 4. Drag `AgentClub.app` into Applications.
