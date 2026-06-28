@@ -28,7 +28,7 @@ env:
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
   AIONUI_HUB_TAG: 'dist-ebc6a2b'
   # aionrs binary version to bundle (used by scripts/prepareAionrs.js)
-  AIONRS_VERSION: 'latest'
+  AIONRS_VERSION: 'v0.1.34'
 
 jobs:
   code-quality:
@@ -324,6 +324,9 @@ jobs:
           try {
             Write-Host "Running Windows build command: $Command"
             iex $Command
+            if ($LASTEXITCODE -ne 0) {
+              throw "Windows build command exited with code $LASTEXITCODE"
+            }
             Write-Host "Windows build completed successfully"
           } catch {
             $BuildFailed = $true
@@ -336,6 +339,7 @@ jobs:
           } else {
             "result=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           }
+          exit 0
         env:
           WINDOWS_BUILD_COMMAND: ${{ matrix.command }}
           # Node.js memory limit for vite bundling (prevents OOM during build)

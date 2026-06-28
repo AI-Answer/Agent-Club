@@ -22,8 +22,15 @@ function findLatestResourcesDirUnderOut(): string | null {
   if (!fs.existsSync(outDir)) return null;
 
   const allDirs = listDirsRecursive(outDir);
-  const candidates = allDirs.filter((dir) => path.basename(dir) === 'resources');
+  const candidates = allDirs.filter((dir) => path.basename(dir).toLowerCase() === 'resources');
   if (candidates.length === 0) return null;
+
+  const packagedAppResources = candidates
+    .filter((dir) => fs.existsSync(path.join(dir, 'bundled-bun')) || fs.existsSync(path.join(dir, 'app.asar')))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  if (packagedAppResources.length > 0) {
+    return packagedAppResources[0] || null;
+  }
 
   candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
   return candidates[0] || null;

@@ -1,6 +1,6 @@
 {
   "name": "agent-club",
-  "version": "1.9.28",
+  "version": "1.9.29",
   "description": "A bundled agent workspace that brings chat, teams, and task management into one Electron app.",
   "keywords": [],
   "license": "Apache-2.0",
@@ -97,7 +97,6 @@
     "@office-ai/aioncli-core": "^0.30.6",
     "@office-ai/platform": "^0.3.16",
     "@sentry/electron": "^7.10.0",
-    "@steipete/peekaboo": "3.1.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@uiw/codemirror-extensions-langs": "^4.25.1",
@@ -133,8 +132,8 @@
     "multer": "^2.1.1",
     "officeparser": "^5.2.2",
     "openai": "^5.12.2",
-    "pptx2json": "^0.0.10",
     "pnpm": "10.30.3",
+    "pptx2json": "^0.0.10",
     "process": "^0.11.10",
     "qrcode-terminal": "^0.12.0",
     "qrcode.react": "^4.2.0",
@@ -213,6 +212,7 @@
   },
   "optionalDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.46.2",
+    "@steipete/peekaboo": "3.1.2",
     "electron-winstaller": "^5.4.0"
   },
   "resolutions": {
