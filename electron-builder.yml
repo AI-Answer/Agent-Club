@@ -255,7 +255,7 @@ electronDownload:
 
 publish:
   provider: github
-  owner: Samin12
+  owner: AI-Answer
   repo: Agent-Club
   publishAutoUpdate: true
   releaseType: release

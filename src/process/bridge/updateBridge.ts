@@ -54,7 +54,7 @@ interface AutoUpdateCheckParams {
   includePrerelease?: boolean;
 }
 
-const DEFAULT_REPO = 'Samin12/Agent-Club';
+const DEFAULT_REPO = 'AI-Answer/Agent-Club';
 const DEFAULT_USER_AGENT = 'Agent Club';
 const ALLOWED_ASSET_EXTS = new Set(['.exe', '.msi', '.dmg', '.zip', '.deb', '.rpm']);
 const CDN_HOST = 'static.aionui.com';
