@@ -1,6 +1,6 @@
 {
   "name": "agent-club",
-  "version": "1.9.27",
+  "version": "1.9.28",
   "description": "A bundled agent workspace that brings chat, teams, and task management into one Electron app.",
   "keywords": [],
   "license": "Apache-2.0",
