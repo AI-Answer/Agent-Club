@@ -23,5 +23,7 @@
   "openFile": "Open file",
   "errorTitle": "Update failed",
   "updateAvailableButton": "Update v{{version}}",
-  "latestReleaseTitle": "Latest release"
+  "latestReleaseTitle": "Latest release",
+  "dashboardBannerDesc": "Read release notes and download the latest installer from GitHub Releases.",
+  "viewUpdateButton": "View update"
 }

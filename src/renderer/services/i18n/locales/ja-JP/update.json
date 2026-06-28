@@ -23,5 +23,7 @@
   "openFile": "Open file",
   "errorTitle": "Update failed",
   "updateAvailableButton": "Update v{{version}}",
-  "latestReleaseTitle": "最新リリース"
+  "latestReleaseTitle": "最新リリース",
+  "dashboardBannerDesc": "リリースノートを読み、GitHub Releases から最新インストーラーを入手できます。",
+  "viewUpdateButton": "更新を表示"
 }

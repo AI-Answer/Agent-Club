@@ -23,5 +23,7 @@
   "openFile": "Open file",
   "errorTitle": "Update failed",
   "updateAvailableButton": "Güncelleme v{{version}}",
-  "latestReleaseTitle": "Son sürüm"
+  "latestReleaseTitle": "Son sürüm",
+  "dashboardBannerDesc": "Sürüm notlarını okuyun ve GitHub Releases'ten en son yükleyiciyi indirin.",
+  "viewUpdateButton": "Güncellemeyi gör"
 }

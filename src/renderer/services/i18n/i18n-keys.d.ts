@@ -2084,6 +2084,7 @@ export type I18nKey =
   | 'update.checkFailed'
   | 'update.checking'
   | 'update.currentVersion'
+  | 'update.dashboardBannerDesc'
   | 'update.downloadAndInstall'
   | 'update.downloadButton'
   | 'update.downloadCompleteTitle'
@@ -2103,7 +2104,8 @@ export type I18nKey =
   | 'update.readyToInstallDesc'
   | 'update.showInFolder'
   | 'update.upToDateTitle'
-  | 'update.updateAvailableButton';
+  | 'update.updateAvailableButton'
+  | 'update.viewUpdateButton';
 
 export type I18nModule =
   | 'common'

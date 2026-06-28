@@ -53,6 +53,7 @@ import type {
   DashboardWorkItem,
 } from '@/common/types/dashboard';
 import { useLayoutContext } from '@renderer/hooks/context/LayoutContext';
+import UpdateAvailableBanner from '@/renderer/components/settings/UpdateAvailableBanner';
 
 function formatDateTime(value?: number): string {
   if (!value) {
@@ -630,6 +631,7 @@ const DashboardPage: React.FC = () => {
       )}
     >
       <div className='mx-auto flex w-full max-w-[1760px] flex-col gap-12px'>
+        <UpdateAvailableBanner />
         <div className='flex items-start justify-between gap-12px max-[780px]:flex-col'>
           <div className='min-w-0'>
             <div className='mb-6px flex items-center gap-8px text-primary text-13px font-600 leading-20px'>

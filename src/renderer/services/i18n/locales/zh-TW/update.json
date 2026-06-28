@@ -23,5 +23,7 @@
   "openFile": "Open file",
   "errorTitle": "Update failed",
   "updateAvailableButton": "更新 v{{version}}",
-  "latestReleaseTitle": "最新版本"
+  "latestReleaseTitle": "最新版本",
+  "dashboardBannerDesc": "查看更新說明並從 GitHub Releases 下載最新安裝包。",
+  "viewUpdateButton": "查看更新"
 }

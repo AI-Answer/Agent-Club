@@ -23,5 +23,7 @@
   "openFile": "Open file",
   "errorTitle": "Update failed",
   "updateAvailableButton": "Update v{{version}}",
-  "latestReleaseTitle": "최신 릴리스"
+  "latestReleaseTitle": "최신 릴리스",
+  "dashboardBannerDesc": "릴리스 노트를 확인하고 GitHub Releases에서 최신 설치 파일을 받으세요.",
+  "viewUpdateButton": "업데이트 보기"
 }

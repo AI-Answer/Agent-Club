@@ -23,5 +23,7 @@
   "openFile": "Open file",
   "errorTitle": "Update failed",
   "updateAvailableButton": "Оновлення v{{version}}",
-  "latestReleaseTitle": "Найновіший реліз"
+  "latestReleaseTitle": "Найновіший реліз",
+  "dashboardBannerDesc": "Прочитайте нотатки релізу та завантажте інсталятор з GitHub Releases.",
+  "viewUpdateButton": "Відкрити оновлення"
 }
