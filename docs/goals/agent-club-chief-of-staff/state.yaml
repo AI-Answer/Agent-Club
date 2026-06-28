@@ -108,7 +108,10 @@ tasks:
       note: T001 mapped the live main UI, Agent Manager, Multica runtime, settings, hooks, MCP, dashboard, local agents, and market-modal surfaces.
       evidence:
         - docs/goals/agent-club-chief-of-staff/notes/T001-surface-map.md
-      summary: Main app, Agent Manager, Multica runtime, settings, hooks, MCP, dashboard, local agents, and market-modal surfaces were mapped. First tranche recommended: remove market modal, prioritize Hermes/Codex/Claude/OpenClaw, and add Memory settings foundation.
+      summary: >-
+        Main app, Agent Manager, Multica runtime, settings, hooks, MCP, dashboard, local agents,
+        and market-modal surfaces were mapped. First tranche recommended: remove market modal,
+        prioritize Hermes/Codex/Claude/OpenClaw, and add Memory settings foundation.
   - id: T002
     type: scout
     assignee: Scout
