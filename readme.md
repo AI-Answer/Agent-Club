@@ -111,6 +111,71 @@ For Apple Silicon Macs, download the latest file ending in `mac-arm64.dmg`, open
 
 Right now the published desktop installer is for Apple Silicon Macs. Intel Mac, Windows, and Linux builds can be added from the same packaging setup once release signing and CI are configured for those platforms.
 
+### One-Command Source Setup
+
+Use this when you want Agent Club running from source, or when you want to paste a setup command into Claude Code, Codex, or another local coding agent.
+
+The installer clones or updates the repo, checks the required local tools, installs dependencies with Bun, and starts the desktop app in development mode.
+
+#### macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-mac.sh | bash
+```
+
+To install without starting the app:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-mac.sh | bash -s -- --no-start
+```
+
+#### Windows PowerShell
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-windows.ps1 | iex"
+```
+
+The source installer uses these defaults:
+
+- Repo: `https://github.com/Samin12/Agent-Club.git`
+- Install path on macOS: `~/Agent-Club`
+- Install path on Windows: `%USERPROFILE%\Agent-Club`
+- Start command after install: `bun run start`
+
+You can override the repo or install folder:
+
+```bash
+AGENT_CLUB_REPO="https://github.com/Samin12/Agent-Club.git" AGENT_CLUB_DIR="$HOME/Code/Agent-Club" \
+  bash scripts/install-mac.sh
+```
+
+```powershell
+$env:AGENT_CLUB_REPO="https://github.com/Samin12/Agent-Club.git"
+$env:AGENT_CLUB_DIR="$HOME\Code\Agent-Club"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-windows.ps1 | iex"
+```
+
+### Copy-Paste Setup Prompt For An Agent
+
+Paste this into Claude Code, Codex, or another local coding agent:
+
+```text
+Set up Agent Club from source on this computer.
+
+Use the official installer scripts from the Agent Club repo:
+- On macOS, run:
+  curl -fsSL https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-mac.sh | bash
+- On Windows PowerShell, run:
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Samin12/Agent-Club/refs/heads/main/scripts/install-windows.ps1 | iex"
+
+Please do the full setup:
+1. Detect whether this is macOS or Windows.
+2. Run the matching installer.
+3. If a prerequisite is missing, install it when the script supports that, otherwise show me the exact missing tool.
+4. Let the script clone or update Agent Club, run `bun install`, and start the app.
+5. Confirm the install path, the start command, and whether the desktop app opened successfully.
+```
+
 ### Copy-Paste Install Prompt
 
 If you use Codex, ChatGPT, Claude Code, or another assistant that can access your local terminal, paste this prompt and let it do the setup for you:
@@ -130,7 +195,10 @@ Please do the full install for me:
 6. Detach the DMG.
 7. Open `/Applications/AgentClub.app`.
 8. If macOS blocks the app because it is not notarized yet, do not bypass security silently. Show me the exact right-click Open or System Settings > Privacy & Security step I need to approve.
-9. Tell me the installed app path, the release version, and whether the app opened successfully.
+9. If macOS says `AgentClub.app` is damaged and should be moved to the Trash, use the copy-paste fix prompt in the macOS Gatekeeper section below, or remove quarantine from the official downloaded app with:
+   `xattr -dr com.apple.quarantine /Applications/AgentClub.app`
+   Then open `/Applications/AgentClub.app` again.
+10. Tell me the installed app path, the release version, and whether the app opened successfully.
 
 Use terminal commands where possible instead of making me do manual steps.
 ```
@@ -144,7 +212,45 @@ Use terminal commands where possible instead of making me do manual steps.
 4. Drag `AgentClub.app` into Applications.
 5. Open Agent Club from Applications.
 
-If macOS says the app is from an unidentified developer, right-click `AgentClub.app`, choose Open, then approve the prompt. This happens because local releases are currently ad-hoc signed and not notarized with an Apple Developer ID yet.
+### macOS Gatekeeper And Quarantine
+
+Current Mac releases are ad-hoc signed and not notarized with an Apple Developer ID yet. Depending on how the DMG was downloaded, macOS may show one of these messages the first time you open the app:
+
+- `AgentClub.app` is from an unidentified developer.
+- `AgentClub.app` is damaged and should be moved to the Trash.
+
+For the unidentified developer prompt, right-click `/Applications/AgentClub.app`, choose Open, then approve the prompt.
+
+For the damaged or move-to-Trash prompt, only use this command if you downloaded Agent Club from the official GitHub release page:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/AgentClub.app
+open /Applications/AgentClub.app
+```
+
+If you get the damaged or move-to-Trash error and want Claude Code, Codex, or another local coding agent to fix it for you, paste this prompt:
+
+```text
+Fix the macOS Agent Club "damaged and should be moved to the Trash" launch error.
+
+I downloaded Agent Club from the official GitHub release page:
+https://github.com/Samin12/Agent-Club/releases/latest
+
+Please do this for me:
+1. Confirm this is macOS and check the architecture with `uname -m`.
+2. Confirm `/Applications/AgentClub.app` exists.
+3. If the app is missing, install Agent Club from the latest official GitHub release, or use the README curl installer/source setup if I asked for a source install.
+4. Do not disable Gatekeeper globally.
+5. Remove quarantine only from the installed Agent Club app:
+   xattr -dr com.apple.quarantine /Applications/AgentClub.app
+6. Open the app:
+   open /Applications/AgentClub.app
+7. If it still fails, show me the exact macOS error and the output of:
+   xattr -l /Applications/AgentClub.app
+   spctl --assess --type execute -vv /Applications/AgentClub.app
+```
+
+Do not disable Gatekeeper globally. The command above only removes the quarantine flag from the installed Agent Club app.
 
 ## Community
 
