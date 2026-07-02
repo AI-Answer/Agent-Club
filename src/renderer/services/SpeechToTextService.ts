@@ -5,7 +5,9 @@
  */
 
 import { ipcBridge } from '@/common';
+import { ConfigStorage } from '@/common/config/storage';
 import type { SpeechToTextResult } from '@/common/types/speech';
+import { blobToWav16kMono } from '@/renderer/utils/speech/blobToWav16kMono';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 
 const MAX_AUDIO_FILE_SIZE_MB = 30;
@@ -54,13 +56,23 @@ const parseWebResponse = async (response: XMLHttpRequest): Promise<SpeechToTextR
 };
 
 export async function transcribeAudioBlob(blob: Blob, languageHint?: string): Promise<SpeechToTextResult> {
-  ensureAudioSize(blob);
-
-  const mimeType = blob.type || 'audio/webm';
-  const fileName = createAudioFileName(mimeType);
+  let payloadBlob = blob;
+  let mimeType = blob.type || 'audio/webm';
+  let fileName = createAudioFileName(mimeType);
 
   if (isElectronDesktop()) {
-    const audioBuffer = new Uint8Array(await blob.arrayBuffer());
+    const config = await ConfigStorage.get('tools.speechToText');
+    if (config?.provider === 'local') {
+      payloadBlob = await blobToWav16kMono(blob);
+      mimeType = 'audio/wav';
+      fileName = 'speech-input.wav';
+    }
+  }
+
+  ensureAudioSize(payloadBlob);
+
+  if (isElectronDesktop()) {
+    const audioBuffer = new Uint8Array(await payloadBlob.arrayBuffer());
     return ipcBridge.speechToText.transcribe.invoke({
       audioBuffer: Array.from(audioBuffer),
       fileName,
@@ -70,7 +82,7 @@ export async function transcribeAudioBlob(blob: Blob, languageHint?: string): Pr
   }
 
   const formData = new FormData();
-  formData.append('audio', blob, fileName);
+  formData.append('audio', payloadBlob, fileName);
   formData.append('mimeType', mimeType);
   if (languageHint) {
     formData.append('languageHint', languageHint);

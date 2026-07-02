@@ -74,6 +74,8 @@ interface AcpAgentManagerData {
   sandboxMode?: CodexSandboxMode;
   /** Pending config option selections from Guid page (applied after session creation) */
   pendingConfigOptions?: Record<string, string>;
+  /** Jarvis-only: extra MCP servers injected at ACP session creation. */
+  additionalMcpServers?: import('@/common/config/storage').IMcpServer[];
 }
 
 type BufferedStreamTextMessage = {
@@ -920,6 +922,7 @@ ${collectedResponses.join('\n')}`;
           teamMcpStdioConfig: (data as unknown as Record<string, unknown>).teamMcpStdioConfig as
             | { name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> }
             | undefined,
+          additionalMcpServers: data.additionalMcpServers,
         },
         onSessionIdUpdate: (sessionId: string) => {
           // Save ACP session ID to database for resume support

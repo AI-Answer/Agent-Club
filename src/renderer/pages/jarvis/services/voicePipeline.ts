@@ -8,23 +8,48 @@
  * JARVIS voice pipeline (renderer-only).
  *
  * Reuses the existing ACP chat IPC (see docs T017) to run a full voice loop:
- *   mic → Web Speech STT → ACP sendMessage → responseStream → text_to_speech
- *   tool call → fs.readFileBuffer → WebAudio playback (through an AnalyserNode
- *   the HUD can react to). Falls back to browser speechSynthesis when Hermes
- *   does not emit a text_to_speech tool call for a completed reply.
- *
- * No core-bridge edits: the only out-of-renderer concerns (mic permission +
- * Info.plist usage string) live in src/index.ts and electron-builder.yml.
+ *   mic → STT → ACP sendMessage → responseStream → text_to_speech tool call →
+ *   fs.readFileBuffer → WebAudio playback (through an AnalyserNode the HUD can
+ *   react to). Falls back to browser speechSynthesis when Hermes does not emit
+ *   a text_to_speech tool call for a completed reply.
  */
 import { ipcBridge } from '@/common';
 import type { IResponseMessage } from '@/common/adapter/ipcBridge';
 import type { ToolCallUpdate } from '@/common/types/acpTypes';
-import type { TProviderWithModel } from '@/common/config/storage';
+import { ConfigStorage, type IMcpServer, type TProviderWithModel } from '@/common/config/storage';
+import { isSpeechToTextConfigured } from '@/common/types/speech';
 import { uuid } from '@/common/utils';
+import { getSpeechInputAvailability, pickRecordingMimeType } from '@/renderer/hooks/system/useSpeechInput';
+import { transcribeAudioBlob } from '@/renderer/services/SpeechToTextService';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { resolveJarvisSessionMcpServers } from './jarvisMcpServers';
+
+const SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT = 'aionui:speech-to-text-config-changed';
 
 /** Concise system instruction injected into the Hermes conversation. */
-const PRESET_CONTEXT = 'You are JARVIS. For EVERY reply, also call the `text_to_speech` tool with your reply text and an `output_path`. Keep spoken replies concise and conversational.';
+const PRESET_CONTEXT =
+  'You are JARVIS. For EVERY reply, also call the `text_to_speech` tool with your reply text and an `output_path`. Keep spoken replies to 1-3 short conversational sentences; offer to elaborate in text if the user wants more detail.';
+
+/** Hermes is a built-in ACP backend that owns its own auth/model. */
+export const HERMES_VOICE_MODEL: TProviderWithModel = {
+  id: 'hermes-voice',
+  name: 'Hermes',
+  platform: 'hermes',
+  baseUrl: '',
+  apiKey: '',
+  useModel: 'default',
+};
+
+/** Default wait before browser TTS fallback when Hermes TTS tool is slow/missing. */
+export const TTS_FALLBACK_MS = 1500;
+/** Fast fallback once repeated TTS misses indicate the tool is not configured. */
+export const TTS_FALLBACK_FAST_MS = 50;
+/** Consecutive TTS misses before switching to the fast fallback timer. */
+export const TTS_MISS_THRESHOLD = 2;
+
+export function getFallbackDelayMs(recentTtsMisses: number): number {
+  return recentTtsMisses >= TTS_MISS_THRESHOLD ? TTS_FALLBACK_FAST_MS : TTS_FALLBACK_MS;
+}
 
 /** Minimal Web Speech API typings (webkitSpeechRecognition is untyped in lib.dom). */
 interface SpeechRecognitionAlternativeLike {
@@ -53,9 +78,45 @@ interface SpeechRecognitionLike {
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+  if (typeof window === 'undefined') return null;
   const w = window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor };
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
+
+export type SttEngine = 'recorder' | 'webspeech' | 'none';
+
+/**
+ * Pick the best available STT engine. Prefers the app's configured
+ * Speech-to-Text tool; falls back to Web Speech where supported.
+ */
+export async function resolveSttEngine(): Promise<SttEngine> {
+  try {
+    const cfg = await ConfigStorage.get('tools.speechToText');
+    if (!cfg?.enabled || getSpeechInputAvailability() !== 'record') {
+      return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+    }
+
+    if (cfg.provider === 'local') {
+      if (!isSpeechToTextConfigured(cfg)) {
+        return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+      }
+      const ready = await ipcBridge.speechToText.isLocalReady.invoke({ modelId: cfg.local?.modelId });
+      return ready.ready ? 'recorder' : getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+    }
+
+    if (isSpeechToTextConfigured(cfg)) return 'recorder';
+  } catch {
+    // storage unavailable — fall through to the runtime check
+  }
+  return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+}
+
+const VAD_INTERVAL_MS = 80;
+const VAD_SPEECH_RMS = 0.025;
+/** Hands-free: end capture after this much trailing silence. */
+const VAD_SILENCE_MS = 700;
+const VAD_NO_SPEECH_MS = 15_000;
+const MAX_CAPTURE_MS = 60_000;
 
 export type VoiceStatus = 'checking' | 'offline' | 'idle' | 'listening' | 'thinking' | 'speaking' | 'error';
 
@@ -63,55 +124,58 @@ export interface TranscriptLine {
   id: string;
   role: 'user' | 'jarvis';
   text: string;
-  /** false while interim (live) STT text is still being refined */
   final: boolean;
+}
+
+type TurnAccum = {
+  text: string;
+  jarvisLineId: string | null;
+  spokeViaTool: boolean;
+  sawFirstContent: boolean;
+  turnToken: number;
+};
+
+/**
+ * ACP emits `start` with the client msg_id, but streamed chunks and finish
+ * events often use adapter-assigned ids. Fall back to the active turn.
+ */
+export function resolveTurnForStreamEvent(turns: Map<string, TurnAccum>, msgId: string): TurnAccum | undefined {
+  const direct = turns.get(msgId);
+  if (direct) return direct;
+  return Array.from(turns.values()).at(-1);
+}
+
+export interface VoicePipelineOptions {
+  /** When true, Peekaboo is injected into the Hermes ACP session. */
+  computerControlEngaged?: boolean;
 }
 
 export interface VoicePipeline {
   status: VoiceStatus;
   hermesInstalled: boolean;
-  /** Live + finalized transcript lines for the on-screen log. */
   transcript: TranscriptLine[];
-  /** AnalyserNode the HUD can pull getByteFrequencyData() from while speaking. */
   analyser: AnalyserNode | null;
-  /** 0..1 smoothed speaking level (rAF-driven) for a simple visible pulse. */
   level: number;
   error: string | null;
   speechSupported: boolean;
-  /**
-   * Whether hands-free voice mode is engaged. While on, the pipeline keeps a
-   * continuous listen → Hermes → speak → listen loop running (the closest thing
-   * to Hermes's TTY-only "voice mode" we can drive over the ACP + text_to_speech
-   * seam — see docs/goals/agent-club-jarvis/notes/T016-hermes-voice-mode.md).
-   */
+  sttEngine: SttEngine;
+  sttBlocked: boolean;
   voiceMode: boolean;
-  /** Toggle hands-free voice mode on/off. */
+  /** MCP servers injected into the current Hermes session. */
+  sessionMcpCount: number;
   toggleVoiceMode: () => void;
-  /** Begin a single push-to-talk capture. */
   startListening: () => void;
-  /** End push-to-talk capture (sends the final transcript). */
   stopListening: () => void;
-  /**
-   * Hard-stop any in-flight reply playback: cancel browser speechSynthesis and
-   * stop the live WebAudio TTS source. Used by the HUD's Esc handler so the
-   * user can silence JARVIS mid-sentence ("ESC to stop").
-   */
+  cancelListening: () => void;
   stopSpeaking: () => void;
-  /**
-   * Forward an arbitrary text turn to Hermes (same conversation as voice).
-   * Used by the Command Deck so a skill button runs through the brain and its
-   * reply streams into the transcript / TTS exactly like a spoken turn.
-   * No-op (returns false) when Hermes is offline.
-   */
   sendText: (text: string) => boolean;
+  recheck: () => void;
 }
 
 /**
  * Extract a TTS output file path from a completed text_to_speech tool call.
- * The path may live in rawInput (output_path/file_path/path) and/or in the
- * tool result content text (sometimes JSON).
  */
-function extractTtsFilePath(update: ToolCallUpdate['update']): string | null {
+export function extractTtsFilePath(update: ToolCallUpdate['update']): string | null {
   const raw = (update.rawInput || {}) as Record<string, unknown>;
   for (const key of ['output_path', 'file_path', 'path', 'audio_path', 'outputPath']) {
     const v = raw[key];
@@ -121,7 +185,6 @@ function extractTtsFilePath(update: ToolCallUpdate['update']): string | null {
   for (const item of items) {
     const text = (item as { content?: { text?: string } })?.content?.text;
     if (typeof text !== 'string' || !text.trim()) continue;
-    // Try JSON first (the tool often returns a JSON blob).
     try {
       const parsed = JSON.parse(text) as Record<string, unknown>;
       for (const key of ['output_path', 'file_path', 'path', 'audio_path', 'outputPath']) {
@@ -137,7 +200,9 @@ function extractTtsFilePath(update: ToolCallUpdate['update']): string | null {
   return null;
 }
 
-export function useVoicePipeline(model: TProviderWithModel | null): VoicePipeline {
+export function useVoicePipeline(model: TProviderWithModel | null, options?: VoicePipelineOptions): VoicePipeline {
+  const computerControlEngaged = options?.computerControlEngaged ?? false;
+
   const [status, setStatus] = useState<VoiceStatus>('checking');
   const [hermesInstalled, setHermesInstalled] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
@@ -145,12 +210,16 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [sttBlocked, setSttBlocked] = useState(false);
+  const [sttEngine, setSttEngine] = useState<SttEngine>('none');
+  const [sessionMcpCount, setSessionMcpCount] = useState(0);
+  const [bootstrapNonce, setBootstrapNonce] = useState(0);
 
-  const speechSupported = !!getSpeechRecognitionCtor();
+  const speechSupported = sttEngine !== 'none';
 
-  // Mirror of voiceMode for use inside async callbacks (STT handlers / timers)
-  // that capture a stale closure of the state value.
   const voiceModeRef = useRef(false);
+  const sttEngineRef = useRef<SttEngine>('none');
+  const statusRef = useRef<VoiceStatus>('checking');
   const conversationIdRef = useRef<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -158,18 +227,38 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const offStreamRef = useRef<(() => void) | null>(null);
   const rafRef = useRef<number | null>(null);
-
-  // Per-turn accumulation so the fallback can speak the full reply.
-  const pendingTextRef = useRef('');
-  const spokeViaToolRef = useRef(false);
-  // Monotonic per-turn token: bumped on each reply 'start'. A late text_to_speech
-  // tool-call invalidates any in-flight synth fallback for the same turn.
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const vadIntervalRef = useRef<number | null>(null);
+  const vadCtxRef = useRef<AudioContext | null>(null);
+  const commitRef = useRef(true);
   const turnTokenRef = useRef(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const jarvisLineIdRef = useRef<string | null>(null);
   const interimLineIdRef = useRef<string | null>(null);
   const modelRef = useRef(model);
+  const turnsRef = useRef<Map<string, TurnAccum>>(new Map());
+  const hermesTurnActiveRef = useRef(false);
+  const capturePendingRef = useRef(false);
+  const pendingStopRef = useRef(false);
+  const turnStartRef = useRef(0);
+  const recentTtsMissesRef = useRef(0);
+  const computerControlEngagedRef = useRef(computerControlEngaged);
+  const prevEngagedRef = useRef(computerControlEngaged);
+
   modelRef.current = model;
+  statusRef.current = status;
+  computerControlEngagedRef.current = computerControlEngaged;
+
+  const markPerf = useCallback((label: string) => {
+    if (turnStartRef.current <= 0) return;
+    const ms = performance.now() - turnStartRef.current;
+    console.log(`[jarvis:perf] ${label} +${ms.toFixed(0)}ms`);
+  }, []);
+
+  const beginTurnPerf = useCallback(() => {
+    turnStartRef.current = performance.now();
+    console.log('[jarvis:perf] turn_start +0ms');
+  }, []);
 
   const ensureAudioContext = useCallback((): AudioContext => {
     if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
@@ -186,14 +275,9 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     return audioCtxRef.current;
   }, []);
 
-  // rAF level pump so a simple pulse element works without canvas wiring.
-  // Only run while actually speaking (or an audio source is live); otherwise the
-  // loop allocates a Uint8Array every frame at ~60fps for nothing. When idle we
-  // decay the level to 0 once and stop.
   useEffect(() => {
     const active = status === 'speaking' || sourceRef.current != null;
     if (!active) {
-      // Single decay tick toward 0, then leave the loop stopped.
       setLevel((prev) => (prev > 0.01 ? prev * 0.85 : 0));
       return;
     }
@@ -204,7 +288,7 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
         an.getByteFrequencyData(buf);
         let sum = 0;
         for (let i = 0; i < buf.length; i++) sum += buf[i];
-        const avg = sum / buf.length / 255; // 0..1
+        const avg = sum / buf.length / 255;
         setLevel((prev) => prev + (avg - prev) * 0.3);
       } else {
         setLevel((prev) => prev * 0.85);
@@ -220,10 +304,23 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     };
   }, [status]);
 
+  const stopPlayback = useCallback(() => {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.stop();
+      } catch {
+        /* noop */
+      }
+      sourceRef.current = null;
+    }
+  }, []);
+
   const speakFallback = useCallback((text: string) => {
     const clean = text.trim();
     if (!clean || !('speechSynthesis' in window)) return;
     try {
+      markPerf('fallback_speak_start');
       const utter = new SpeechSynthesisUtterance(clean);
       utter.onstart = () => setStatus('speaking');
       utter.onend = () => setStatus('idle');
@@ -232,19 +329,16 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     } catch {
       setStatus('idle');
     }
-  }, []);
+  }, [markPerf]);
 
   const playTtsFile = useCallback(
     async (filePath: string) => {
       try {
-        // The real TTS file wins over any browser-synth fallback: cancel pending
-        // / in-flight speechSynthesis so the two cannot double-speak.
         if (window.speechSynthesis) window.speechSynthesis.cancel();
         const buf = await ipcBridge.fs.readFileBuffer.invoke({ path: filePath });
         if (!buf || (buf as ArrayBuffer).byteLength === 0) return false;
         const ctx = ensureAudioContext();
         if (ctx.state === 'suspended') await ctx.resume();
-        // decodeAudioData detaches the buffer; copy so the IPC buffer stays intact.
         const audioBuf = await ctx.decodeAudioData((buf as ArrayBuffer).slice(0));
         if (sourceRef.current) {
           try {
@@ -255,8 +349,6 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
         }
         const src = ctx.createBufferSource();
         src.buffer = audioBuf;
-        // ensureAudioContext() guarantees an analyser; guard anyway so a null can
-        // never throw from a non-null assertion.
         const an = analyserRef.current;
         if (!an) {
           console.warn('[jarvis] TTS playback skipped: analyser unavailable');
@@ -268,6 +360,8 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
           setStatus((s) => (s === 'speaking' ? 'idle' : s));
         };
         sourceRef.current = src;
+        markPerf('tts_playback_start');
+        recentTtsMissesRef.current = 0;
         setStatus('speaking');
         src.start();
         return true;
@@ -276,31 +370,75 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
         return false;
       }
     },
-    [ensureAudioContext]
+    [ensureAudioContext, markPerf]
   );
+
+  const interruptInFlightTurn = useCallback(async () => {
+    const convoId = conversationIdRef.current;
+    const s = statusRef.current;
+    if (!convoId || (!hermesTurnActiveRef.current && s !== 'speaking')) return;
+    hermesTurnActiveRef.current = false;
+    turnTokenRef.current += 1;
+    turnsRef.current.clear();
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+    stopPlayback();
+    try {
+      await ipcBridge.conversation.stop.invoke({ conversation_id: convoId });
+    } catch {
+      /* best-effort */
+    }
+  }, [stopPlayback]);
 
   const handleStream = useCallback(
     (m: IResponseMessage) => {
       if (m.conversation_id !== conversationIdRef.current) return;
       switch (m.type) {
-        case 'start':
-          spokeViaToolRef.current = false;
-          pendingTextRef.current = '';
-          jarvisLineIdRef.current = null;
-          turnTokenRef.current += 1;
+        case 'start': {
+          setError(null);
+          hermesTurnActiveRef.current = true;
+          const turnToken = ++turnTokenRef.current;
           if (fallbackTimerRef.current) {
             clearTimeout(fallbackTimerRef.current);
             fallbackTimerRef.current = null;
           }
+          turnsRef.current.set(m.msg_id, {
+            text: '',
+            jarvisLineId: null,
+            spokeViaTool: false,
+            sawFirstContent: false,
+            turnToken,
+          });
           setStatus('thinking');
           break;
+        }
         case 'content': {
           const chunk = typeof m.data === 'string' ? m.data : '';
           if (!chunk) break;
-          pendingTextRef.current += chunk;
-          const id = jarvisLineIdRef.current || `jarvis-${m.msg_id}`;
-          jarvisLineIdRef.current = id;
-          const full = pendingTextRef.current;
+          let turn = resolveTurnForStreamEvent(turnsRef.current, m.msg_id);
+          if (!turn) {
+            const turnToken = ++turnTokenRef.current;
+            turn = {
+              text: '',
+              jarvisLineId: null,
+              spokeViaTool: false,
+              sawFirstContent: false,
+              turnToken,
+            };
+            turnsRef.current.set(m.msg_id, turn);
+            hermesTurnActiveRef.current = true;
+            setStatus('thinking');
+          }
+          if (!turn.sawFirstContent) {
+            turn.sawFirstContent = true;
+            markPerf('first_content');
+          }
+          turn.text += chunk;
+          const id = turn.jarvisLineId || `jarvis-${m.msg_id}`;
+          turn.jarvisLineId = id;
+          const full = turn.text;
           setTranscript((prev) => {
             const idx = prev.findIndex((l) => l.id === id);
             const line: TranscriptLine = { id, role: 'jarvis', text: full, final: false };
@@ -316,9 +454,6 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
         case 'acp_tool_call': {
           const update = (m.data as ToolCallUpdate)?.update;
           if (!update) break;
-          // MCP backends namespace / humanize the tool title (e.g.
-          // `mcp__tts__text_to_speech`, `Text To Speech`). Match defensively by
-          // title shape OR by the presence of a known TTS output-path param.
           const name = update.title || '';
           const raw = (update.rawInput || {}) as Record<string, unknown>;
           const hasTtsParam = ['output_path', 'audio_path', 'outputPath'].some((k) => typeof raw[k] === 'string' && (raw[k] as string).trim());
@@ -327,10 +462,10 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
           if (update.status === 'completed') {
             const filePath = extractTtsFilePath(update);
             if (filePath) {
-              // A real TTS file landed: suppress the synth fallback for this turn,
-              // cancel any pending fallback timer, and invalidate in-flight synth.
-              spokeViaToolRef.current = true;
+              const turn = resolveTurnForStreamEvent(turnsRef.current, m.msg_id);
+              if (turn) turn.spokeViaTool = true;
               turnTokenRef.current += 1;
+              markPerf('tts_tool_complete');
               if (window.speechSynthesis) window.speechSynthesis.cancel();
               if (fallbackTimerRef.current) {
                 clearTimeout(fallbackTimerRef.current);
@@ -342,39 +477,64 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
           break;
         }
         case 'finish': {
-          // Mark the assistant line final.
-          const id = jarvisLineIdRef.current;
+          const turn = resolveTurnForStreamEvent(turnsRef.current, m.msg_id);
+          if (!turn) break;
+          hermesTurnActiveRef.current = false;
+          const id = turn.jarvisLineId;
           if (id) {
             setTranscript((prev) => prev.map((l) => (l.id === id ? { ...l, final: true } : l)));
           }
-          // Fallback: if no text_to_speech landed shortly after completion, speak it.
-          // Capture the turn token; a late text_to_speech tool-call bumps the token
-          // (and cancels synth), so the timer must no-op if the turn has advanced.
-          const text = pendingTextRef.current;
-          const turnAtFinish = turnTokenRef.current;
+          markPerf('finish');
+          const text = turn.text;
+          const turnAtFinish = turn.turnToken;
+          const delay = getFallbackDelayMs(recentTtsMissesRef.current);
           if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           fallbackTimerRef.current = setTimeout(() => {
-            if (spokeViaToolRef.current || turnTokenRef.current !== turnAtFinish) return;
+            if (turn.spokeViaTool || turnTokenRef.current !== turnAtFinish) return;
             if (text.trim()) {
+              recentTtsMissesRef.current += 1;
               speakFallback(text);
             } else {
               setStatus('idle');
             }
-          }, 1500);
+          }, delay);
           break;
         }
         case 'error':
+          hermesTurnActiveRef.current = false;
           setStatus('error');
           setError(typeof m.data === 'string' ? m.data : 'Hermes error');
+          if (voiceModeRef.current) {
+            voiceModeRef.current = false;
+            setVoiceMode(false);
+          }
           break;
         default:
           break;
       }
     },
-    [playTtsFile, speakFallback]
+    [markPerf, playTtsFile, speakFallback]
   );
 
-  // Gate on Hermes + create the conversation once a model is available.
+  const removeConversation = useCallback(async (id: string | null) => {
+    if (!id) return;
+    try {
+      await ipcBridge.conversation.remove.invoke({ id });
+    } catch {
+      /* best-effort */
+    }
+  }, []);
+
+  // Re-bootstrap when Hermes gate, engage toggle, or recheck fires.
+  useEffect(() => {
+    if (prevEngagedRef.current !== computerControlEngaged) {
+      prevEngagedRef.current = computerControlEngaged;
+      if (conversationIdRef.current) {
+        setBootstrapNonce((n) => n + 1);
+      }
+    }
+  }, [computerControlEngaged]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -385,6 +545,7 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
         setHermesInstalled(installed);
         if (!installed) {
           setStatus('offline');
+          setSessionMcpCount(0);
           return;
         }
         const activeModel = modelRef.current;
@@ -393,15 +554,29 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
           setError('No model configured for Hermes voice.');
           return;
         }
+
+        const additionalMcpServers: IMcpServer[] = await resolveJarvisSessionMcpServers(computerControlEngagedRef.current);
+        if (cancelled) return;
+        setSessionMcpCount(additionalMcpServers.length);
+
+        const prevId = conversationIdRef.current;
+        if (prevId) {
+          await removeConversation(prevId);
+          conversationIdRef.current = null;
+        }
+
         const convo = await ipcBridge.conversation.create.invoke({
           type: 'acp',
           model: activeModel,
-          extra: { backend: 'hermes', presetContext: PRESET_CONTEXT },
+          extra: {
+            backend: 'hermes',
+            presetContext: PRESET_CONTEXT,
+            isHealthCheck: true,
+            additionalMcpServers,
+          },
         });
         if (cancelled) return;
         conversationIdRef.current = convo.id;
-        // Drop any prior subscription before re-subscribing so listeners can't
-        // accumulate across effect re-runs (duplicate transcript + TTS).
         offStreamRef.current?.();
         offStreamRef.current = ipcBridge.acpConversation.responseStream.on(handleStream);
         setStatus('idle');
@@ -416,101 +591,341 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
       offStreamRef.current?.();
       offStreamRef.current = null;
     };
-    // model identity is read via ref; rerun only if model presence flips.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleStream, !!model]);
+  }, [handleStream, !!model, bootstrapNonce, removeConversation]);
+
+  const recheck = useCallback(() => {
+    setStatus('checking');
+    setError(null);
+    setBootstrapNonce((n) => n + 1);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      const engine = await resolveSttEngine();
+      if (cancelled) return;
+      sttEngineRef.current = engine;
+      setSttEngine(engine);
+      if (engine === 'recorder') setSttBlocked(false);
+    };
+    void refresh();
+    const onConfigChanged = () => {
+      void refresh();
+    };
+    window.addEventListener(SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT, onConfigChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT, onConfigChanged);
+    };
+  }, [bootstrapNonce]);
+
+  const cleanupCapture = useCallback(() => {
+    if (vadIntervalRef.current !== null) {
+      window.clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (vadCtxRef.current) {
+      void vadCtxRef.current.close().catch(() => {});
+      vadCtxRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+    }
+    recorderRef.current = null;
+  }, []);
+
+  const dropCaptureLine = useCallback((lineId: string) => {
+    setTranscript((prev) => prev.filter((l) => l.id !== lineId));
+    setStatus((s) => (s === 'listening' || s === 'thinking' ? 'idle' : s));
+  }, []);
+
+  const dispatchUserMessage = useCallback(
+    async (text: string) => {
+      const convoId = conversationIdRef.current;
+      if (!text || !convoId) return;
+      await interruptInFlightTurn();
+      beginTurnPerf();
+      markPerf('send_message');
+      setError(null);
+      setStatus('thinking');
+      void ipcBridge.acpConversation.sendMessage.invoke({ input: text, msg_id: uuid(36), conversation_id: convoId });
+    },
+    [beginTurnPerf, interruptInFlightTurn, markPerf]
+  );
+
+  const transcribeAndSend = useCallback(
+    async (blob: Blob, lineId: string) => {
+      try {
+        const result = await transcribeAudioBlob(blob, navigator.language || undefined);
+        markPerf('stt_result');
+        const text = result.text.trim();
+        const convoId = conversationIdRef.current;
+        if (!text || !convoId) {
+          dropCaptureLine(lineId);
+          return;
+        }
+        setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, text, final: true } : l)));
+        await dispatchUserMessage(text);
+      } catch (e) {
+        dropCaptureLine(lineId);
+        voiceModeRef.current = false;
+        setVoiceMode(false);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('STT_DISABLED') || msg.includes('NOT_CONFIGURED') || msg.includes('STT_LOCAL_MODEL_NOT_DOWNLOADED')) {
+          const next: SttEngine = getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+          sttEngineRef.current = next;
+          setSttEngine(next);
+        } else {
+          setError(msg.replace('STT_REQUEST_FAILED:', '').trim() || 'Transcription failed.');
+        }
+      }
+    },
+    [dispatchUserMessage, dropCaptureLine, markPerf]
+  );
+
+  const startRecorderCapture = useCallback(async () => {
+    await interruptInFlightTurn();
+    capturePendingRef.current = true;
+    pendingStopRef.current = false;
+    const lineId = `user-${uuid()}`;
+    interimLineIdRef.current = lineId;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (recorderRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        capturePendingRef.current = false;
+        return;
+      }
+      const mimeType = pickRecordingMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      commitRef.current = true;
+      micStreamRef.current = stream;
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+      recorder.onerror = () => {
+        cleanupCapture();
+        dropCaptureLine(lineId);
+        setError('Microphone recording failed.');
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+        const commit = commitRef.current;
+        cleanupCapture();
+        if (!commit || blob.size === 0) {
+          dropCaptureLine(lineId);
+          return;
+        }
+        beginTurnPerf();
+        markPerf('mic_stop');
+        void transcribeAndSend(blob, lineId);
+      };
+
+      setTranscript((prev) => [...prev, { id: lineId, role: 'user', text: '…', final: false }]);
+      setError(null);
+      setStatus('listening');
+      recorder.start();
+      capturePendingRef.current = false;
+      if (pendingStopRef.current) {
+        pendingStopRef.current = false;
+        commitRef.current = true;
+        if (recorder.state !== 'inactive') {
+          try {
+            recorder.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+        return;
+      }
+
+      const handsFree = voiceModeRef.current;
+      const startedAt = Date.now();
+      let speechSeen = false;
+      let lastVoiceAt = startedAt;
+      let analyserNode: AnalyserNode | null = null;
+      let vadData: Uint8Array<ArrayBuffer> | null = null;
+      try {
+        const Ctor = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext) as typeof AudioContext;
+        const vadCtx = new Ctor();
+        analyserNode = vadCtx.createAnalyser();
+        analyserNode.fftSize = 512;
+        vadCtx.createMediaStreamSource(stream).connect(analyserNode);
+        vadCtxRef.current = vadCtx;
+        vadData = new Uint8Array(analyserNode.fftSize);
+      } catch {
+        /* no VAD */
+      }
+      const stopCapture = (commit: boolean) => {
+        commitRef.current = commit;
+        const r = recorderRef.current;
+        if (r && r.state !== 'inactive') {
+          try {
+            r.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+      };
+      vadIntervalRef.current = window.setInterval(() => {
+        const now = Date.now();
+        if (now - startedAt > MAX_CAPTURE_MS) {
+          stopCapture(speechSeen || !handsFree);
+          return;
+        }
+        if (!analyserNode || !vadData) return;
+        analyserNode.getByteTimeDomainData(vadData);
+        let sum = 0;
+        for (const sample of vadData) {
+          const n = (sample - 128) / 128;
+          sum += n * n;
+        }
+        const rms = Math.sqrt(sum / vadData.length);
+        if (rms > VAD_SPEECH_RMS) {
+          speechSeen = true;
+          lastVoiceAt = now;
+        }
+        if (!handsFree) return;
+        if (speechSeen && now - lastVoiceAt > VAD_SILENCE_MS) stopCapture(true);
+        else if (!speechSeen && now - startedAt > VAD_NO_SPEECH_MS) stopCapture(false);
+      }, VAD_INTERVAL_MS);
+    } catch (e) {
+      capturePendingRef.current = false;
+      pendingStopRef.current = false;
+      cleanupCapture();
+      dropCaptureLine(lineId);
+      if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
+        voiceModeRef.current = false;
+        setVoiceMode(false);
+        setSttBlocked(true);
+      } else {
+        setError(e instanceof Error ? e.message : 'Could not start microphone.');
+      }
+    }
+  }, [beginTurnPerf, cleanupCapture, dropCaptureLine, interruptInFlightTurn, markPerf, transcribeAndSend]);
 
   const startListening = useCallback(() => {
     if (!hermesInstalled || !conversationIdRef.current) return;
+    if (recognitionRef.current || recorderRef.current || capturePendingRef.current) return;
+
+    void ensureAudioContext().resume?.();
+    stopPlayback();
+
+    if (sttEngineRef.current === 'recorder') {
+      void startRecorderCapture();
+      return;
+    }
+
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
       setError('Speech recognition is not available in this runtime.');
       return;
     }
-    // User gesture: unlock AudioContext for later playback.
-    void ensureAudioContext().resume?.();
+    void (async () => {
+      capturePendingRef.current = true;
+      pendingStopRef.current = false;
+      await interruptInFlightTurn();
+      const rec = new Ctor();
+      rec.lang = navigator.language || 'en-US';
+      rec.continuous = false;
+      rec.interimResults = true;
+      const lineId = `user-${uuid()}`;
+      interimLineIdRef.current = lineId;
+      let finalText = '';
 
-    // Stop any in-flight reply playback when the user starts talking.
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (sourceRef.current) {
-      try {
-        sourceRef.current.stop();
-      } catch {
-        /* noop */
-      }
-      sourceRef.current = null;
-    }
-
-    const rec = new Ctor();
-    rec.lang = 'en-US';
-    rec.continuous = false;
-    rec.interimResults = true;
-    const lineId = `user-${uuid()}`;
-    interimLineIdRef.current = lineId;
-    let finalText = '';
-
-    rec.onresult = (event) => {
-      let interim = '';
-      let final = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const res = event.results[i];
-        const txt = res[0]?.transcript || '';
-        if (res.isFinal) final += txt;
-        else interim += txt;
-      }
-      if (final) finalText += final;
-      const shown = (finalText + interim).trim();
-      setTranscript((prev) => {
-        const idx = prev.findIndex((l) => l.id === lineId);
-        const line: TranscriptLine = { id: lineId, role: 'user', text: shown, final: false };
-        if (idx >= 0) {
-          const next = prev.slice();
-          next[idx] = line;
-          return next;
+      rec.onresult = (event) => {
+        setSttBlocked(false);
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          const txt = res[0]?.transcript || '';
+          if (res.isFinal) final += txt;
+          else interim += txt;
         }
-        return [...prev, line];
-      });
-    };
-    rec.onerror = (e) => {
-      const code = e?.error;
-      if (code && code !== 'no-speech' && code !== 'aborted') {
-        setError(`STT: ${code}`);
-        // These won't recover by re-listening (no STT backend reachable, or mic
-        // denied). In hands-free mode that would spin the re-arm loop, so drop
-        // out of voice mode and let the user re-engage deliberately.
+        if (final) finalText += final;
+        const shown = (finalText + interim).trim();
+        setTranscript((prev) => {
+          const idx = prev.findIndex((l) => l.id === lineId);
+          const line: TranscriptLine = { id: lineId, role: 'user', text: shown, final: false };
+          if (idx >= 0) {
+            const next = prev.slice();
+            next[idx] = line;
+            return next;
+          }
+          return [...prev, line];
+        });
+      };
+      rec.onerror = (e) => {
+        const code = e?.error;
+        if (!code || code === 'no-speech' || code === 'aborted') return;
         if (code === 'network' || code === 'not-allowed' || code === 'service-not-allowed') {
           voiceModeRef.current = false;
           setVoiceMode(false);
+          setSttBlocked(true);
+          return;
         }
-      }
-    };
-    rec.onend = () => {
-      recognitionRef.current = null;
-      const text = finalText.trim();
-      const convoId = conversationIdRef.current;
-      if (text && convoId) {
-        setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, text, final: true } : l)));
-        setStatus('thinking');
-        void ipcBridge.acpConversation.sendMessage.invoke({ input: text, msg_id: uuid(36), conversation_id: convoId });
-      } else {
-        // nothing captured — drop the empty interim line and idle out
-        setTranscript((prev) => prev.filter((l) => l.id !== lineId || l.text.trim()));
-        setStatus((s) => (s === 'listening' ? 'idle' : s));
-      }
-    };
+        setError(`STT: ${code}`);
+      };
+      rec.onend = () => {
+        recognitionRef.current = null;
+        const text = finalText.trim();
+        if (text) {
+          setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, text, final: true } : l)));
+          beginTurnPerf();
+          markPerf('mic_stop');
+          void dispatchUserMessage(text);
+        } else {
+          setTranscript((prev) => prev.filter((l) => l.id !== lineId || l.text.trim()));
+          setStatus((s) => (s === 'listening' ? 'idle' : s));
+        }
+      };
 
-    recognitionRef.current = rec;
-    setError(null);
-    setStatus('listening');
-    try {
-      rec.start();
-    } catch (e) {
-      setStatus('idle');
-      setError(e instanceof Error ? e.message : 'Could not start microphone.');
-    }
-  }, [hermesInstalled, ensureAudioContext]);
+      recognitionRef.current = rec;
+      setError(null);
+      setStatus('listening');
+      try {
+        rec.start();
+        capturePendingRef.current = false;
+        if (pendingStopRef.current) {
+          pendingStopRef.current = false;
+          try {
+            rec.stop();
+          } catch {
+            /* already stopped */
+          }
+        }
+      } catch (e) {
+        capturePendingRef.current = false;
+        pendingStopRef.current = false;
+        setStatus('idle');
+        setError(e instanceof Error ? e.message : 'Could not start microphone.');
+      }
+    })();
+  }, [beginTurnPerf, dispatchUserMessage, ensureAudioContext, hermesInstalled, interruptInFlightTurn, markPerf, startRecorderCapture, stopPlayback]);
 
   const stopListening = useCallback(() => {
+    if (capturePendingRef.current) {
+      pendingStopRef.current = true;
+      return;
+    }
+    const recorder = recorderRef.current;
+    if (recorder) {
+      commitRef.current = true;
+      if (recorder.state !== 'inactive') {
+        try {
+          recorder.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      return;
+    }
     const rec = recognitionRef.current;
     if (rec) {
       try {
@@ -521,52 +936,52 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     }
   }, []);
 
+  const cancelListening = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (recorder) {
+      commitRef.current = false;
+      if (recorder.state !== 'inactive') {
+        try {
+          recorder.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      return;
+    }
+    const rec = recognitionRef.current;
+    if (rec) {
+      try {
+        rec.abort();
+      } catch {
+        /* noop */
+      }
+    }
+  }, []);
+
   const stopSpeaking = useCallback(() => {
-    // Invalidate any pending synth fallback for the current turn.
     turnTokenRef.current += 1;
     if (fallbackTimerRef.current) {
       clearTimeout(fallbackTimerRef.current);
       fallbackTimerRef.current = null;
     }
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (sourceRef.current) {
-      try {
-        sourceRef.current.stop();
-      } catch {
-        /* already stopped */
-      }
-      sourceRef.current = null;
-    }
+    stopPlayback();
     setStatus((s) => (s === 'speaking' ? 'idle' : s));
-  }, []);
+  }, [stopPlayback]);
 
   const sendText = useCallback(
     (text: string): boolean => {
       const clean = text.trim();
       const convoId = conversationIdRef.current;
       if (!clean || !convoId || !hermesInstalled) return false;
-      // Stop any in-flight reply playback so a deck turn doesn't double-speak.
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.stop();
-        } catch {
-          /* noop */
-        }
-        sourceRef.current = null;
-      }
+      stopPlayback();
       setTranscript((prev) => [...prev, { id: `user-${uuid()}`, role: 'user', text: clean, final: true }]);
-      setStatus('thinking');
-      void ipcBridge.acpConversation.sendMessage.invoke({ input: clean, msg_id: uuid(36), conversation_id: convoId });
+      void dispatchUserMessage(clean);
       return true;
     },
-    [hermesInstalled]
+    [dispatchUserMessage, hermesInstalled, stopPlayback]
   );
 
-  // Hands-free voice mode: a single toggle that engages a continuous
-  // listen → Hermes → speak → listen conversation. Turning it on arms STT once;
-  // the re-arm effect below restarts STT every time the pipeline returns to idle
-  // (after a reply finishes speaking) until the user toggles it off.
   const toggleVoiceMode = useCallback(() => {
     const next = !voiceModeRef.current;
     voiceModeRef.current = next;
@@ -574,24 +989,19 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     if (next) {
       startListening();
     } else {
-      stopListening();
+      cancelListening();
       stopSpeaking();
     }
-  }, [startListening, stopListening, stopSpeaking]);
+  }, [cancelListening, startListening, stopSpeaking]);
 
-  // Re-arm STT whenever we settle back to idle while voice mode is engaged, so
-  // the loop keeps listening hands-free. The short delay lets the reply's audio
-  // tail finish and avoids re-capturing it. Guarded on no recognition already
-  // running so a stray idle tick can't stack two recognizers.
   useEffect(() => {
     if (!voiceMode || status !== 'idle') return;
     const t = setTimeout(() => {
-      if (voiceModeRef.current && !recognitionRef.current) startListening();
+      if (voiceModeRef.current && !recognitionRef.current && !recorderRef.current) startListening();
     }, 350);
     return () => clearTimeout(t);
   }, [voiceMode, status, startListening]);
 
-  // Teardown everything on unmount.
   useEffect(() => {
     return () => {
       voiceModeRef.current = false;
@@ -608,19 +1018,26 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
           /* noop */
         }
       }
-      if (sourceRef.current) {
+      commitRef.current = false;
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
         try {
-          sourceRef.current.stop();
+          recorder.stop();
         } catch {
           /* noop */
         }
       }
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      if (vadIntervalRef.current !== null) window.clearInterval(vadIntervalRef.current);
+      if (vadCtxRef.current) void vadCtxRef.current.close().catch(() => {});
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      stopPlayback();
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         void audioCtxRef.current.close();
       }
+      const id = conversationIdRef.current;
+      if (id) void removeConversation(id);
     };
-  }, []);
+  }, [removeConversation, stopPlayback]);
 
   return {
     status,
@@ -630,11 +1047,16 @@ export function useVoicePipeline(model: TProviderWithModel | null): VoicePipelin
     level,
     error,
     speechSupported,
+    sttEngine,
+    sttBlocked,
     voiceMode,
+    sessionMcpCount,
     toggleVoiceMode,
     startListening,
     stopListening,
+    cancelListening,
     stopSpeaking,
     sendText,
+    recheck,
   };
 }

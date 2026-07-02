@@ -197,6 +197,7 @@ docs/superpowers/
 resources/bundled-bun
 resources/bundled-aionrs
 resources/bundled-multica
+resources/bundled-whisper
 resources/hub
 apps/agent-manager/.agent-club/
 

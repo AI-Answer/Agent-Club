@@ -5,20 +5,11 @@
  */
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PeekabooDesktopControlPermissionGate } from '@/common/types/peekaboo';
-import { useControlBridge } from '../services/controlBridge';
+import type { ControlBridge } from '../services/controlBridge';
+import type { VoicePipeline } from '../services/voicePipeline';
 import { JARVIS_COLORS, withAlpha } from './theme';
-
-/**
- * "TOOLS / CONTROL" HUD element. Surfaces the computer-control wiring that lets
- * a spoken Jarvis command act on screen:
- *   - Hermes link state (is the ACP agent that owns the tools present)
- *   - MCP pre-wire state (are the user's tools + Peekaboo synced to Hermes)
- *   - Peekaboo permission gates (Accessibility + Screen Recording) with GRANT
- *
- * Mounted in the HUD; the underlying hook runs the pre-wire once on activation
- * and tears down its async work on unmount.
- */
 
 type Tone = 'ok' | 'pending' | 'off' | 'wait';
 
@@ -86,12 +77,7 @@ const gateValue = (gate: PeekabooDesktopControlPermissionGate | undefined): stri
   return 'UNKNOWN';
 };
 
-interface ControlStatusProps {
-  /** Whether Jarvis Mode is active; drives the underlying pre-wire. */
-  active?: boolean;
-}
-
-const EngageToggle: React.FC<{ engaged: boolean; disabled?: boolean; onClick: () => void }> = ({ engaged, disabled, onClick }) => {
+const EngageToggle: React.FC<{ engaged: boolean; disabled?: boolean; label: string; onClick: () => void }> = ({ engaged, disabled, label, onClick }) => {
   const accent = engaged ? JARVIS_COLORS.danger : JARVIS_COLORS.teal;
   return (
     <button
@@ -108,38 +94,36 @@ const EngageToggle: React.FC<{ engaged: boolean; disabled?: boolean; onClick: ()
         color: accent,
       }}
     >
-      {engaged ? 'DISENGAGE' : 'ENGAGE'}
+      {label.toUpperCase()}
     </button>
   );
 };
 
-const ControlStatus: React.FC<ControlStatusProps> = ({ active = true }) => {
-  const control = useControlBridge(active);
-  const { hermesInstalled, linkState, syncedCount, peekabooWired, engaged, engaging, setEngaged, permissions, error, requesting } = control;
+interface ControlStatusProps {
+  control: ControlBridge;
+  voice: VoicePipeline;
+}
+
+const ControlStatus: React.FC<ControlStatusProps> = ({ control, voice }) => {
+  const { t } = useTranslation();
+  const { engaged, setEngaged, permissions, error, requesting, requestPermissions, openPermissionSettings } = control;
+  const { hermesInstalled, status, sessionMcpCount } = voice;
 
   const hermes = useMemo<{ tone: Tone; value: string }>(() => {
-    if (linkState === 'checking') return { tone: 'wait', value: 'PROBING' };
+    if (status === 'checking') return { tone: 'wait', value: 'PROBING' };
     if (!hermesInstalled) return { tone: 'off', value: 'OFFLINE' };
     return { tone: 'ok', value: 'LINKED' };
-  }, [linkState, hermesInstalled]);
+  }, [status, hermesInstalled]);
 
   const wire = useMemo<{ tone: Tone; value: string; pulse: boolean }>(() => {
-    switch (linkState) {
-      case 'wiring':
-        return { tone: 'pending', value: 'SYNCING', pulse: true };
-      case 'ready':
-        return { tone: 'ok', value: `${syncedCount} SERVERS`, pulse: false };
-      case 'error':
-        return { tone: 'off', value: 'FAULT', pulse: false };
-      case 'offline':
-        return { tone: 'off', value: 'STANDBY', pulse: false };
-      default:
-        return { tone: 'wait', value: '—', pulse: false };
-    }
-  }, [linkState, syncedCount]);
+    if (!hermesInstalled) return { tone: 'off', value: 'STANDBY', pulse: false };
+    if (status === 'checking') return { tone: 'pending', value: 'SYNCING', pulse: true };
+    return { tone: 'ok', value: `${sessionMcpCount} IN SESSION`, pulse: false };
+  }, [hermesInstalled, sessionMcpCount, status]);
 
   const acc = permissions?.accessibility;
   const scr = permissions?.screenRecording;
+  const sessionBusy = status === 'checking';
 
   return (
     <div className='flex flex-col gap-9px rounded-12px border border-[#00e5ff]/25 bg-[#00e5ff]/4 px-14px py-12px'>
@@ -147,39 +131,40 @@ const ControlStatus: React.FC<ControlStatusProps> = ({ active = true }) => {
         <span className='font-mono text-10px font-600 tracking-[0.24em] text-[#7fdfff]'>TOOLS // CONTROL</span>
         <span
           className='font-mono text-8px font-600 tracking-[0.18em]'
-          style={{ color: engaged && peekabooWired ? JARVIS_COLORS.danger : withAlpha('#7fdfff', 0.5) }}
+          style={{ color: engaged ? JARVIS_COLORS.danger : withAlpha('#7fdfff', 0.5) }}
         >
-          {engaged && peekabooWired ? 'COMPUTER-USE ARMED' : 'COMPUTER-USE DISARMED'}
+          {engaged ? 'COMPUTER-USE ARMED' : 'COMPUTER-USE DISARMED'}
         </span>
       </div>
 
       <div className='flex flex-col gap-7px rounded-8px border border-[#00e5ff]/15 bg-[#03060f]/60 px-10px py-9px'>
         <Row label='HERMES' value={hermes.value} tone={hermes.tone} pulse={hermes.tone === 'wait'} />
-        <Row label='MCP PRE-WIRE' value={wire.value} tone={wire.tone} pulse={wire.pulse} />
+        <Row label='MCP SESSION' value={wire.value} tone={wire.tone} pulse={wire.pulse} />
 
         <Row label='ACCESSIBILITY' value={gateValue(acc)} tone={gateTone(acc)}>
           {acc && acc.supported && acc.granted !== true ? (
-            <GrantButton label='GRANT' disabled={requesting} onClick={control.requestPermissions} />
+            <GrantButton label={t('jarvis.control.grant').toUpperCase()} disabled={requesting} onClick={requestPermissions} />
           ) : null}
         </Row>
 
         <Row label='SCREEN REC' value={gateValue(scr)} tone={gateTone(scr)}>
           {scr && scr.supported && scr.granted !== true ? (
-            <GrantButton label='GRANT' disabled={requesting} onClick={() => control.openPermissionSettings('screen_recording')} />
+            <GrantButton label={t('jarvis.control.grant').toUpperCase()} disabled={requesting} onClick={() => openPermissionSettings('screen_recording')} />
           ) : null}
         </Row>
 
-        <Row label='COMPUTER CONTROL' value={engaging ? 'WORKING' : engaged ? 'ARMED' : 'DISARMED'} tone={engaged ? 'off' : 'wait'} pulse={engaging}>
-          <EngageToggle engaged={engaged} disabled={engaging || linkState === 'offline' || !hermesInstalled} onClick={() => setEngaged(!engaged)} />
+        <Row label='COMPUTER CONTROL' value={sessionBusy ? 'WORKING' : engaged ? 'ARMED' : 'DISARMED'} tone={engaged ? 'off' : 'wait'} pulse={sessionBusy}>
+          <EngageToggle
+            engaged={engaged}
+            disabled={sessionBusy || !hermesInstalled}
+            label={engaged ? t('jarvis.control.disengage') : t('jarvis.control.engage')}
+            onClick={() => setEngaged(!engaged)}
+          />
         </Row>
       </div>
 
       <p className='font-mono text-8px leading-relaxed tracking-[0.06em] text-[#7fdfff]/45'>
-        {!hermesInstalled
-          ? 'install Hermes to enable spoken computer control'
-          : engaged
-            ? 'ARMED — spoken requests can drive the Mac via Peekaboo; disengage to disarm'
-            : 'engage computer control to let spoken requests drive the Mac via Peekaboo'}
+        {!hermesInstalled ? t('jarvis.control.installHint') : engaged ? t('jarvis.control.armedHint') : t('jarvis.control.disarmedHint')}
       </p>
       {error ? <p className='font-mono text-8px tracking-[0.06em] text-[#ff8da0]/70'>{error}</p> : null}
     </div>

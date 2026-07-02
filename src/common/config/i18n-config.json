@@ -23,6 +23,7 @@
     "agent",
     "team",
     "pet",
-    "agentManager"
+    "agentManager",
+    "jarvis"
   ]
 }

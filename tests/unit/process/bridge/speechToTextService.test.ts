@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const execFileMock = vi.hoisted(() => vi.fn());
+
+vi.mock('node:child_process', () => ({
+  execFile: execFileMock,
+}));
+
 vi.mock('@process/utils/initStorage', () => ({
   ProcessConfig: {
     get: vi.fn(),
@@ -12,9 +18,21 @@ vi.mock('@process/utils/mainLogger', () => ({
   mainWarn: vi.fn(),
 }));
 
+vi.mock('@process/agent/whisper/binaryResolver', () => ({
+  resolveWhisperCli: vi.fn(),
+}));
+
+vi.mock('@process/services/whisper/WhisperModelStore', () => ({
+  getWhisperModelPath: vi.fn(),
+  isWhisperModelDownloaded: vi.fn(),
+}));
+
 import { ProcessConfig } from '@process/utils/initStorage';
 import { SpeechToTextService } from '@process/bridge/services/SpeechToTextService';
+import { resolveWhisperCli } from '@process/agent/whisper/binaryResolver';
+import { getWhisperModelPath, isWhisperModelDownloaded } from '@process/services/whisper/WhisperModelStore';
 import { mainError, mainLog, mainWarn } from '@process/utils/mainLogger';
+import { writeFile } from 'node:fs/promises';
 
 describe('SpeechToTextService', () => {
   beforeEach(() => {
@@ -138,6 +156,67 @@ describe('SpeechToTextService', () => {
     );
   });
 
+  it('sends ElevenLabs transcription requests with multipart form data', async () => {
+    vi.mocked(ProcessConfig.get).mockResolvedValue({
+      enabled: true,
+      provider: 'elevenlabs',
+      elevenlabs: {
+        apiKey: 'elevenlabs-key',
+        baseUrl: 'https://api.elevenlabs.io/v1',
+        model: 'scribe_v1',
+        language: 'en',
+      },
+    });
+
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            language_code: 'en',
+            text: ' elevenlabs text ',
+          })
+        )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await SpeechToTextService.transcribe({
+      audioBuffer: new Uint8Array([4, 5, 6]),
+      fileName: 'sample.webm',
+      languageHint: 'en-US',
+      mimeType: 'audio/webm',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.elevenlabs.io/v1/speech-to-text',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'xi-api-key': 'elevenlabs-key',
+        }),
+      })
+    );
+
+    const [, request] = fetchMock.mock.calls[0] as [string, { body: FormData }];
+    expect(request.body).toBeInstanceOf(FormData);
+    expect(request.body.get('model_id')).toBe('scribe_v1');
+    expect(request.body.get('tag_audio_events')).toBe('false');
+    expect(request.body.get('language_code')).toBe('en');
+    expect(result).toEqual({
+      language: 'en',
+      model: 'scribe_v1',
+      provider: 'elevenlabs',
+      text: 'elevenlabs text',
+    });
+    expect(mainLog).toHaveBeenCalledWith(
+      '[SpeechToText]',
+      'Resolved speech-to-text provider',
+      expect.objectContaining({
+        provider: 'elevenlabs',
+        model: 'scribe_v1',
+      })
+    );
+  });
+
   it('sends Deepgram transcription requests with query options', async () => {
     vi.mocked(ProcessConfig.get).mockResolvedValue({
       enabled: true,
@@ -193,5 +272,48 @@ describe('SpeechToTextService', () => {
         provider: 'deepgram',
       })
     );
+  });
+
+  it('transcribes locally via whisper-cli when local provider is configured', async () => {
+    vi.mocked(ProcessConfig.get).mockResolvedValue({
+      enabled: true,
+      provider: 'local',
+      local: {
+        modelId: 'base',
+        language: 'en',
+      },
+    });
+    vi.mocked(resolveWhisperCli).mockReturnValue({
+      binaryPath: '/tmp/whisper-cli',
+      cwd: '/tmp',
+    });
+    vi.mocked(isWhisperModelDownloaded).mockReturnValue(true);
+    vi.mocked(getWhisperModelPath).mockReturnValue('/tmp/models/ggml-base.bin');
+
+    execFileMock.mockImplementation((_binaryPath, args, _options, callback) => {
+      const cmdArgs = args as string[];
+      const outFlagIndex = cmdArgs.indexOf('-of');
+      const outPrefix = outFlagIndex >= 0 ? cmdArgs[outFlagIndex + 1] : '/tmp/output';
+      void writeFile(`${outPrefix}.txt`, ' hello local ').then(() => {
+        callback?.(null, '', '');
+      });
+    });
+
+    const result = await SpeechToTextService.transcribe({
+      audioBuffer: new Uint8Array([1, 2, 3, 4]),
+      fileName: 'speech-input.wav',
+      mimeType: 'audio/wav',
+      languageHint: 'en-US',
+    });
+
+    expect(result).toEqual({
+      language: 'en',
+      model: 'base',
+      provider: 'local',
+      text: 'hello local',
+    });
+    expect(resolveWhisperCli).toHaveBeenCalled();
+    expect(isWhisperModelDownloaded).toHaveBeenCalledWith('base');
+    expect(execFileMock).toHaveBeenCalled();
   });
 });

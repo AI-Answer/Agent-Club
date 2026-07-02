@@ -119,6 +119,8 @@ extraResources:
   # Multica CLI binary built from the vendored Agent-Manager source
   - from: resources/bundled-multica
     to: bundled-multica
+  - from: resources/bundled-whisper
+    to: bundled-whisper
   - from: resources/hub
     to: hub
   - from: apps/agent-manager

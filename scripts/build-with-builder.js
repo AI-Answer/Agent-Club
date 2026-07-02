@@ -16,6 +16,7 @@ const path = require('path');
 const crypto = require('crypto');
 const prepareBundledBun = require('./prepareBundledBun');
 const prepareAionrs = require('./prepareAionrs');
+const prepareWhisperCli = require('./prepareWhisperCli');
 const { prepareMulticaCli } = require('./prepareMulticaCli');
 
 // DMG retry logic for macOS: detects DMG creation failures by checking artifacts
@@ -459,6 +460,7 @@ try {
   execSync('node scripts/prepareHubResources.js', { stdio: 'inherit', env: process.env });
   // 5b. Prepare aionrs binary (Rust CLI for agent integration)
   prepareAionrs();
+  prepareWhisperCli();
   // 5c. Prepare Multica CLI binary from vendored Agent-Manager source
   prepareMulticaCli({ targetArch });
 

@@ -24,6 +24,7 @@ import agent from './agent.json';
 import team from './team.json';
 import pet from './pet.json';
 import agentManager from './agentManager.json';
+import jarvis from './jarvis.json';
 
 export default {
   common,
@@ -47,4 +48,5 @@ export default {
   team,
   pet,
   agentManager,
+  jarvis,
 };

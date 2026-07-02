@@ -101,6 +101,17 @@ Teams let multiple agents work in the same space with shared files and per-agent
 
 ![Agent Club team workspace](docs/assets/readme/agent-club-teams.jpg)
 
+## Jarvis Mode (Voice)
+
+Jarvis Mode is a full-screen voice console for the [Hermes agent](https://hermes-agent.nousresearch.com). Talk to your agent hands-free, watch replies stream into a live transcript, and optionally let spoken requests drive your Mac through the built-in computer-control toggle (off by default, explicit opt-in).
+
+To use it:
+
+1. Install the Hermes CLI (Nous Research) so the `hermes` command is on your PATH. Agent Club detects it automatically; the in-app setup guide walks you through it.
+2. Optional, for spoken replies in Hermes's own voice: run `hermes tools enable tts` once. Without it, Jarvis falls back to your system voice.
+3. For voice **input**, open **Settings → Capabilities → MCP & Voice → Speech to Text** and choose **Local Whisper (offline)** — free, private, works after a one-time model download — or add a cloud key (OpenAI, Deepgram, ElevenLabs).
+4. Open **Jarvis Mode** from the sidebar. Hold Space to talk, press Esc to interrupt, or just type — the text composer always works, even where speech recognition is unavailable.
+
 ## Install Agent Club
 
 The easiest way to install Agent Club on a Mac is from the latest GitHub release:

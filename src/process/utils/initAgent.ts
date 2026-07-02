@@ -263,6 +263,8 @@ export const createAcpAgent = async (options: ICreateConversationParams): Promis
       currentModelId: extra.currentModelId,
       // Explicit marker for temporary health-check conversations
       isHealthCheck: extra.isHealthCheck,
+      // Jarvis session-scoped MCP injection (not written to Hermes config files)
+      additionalMcpServers: extra.additionalMcpServers,
       // Team ownership — used by sidebar filter to hide team-owned conversations
       ...(extra.teamId ? { teamId: extra.teamId } : {}),
     },

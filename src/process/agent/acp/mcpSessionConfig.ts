@@ -45,7 +45,8 @@ function shouldInjectBuiltinServer(server: IMcpServer): boolean {
   return server.status === undefined || server.status === 'connected';
 }
 
-export function buildBuiltinAcpSessionMcpServers(
+/** Map enabled MCP server entries to ACP session/new transport payloads. */
+export function mapMcpServersForSession(
   mcpServers: IMcpServer[] | undefined | null,
   capabilities: AcpMcpCapabilities
 ): AcpSessionMcpServer[] {
@@ -54,7 +55,6 @@ export function buildBuiltinAcpSessionMcpServers(
   }
 
   return mcpServers
-    .filter(shouldInjectBuiltinServer)
     .map((server): AcpSessionMcpServer | null => {
       switch (server.transport.type) {
         case 'stdio':
@@ -88,6 +88,20 @@ export function buildBuiltinAcpSessionMcpServers(
       }
     })
     .filter((server): server is AcpSessionMcpServer => server !== null);
+}
+
+export function buildBuiltinAcpSessionMcpServers(
+  mcpServers: IMcpServer[] | undefined | null,
+  capabilities: AcpMcpCapabilities
+): AcpSessionMcpServer[] {
+  if (!Array.isArray(mcpServers) || mcpServers.length === 0) {
+    return [];
+  }
+
+  return mapMcpServersForSession(
+    mcpServers.filter(shouldInjectBuiltinServer),
+    capabilities
+  );
 }
 
 /** Config shape passed from TeamSessionService to AgentManagers */

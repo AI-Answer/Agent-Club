@@ -73,7 +73,8 @@
     "build:renderer:web": "bunx vite build --config vite.renderer.config.ts",
     "build:server": "node scripts/build-server.mjs",
     "setup:multica-cli": "node scripts/setup-multica-cli.mjs",
-    "prepare:multica-cli": "node scripts/prepareMulticaCli.js"
+    "prepare:multica-cli": "node scripts/prepareMulticaCli.js",
+    "prepare:whisper-cli": "node scripts/prepareWhisperCli.js"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.18.2",

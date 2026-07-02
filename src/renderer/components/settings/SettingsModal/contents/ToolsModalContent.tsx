@@ -11,6 +11,8 @@ import {
   BUILTIN_IMAGE_GEN_ID,
 } from '@/common/config/storage';
 import type { SpeechToTextConfig, SpeechToTextProvider } from '@/common/types/speech';
+import { DEFAULT_WHISPER_MODEL_ID, WHISPER_MODEL_IDS, type WhisperModelId } from '@/common/types/whisperModels';
+import { ipcBridge } from '@/common';
 import { acpConversation } from '@/common/adapter/ipcBridge';
 import { Divider, Form, Tooltip, Message, Button, Dropdown, Menu, Modal, Switch, Input } from '@arco-design/web-react';
 import { Help, Down, Plus } from '@icon-park/react';
@@ -58,6 +60,16 @@ const DEFAULT_SPEECH_TO_TEXT_CONFIG: SpeechToTextConfig = {
     punctuate: true,
     smartFormat: true,
   },
+  elevenlabs: {
+    apiKey: '',
+    baseUrl: '',
+    language: '',
+    model: 'scribe_v1',
+  },
+  local: {
+    modelId: DEFAULT_WHISPER_MODEL_ID,
+    language: '',
+  },
 };
 
 const normalizeSpeechToTextConfig = (config?: SpeechToTextConfig): SpeechToTextConfig => ({
@@ -71,6 +83,14 @@ const normalizeSpeechToTextConfig = (config?: SpeechToTextConfig): SpeechToTextC
     ...DEFAULT_SPEECH_TO_TEXT_CONFIG.deepgram,
     ...config?.deepgram,
   },
+  elevenlabs: {
+    ...DEFAULT_SPEECH_TO_TEXT_CONFIG.elevenlabs,
+    ...config?.elevenlabs,
+  },
+  local: {
+    ...DEFAULT_SPEECH_TO_TEXT_CONFIG.local,
+    ...config?.local,
+  },
 });
 
 const SpeechToTextSettingsSection: React.FC<{
@@ -78,6 +98,44 @@ const SpeechToTextSettingsSection: React.FC<{
   onChange: (updater: (current: SpeechToTextConfig) => SpeechToTextConfig) => void;
 }> = ({ config, onChange }) => {
   const { t } = useTranslation();
+  const [localDownloading, setLocalDownloading] = useState(false);
+  const [localDownloadPercent, setLocalDownloadPercent] = useState<number | null>(null);
+  const [localModelDownloaded, setLocalModelDownloaded] = useState(false);
+
+  const refreshLocalModelStatus = useCallback(async () => {
+    try {
+      const ready = await ipcBridge.speechToText.isLocalReady.invoke({ modelId: config.local?.modelId });
+      setLocalModelDownloaded(ready.modelDownloaded);
+    } catch {
+      setLocalModelDownloaded(false);
+    }
+  }, [config.local?.modelId]);
+
+  useEffect(() => {
+    if (config.provider !== 'local') return;
+    void refreshLocalModelStatus();
+  }, [config.provider, refreshLocalModelStatus]);
+
+  useEffect(() => {
+    if (config.provider !== 'local') return;
+    const remove = ipcBridge.speechToText.localModelDownloadProgress.on((event) => {
+      if (event.modelId !== config.local?.modelId) return;
+      if (event.status === 'downloading' || event.status === 'starting') {
+        setLocalDownloading(true);
+        setLocalDownloadPercent(typeof event.percent === 'number' ? Math.round(event.percent) : null);
+      } else {
+        setLocalDownloading(false);
+        setLocalDownloadPercent(event.status === 'completed' ? 100 : null);
+        if (event.status === 'completed') {
+          void refreshLocalModelStatus();
+        }
+        if (event.status === 'error') {
+          Message.error(event.error || t('settings.speechToTextLocalDownloadFailed'));
+        }
+      }
+    });
+    return remove;
+  }, [config.local?.modelId, config.provider, refreshLocalModelStatus, t]);
   const renderSpeechToTextFieldLabel = useCallback(
     (labelKey: string, requirement: 'required' | 'optional') => (
       <span className='inline-flex items-center gap-6px'>
@@ -126,6 +184,67 @@ const SpeechToTextSettingsSection: React.FC<{
     [onChange]
   );
 
+  const handleElevenLabsChange = useCallback(
+    (field: keyof NonNullable<SpeechToTextConfig['elevenlabs']>, value: string) => {
+      onChange((current) => ({
+        ...current,
+        elevenlabs: {
+          ...current.elevenlabs,
+          [field]: value,
+        },
+      }));
+    },
+    [onChange]
+  );
+
+  const handleLocalChange = useCallback(
+    (field: keyof NonNullable<SpeechToTextConfig['local']>, value: string) => {
+      onChange((current) => ({
+        ...current,
+        local: {
+          ...current.local,
+          [field]: value,
+        },
+      }));
+    },
+    [onChange]
+  );
+
+  const handleDownloadLocalModel = useCallback(async () => {
+    const modelId = config.local?.modelId || DEFAULT_WHISPER_MODEL_ID;
+    setLocalDownloading(true);
+    setLocalDownloadPercent(0);
+    try {
+      const result = await ipcBridge.speechToText.downloadLocalModel.invoke({ modelId });
+      if (!result.success) {
+        Message.error(result.msg || t('settings.speechToTextLocalDownloadFailed'));
+      } else {
+        Message.success(t('settings.speechToTextLocalDownloadComplete'));
+        await refreshLocalModelStatus();
+      }
+    } catch {
+      Message.error(t('settings.speechToTextLocalDownloadFailed'));
+    } finally {
+      setLocalDownloading(false);
+    }
+  }, [config.local?.modelId, refreshLocalModelStatus, t]);
+
+  const handleDeleteLocalModel = useCallback(async () => {
+    const modelId = config.local?.modelId || DEFAULT_WHISPER_MODEL_ID;
+    try {
+      const result = await ipcBridge.speechToText.deleteLocalModel.invoke({ modelId });
+      if (!result.success) {
+        Message.error(result.msg || t('settings.speechToTextLocalDeleteFailed'));
+        return;
+      }
+      setLocalModelDownloaded(false);
+      setLocalDownloadPercent(null);
+      Message.success(t('settings.speechToTextLocalDeleteComplete'));
+    } catch {
+      Message.error(t('settings.speechToTextLocalDeleteFailed'));
+    }
+  }, [config.local?.modelId, t]);
+
   return (
     <div className='px-[12px] md:px-[32px] py-[24px] bg-2 rd-12px md:rd-16px border border-border-2'>
       <div className='flex items-center justify-between gap-12px mb-8px'>
@@ -151,10 +270,12 @@ const SpeechToTextSettingsSection: React.FC<{
           <AionSelect value={config.provider} onChange={handleProviderChange}>
             <AionSelect.Option value='openai'>{t('settings.speechToTextProviderOpenAI')}</AionSelect.Option>
             <AionSelect.Option value='deepgram'>{t('settings.speechToTextProviderDeepgram')}</AionSelect.Option>
+            <AionSelect.Option value='elevenlabs'>{t('settings.speechToTextProviderElevenLabs')}</AionSelect.Option>
+            <AionSelect.Option value='local'>{t('settings.speechToTextProviderLocal')}</AionSelect.Option>
           </AionSelect>
         </Form.Item>
 
-        {config.provider === 'openai' ? (
+        {config.provider === 'openai' && (
           <>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextApiKey', 'required')}>
               <Input.Password
@@ -173,7 +294,32 @@ const SpeechToTextSettingsSection: React.FC<{
               <Input value={config.openai?.language} onChange={(value) => handleOpenAIChange('language', value)} />
             </Form.Item>
           </>
-        ) : (
+        )}
+        {config.provider === 'elevenlabs' && (
+          <>
+            <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextApiKey', 'required')}>
+              <Input.Password
+                value={config.elevenlabs?.apiKey}
+                visibilityToggle
+                onChange={(value) => handleElevenLabsChange('apiKey', value)}
+              />
+            </Form.Item>
+            <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextBaseUrl', 'optional')}>
+              <Input value={config.elevenlabs?.baseUrl} onChange={(value) => handleElevenLabsChange('baseUrl', value)} />
+            </Form.Item>
+            <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextModel', 'optional')}>
+              <Input
+                value={config.elevenlabs?.model}
+                placeholder='scribe_v1'
+                onChange={(value) => handleElevenLabsChange('model', value)}
+              />
+            </Form.Item>
+            <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextLanguage', 'optional')}>
+              <Input value={config.elevenlabs?.language} onChange={(value) => handleElevenLabsChange('language', value)} />
+            </Form.Item>
+          </>
+        )}
+        {config.provider === 'deepgram' && (
           <>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextApiKey', 'required')}>
               <Input.Password
@@ -209,6 +355,48 @@ const SpeechToTextSettingsSection: React.FC<{
                 onChange={(checked) => handleDeepgramChange('smartFormat', checked)}
               />
             </Form.Item>
+          </>
+        )}
+        {config.provider === 'local' && (
+          <>
+            <p className='text-13px text-t-secondary'>{t('settings.speechToTextLocalDescription')}</p>
+            <Form.Item label={t('settings.speechToTextLocalModel')}>
+              <AionSelect
+                value={config.local?.modelId || DEFAULT_WHISPER_MODEL_ID}
+                onChange={(value) => handleLocalChange('modelId', value as WhisperModelId)}
+              >
+                {WHISPER_MODEL_IDS.map((modelId) => (
+                  <AionSelect.Option key={modelId} value={modelId}>
+                    {t(`settings.speechToTextLocalModel_${modelId.replace('.', '_')}`)}
+                  </AionSelect.Option>
+                ))}
+              </AionSelect>
+            </Form.Item>
+            <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextLanguage', 'optional')}>
+              <Input
+                value={config.local?.language}
+                placeholder='auto'
+                onChange={(value) => handleLocalChange('language', value)}
+              />
+            </Form.Item>
+            <div className='flex flex-wrap items-center gap-10px'>
+              <Button type='primary' loading={localDownloading} onClick={() => void handleDownloadLocalModel()}>
+                {localModelDownloaded
+                  ? t('settings.speechToTextLocalRedownload')
+                  : t('settings.speechToTextLocalDownload')}
+              </Button>
+              {localModelDownloaded && (
+                <Button status='danger' onClick={() => void handleDeleteLocalModel()}>
+                  {t('settings.speechToTextLocalDelete')}
+                </Button>
+              )}
+            </div>
+            <p className='text-12px text-t-tertiary'>
+              {localModelDownloaded
+                ? t('settings.speechToTextLocalReady')
+                : t('settings.speechToTextLocalNotReady')}
+              {localDownloadPercent !== null ? ` (${localDownloadPercent}%)` : ''}
+            </p>
           </>
         )}
       </Form>

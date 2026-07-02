@@ -1,0 +1,73 @@
+{
+  "title": "Jarvis Mode",
+  "exit": "Exit",
+  "status": {
+    "checking": "Initializing",
+    "offline": "Offline",
+    "idle": "Standby",
+    "listening": "Listening",
+    "thinking": "Processing",
+    "speaking": "Speaking",
+    "error": "Fault"
+  },
+  "topBar": {
+    "core": "core",
+    "linkOnline": "link · online",
+    "linkOffline": "link · offline"
+  },
+  "console": {
+    "title": "Voice Link",
+    "emptyIdle": "Use the mic or type below to start.",
+    "emptyListening": "Listening…",
+    "emptyVoiceMode": "Hands-free — speak whenever you're ready.",
+    "inputPlaceholder": "Or type a message…",
+    "send": "Send",
+    "micIdle": "Tap hands-free · hold to talk",
+    "micHandsFreeActive": "Hands-free on · tap to stop",
+    "micRelease": "Release to send",
+    "micHoldInterrupt": "Hold to talk over Jarvis",
+    "micUnavailable": "Microphone unavailable",
+    "hintIdle": "Tap the mic for continuous listening, hold it (or Space) for one message. Esc stops playback.",
+    "hintHandsFree": "Just speak — Jarvis listens between replies. Tap the mic or Esc to stop.",
+    "hintPtt": "Release the mic or Space to send. Esc cancels.",
+    "hintBusy": "Hold the mic or Space to interrupt with a new message. Esc silences Jarvis.",
+    "sttBlocked": "Speech recognition is unavailable on this system, so the microphone is disabled. You can still type below.",
+    "speechUnsupported": "Speech recognition is not available in this runtime — use the text field instead.",
+    "enableSttHint": "For reliable voice input, enable local Whisper (free, offline) or add a cloud speech-to-text key in settings — typing always works.",
+    "openVoiceSettings": "Voice input settings",
+    "you": "You",
+    "agent": "Jarvis"
+  },
+  "quick": {
+    "title": "Quick actions",
+    "capabilitiesLabel": "Capabilities",
+    "capabilitiesPrompt": "Introduce yourself briefly: what can you do for me from this app?",
+    "briefLabel": "Daily brief",
+    "briefPrompt": "Give me a concise brief: anything important I should know or handle right now?",
+    "planLabel": "Plan my day",
+    "planPrompt": "Help me plan my day. Ask what is on my plate, then propose a short prioritized plan."
+  },
+  "setup": {
+    "title": "Set up Jarvis Mode",
+    "intro": "Jarvis Mode is a hands-free voice console for the Hermes agent. It needs the Hermes CLI installed on this machine.",
+    "step1Title": "Install the Hermes CLI",
+    "step1Body": "Install Hermes by Nous Research and make sure the command below is available in your terminal. Agent Club detects it automatically.",
+    "step1Docs": "Open the Hermes documentation",
+    "step2Title": "Enable Hermes voice (optional)",
+    "step2Body": "For spoken replies in Hermes's own voice, run this once in your terminal. Without it, Jarvis falls back to your system voice.",
+    "step3Title": "Enable voice input (optional)",
+    "step3Body": "Talking to Jarvis uses the app's Speech to Text tool: choose Local Whisper (free, offline) or add a cloud key under Settings → Capabilities → MCP & Voice. The system asks for microphone permission on first use — and typing always works without any of this.",
+    "rescan": "Re-scan for Hermes",
+    "rescanning": "Scanning…",
+    "openAgentSettings": "Open agent settings",
+    "stillOffline": "Hermes was not detected yet. Install it, then re-scan."
+  },
+  "control": {
+    "installHint": "Install Hermes to enable spoken computer control.",
+    "armedHint": "Armed — spoken requests can drive this Mac. Disengage to disarm.",
+    "disarmedHint": "Engage computer control to let spoken requests drive this Mac.",
+    "engage": "Engage",
+    "disengage": "Disengage",
+    "grant": "Grant"
+  }
+}

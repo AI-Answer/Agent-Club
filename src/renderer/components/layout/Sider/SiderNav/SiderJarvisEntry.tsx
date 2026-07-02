@@ -2,6 +2,7 @@ import React from 'react';
 import { Tooltip } from '@arco-design/web-react';
 import { Voice } from '@icon-park/react';
 import classNames from 'classnames';
+import { useTranslation } from 'react-i18next';
 import type { SiderTooltipProps } from '@renderer/utils/ui/siderTooltip';
 
 interface SiderJarvisEntryProps {
@@ -12,8 +13,6 @@ interface SiderJarvisEntryProps {
   onClick: () => void;
 }
 
-const label = 'Jarvis Mode';
-
 const SiderJarvisEntry: React.FC<SiderJarvisEntryProps> = ({
   isMobile,
   isActive,
@@ -21,6 +20,8 @@ const SiderJarvisEntry: React.FC<SiderJarvisEntryProps> = ({
   siderTooltipProps,
   onClick,
 }) => {
+  const { t } = useTranslation();
+  const label = t('jarvis.title');
   if (collapsed) {
     return (
       <Tooltip {...siderTooltipProps} content={label} position='right'>

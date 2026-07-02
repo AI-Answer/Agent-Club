@@ -37,7 +37,7 @@ import { AcpConnection } from './AcpConnection';
 import { AcpApprovalStore, createAcpApprovalKey } from './ApprovalStore';
 import { CLAUDE_YOLO_SESSION_MODE, CODEBUDDY_YOLO_SESSION_MODE, QWEN_YOLO_SESSION_MODE } from './constants';
 import { buildAcpModelInfo } from './modelInfo';
-import { buildBuiltinAcpSessionMcpServers, buildTeamMcpServer, type AcpSessionMcpServer } from './mcpSessionConfig';
+import { buildBuiltinAcpSessionMcpServers, buildTeamMcpServer, mapMcpServersForSession, type AcpSessionMcpServer } from './mcpSessionConfig';
 import { getClaudeModelSlot } from './utils';
 import { getTeamGuideStdioConfig } from '@process/team/mcp/guide/teamGuideSingleton';
 import { shouldInjectTeamGuideMcp } from '@process/team/prompts/teamGuideCapability.ts';
@@ -100,6 +100,8 @@ export interface AcpAgentConfig {
     teamMcpStdioConfig?: { name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> };
     /** Pending config option selections from Guid page (applied after session creation) */
     pendingConfigOptions?: Record<string, string>;
+    /** Jarvis-only: extra MCP servers injected at ACP session creation. */
+    additionalMcpServers?: IMcpServer[];
   };
   onStreamEvent: (data: IResponseMessage) => void;
   onSignalEvent?: (data: IResponseMessage) => void; // 新增：仅发送信号，不更新UI
@@ -136,6 +138,8 @@ export class AcpAgent {
     teamMcpStdioConfig?: { name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> };
     /** Pending config option selections from Guid page (applied after session creation) */
     pendingConfigOptions?: Record<string, string>;
+    /** Jarvis-only: extra MCP servers injected at ACP session creation. */
+    additionalMcpServers?: IMcpServer[];
   };
   private connection: AcpConnection;
   private adapter: AcpAdapter;
@@ -1611,6 +1615,20 @@ export class AcpAgent {
         const mcpCaps = this.connection.getAgentCapabilities()?.mcpCapabilities;
         if (mcpCaps) {
           servers.push(...buildBuiltinAcpSessionMcpServers(mcpConfig as IMcpServer[], mcpCaps));
+        }
+      }
+
+      const extraServers = this.extra.additionalMcpServers?.filter((s) => s && s.enabled !== false) ?? [];
+      if (extraServers.length > 0) {
+        const mcpCaps = this.connection.getAgentCapabilities()?.mcpCapabilities;
+        if (mcpCaps) {
+          const existing = new Set(servers.map((s) => s.name.toLowerCase()));
+          for (const server of mapMcpServersForSession(extraServers, mcpCaps)) {
+            if (!existing.has(server.name.toLowerCase())) {
+              servers.push(server);
+              existing.add(server.name.toLowerCase());
+            }
+          }
         }
       }
 

@@ -141,9 +141,11 @@ const mapSpeechInputError = (error: unknown): SpeechInputErrorCode => {
   const message = error instanceof Error ? error.message : String(error);
 
   if (
-    message.includes('STT_OPENAI_NOT_CONFIGURED') ||
-    message.includes('STT_DEEPGRAM_NOT_CONFIGURED') ||
-    message.includes('STT_DISABLED')
+    /^STT_(OPENAI|DEEPGRAM|ELEVENLABS)_NOT_CONFIGURED/.test(message) ||
+    message.includes('STT_DISABLED') ||
+    message.includes('STT_LOCAL_NOT_CONFIGURED') ||
+    message.includes('STT_LOCAL_MODEL_NOT_DOWNLOADED') ||
+    message.includes('STT_LOCAL_BINARY_MISSING')
   ) {
     return 'not-configured';
   }

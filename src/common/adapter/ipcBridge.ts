@@ -21,7 +21,14 @@ import type {
   AutoUpdateStatus,
 } from '../update/updateTypes';
 import type { ProtocolDetectionRequest, ProtocolDetectionResponse } from '../utils/protocolDetector';
-import type { SpeechToTextRequest, SpeechToTextResult } from '../types/speech';
+import type {
+  SpeechToTextLocalModelDownloadProgressEvent,
+  SpeechToTextLocalModelDownloadRequest,
+  SpeechToTextLocalModelStatus,
+  SpeechToTextLocalReadyResult,
+  SpeechToTextRequest,
+  SpeechToTextResult,
+} from '../types/speech';
 import type {
   PeekabooDesktopControlPermissionPane,
   PeekabooDesktopControlPermissionRequestResult,
@@ -493,6 +500,17 @@ export const fs = {
 
 export const speechToText = {
   transcribe: bridge.buildProvider<SpeechToTextResult, SpeechToTextRequest>('speech-to-text.transcribe'),
+  isLocalReady: bridge.buildProvider<SpeechToTextLocalReadyResult, { modelId?: string }>(
+    'speech-to-text.local.is-ready'
+  ),
+  getLocalModelStatus: bridge.buildProvider<SpeechToTextLocalModelStatus[], void>('speech-to-text.local.model-status'),
+  downloadLocalModel: bridge.buildProvider<IBridgeResponse, SpeechToTextLocalModelDownloadRequest>(
+    'speech-to-text.local.download-model'
+  ),
+  deleteLocalModel: bridge.buildProvider<IBridgeResponse, { modelId: string }>('speech-to-text.local.delete-model'),
+  localModelDownloadProgress: bridge.buildEmitter<SpeechToTextLocalModelDownloadProgressEvent>(
+    'speech-to-text.local.download.progress'
+  ),
 };
 
 export const fileWatch = {
@@ -1147,6 +1165,8 @@ export interface ICreateConversationParams {
     };
     /** Explicit marker for temporary health-check conversations */
     isHealthCheck?: boolean;
+    /** Jarvis-only: extra MCP servers injected at ACP session creation (not persisted to agent config files). */
+    additionalMcpServers?: IMcpServer[];
     /** Remote agent config ID (FK to remote_agents table) — required when type='remote' */
     remoteAgentId?: string;
     /** Extra skill directory paths to symlink into workspace (e.g. cron job skill dirs) */
