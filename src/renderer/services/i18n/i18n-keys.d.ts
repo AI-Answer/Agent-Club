@@ -679,6 +679,7 @@ export type I18nKey =
   | 'jarvis.console.speechUnsupported'
   | 'jarvis.console.sttBlocked'
   | 'jarvis.console.title'
+  | 'jarvis.console.workingOn'
   | 'jarvis.console.you'
   | 'jarvis.control.armedHint'
   | 'jarvis.control.disarmedHint'

@@ -19,6 +19,7 @@
  */
 import { ipcBridge } from '@/common';
 import type { IResponseMessage } from '@/common/adapter/ipcBridge';
+import type { ToolCallUpdate } from '@/common/types/acpTypes';
 import { ConfigStorage, type IMcpServer, type TProviderWithModel } from '@/common/config/storage';
 import { isSpeechToTextConfigured, resolveTextToSpeechProvider, type TextToSpeechProvider } from '@/common/types/speech';
 import { uuid } from '@/common/utils';
@@ -137,6 +138,26 @@ export async function resolveSttEngine(): Promise<SttEngine> {
  *  stalled network call must degrade to the system voice, never wedge speech. */
 const SYNTH_TIMEOUT_MS = 10_000;
 
+/** If the reply hasn't started within this window, speak an acknowledgment so
+ *  the user is never left in dead air while the agent thinks. */
+const ACK_FILLER_DELAY_MS = 1_800;
+
+/**
+ * Short spoken acknowledgments, per language. Runtime spoken content (matched
+ * to the language the USER spoke, not the UI language), so it lives here
+ * rather than in the UI locale files. Kept tiny and neutral on purpose — a
+ * filler must never claim anything the agent might not do.
+ */
+const ACK_FILLERS: Record<string, string[]> = {
+  en: ['On it.', 'One moment.', 'Let me check.'],
+  es: ['Voy.', 'Un momento.', 'Déjame ver.'],
+};
+
+function pickAckFiller(language: string | null): string {
+  const set = ACK_FILLERS[(language || 'en').split('-')[0].toLowerCase()] || ACK_FILLERS.en;
+  return set[Math.floor(Math.random() * set.length)];
+}
+
 function synthesizeWithTimeout(text: string): Promise<{ audio: number[] }> {
   return Promise.race([
     ipcBridge.textToSpeech.synthesize.invoke({ text }),
@@ -198,6 +219,8 @@ export interface VoicePipeline {
   sttEngine: SttEngine;
   /** Which voice speaks replies ('elevenlabs' or the system voice). */
   ttsEngine: TtsEngine;
+  /** Live tool-call title while Hermes works (fills the thinking wait). */
+  activity: string | null;
   sttBlocked: boolean;
   voiceMode: boolean;
   /** MCP servers injected into the current Hermes session. */
@@ -267,6 +290,11 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   const firstSpeechOfTurnRef = useRef(true);
   /** Jarvis line currently being revealed; finalized when speech settles. */
   const revealLineIdRef = useRef<string | null>(null);
+  /** Anti-dead-air: acknowledgment timer + the language the user last spoke. */
+  const ackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUserLangRef = useRef<string | null>(null);
+  /** What Hermes is doing right now (live tool-call title), for the console. */
+  const [activity, setActivity] = useState<string | null>(null);
 
   modelRef.current = model;
   statusRef.current = status;
@@ -368,8 +396,13 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
 
   /** Settle back to idle once the turn is over AND the speech queue drained. */
   const maybeIdleAfterSpeech = useCallback(() => {
-    if (hermesTurnActiveRef.current) return;
     if (speakBusyRef.current || speakQueueRef.current.length > 0) return;
+    if (hermesTurnActiveRef.current) {
+      // An acknowledgment filler just finished but the agent is still
+      // working — reflect that honestly instead of staying on 'speaking'.
+      setStatus((s) => (s === 'speaking' ? 'thinking' : s));
+      return;
+    }
     finalizeRevealedLine();
     setStatus((s) => (s === 'speaking' || s === 'thinking' ? 'idle' : s));
   }, [finalizeRevealedLine]);
@@ -483,6 +516,11 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     hermesTurnActiveRef.current = false;
     turnTokenRef.current += 1;
     turnsRef.current.clear();
+    if (ackTimerRef.current) {
+      clearTimeout(ackTimerRef.current);
+      ackTimerRef.current = null;
+    }
+    setActivity(null);
     stopPlayback();
     try {
       await ipcBridge.conversation.stop.invoke({ conversation_id: convoId });
@@ -531,6 +569,12 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
           if (!turn.sawFirstContent) {
             turn.sawFirstContent = true;
             markPerf('first_content');
+            // The reply is here — no acknowledgment filler needed anymore.
+            if (ackTimerRef.current) {
+              clearTimeout(ackTimerRef.current);
+              ackTimerRef.current = null;
+            }
+            setActivity(null);
           }
           turn.text += chunk;
           const id = turn.jarvisLineId || `jarvis-${m.msg_id}`;
@@ -545,10 +589,20 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
           enqueueSpeech(extraction.sentences, id);
           break;
         }
+        case 'acp_tool_call': {
+          // Narrate real progress: while Hermes runs a tool, show its name so
+          // the thinking wait is informative instead of dead air.
+          const update = (m.data as ToolCallUpdate)?.update;
+          if (!update) break;
+          if (update.status === 'completed' || update.status === 'failed') setActivity(null);
+          else if (update.title) setActivity(update.title);
+          break;
+        }
         case 'finish': {
           const turn = resolveTurnForStreamEvent(turnsRef.current, m.msg_id);
           if (!turn) break;
           hermesTurnActiveRef.current = false;
+          setActivity(null);
           markPerf('finish');
           // Speak whatever is left in the sentence buffer, then settle idle
           // once the queue drains — maybeIdleAfterSpeech also finalizes the
@@ -561,6 +615,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         }
         case 'error':
           hermesTurnActiveRef.current = false;
+          setActivity(null);
           stopPlayback();
           setStatus('error');
           setError(typeof m.data === 'string' ? m.data : 'Hermes error');
@@ -719,8 +774,17 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       setError(null);
       setStatus('thinking');
       void ipcBridge.acpConversation.sendMessage.invoke({ input: text, msg_id: uuid(36), conversation_id: convoId });
+      // Anti-dead-air: if the reply hasn't started after a beat, speak a short
+      // acknowledgment in the user's language. First content cancels this; the
+      // filler carries no lineId so nothing is written to the transcript.
+      if (ackTimerRef.current) clearTimeout(ackTimerRef.current);
+      ackTimerRef.current = setTimeout(() => {
+        ackTimerRef.current = null;
+        if (statusRef.current !== 'thinking') return;
+        enqueueSpeech([pickAckFiller(lastUserLangRef.current)], null);
+      }, ACK_FILLER_DELAY_MS);
     },
-    [beginTurnPerf, interruptInFlightTurn, markPerf]
+    [beginTurnPerf, enqueueSpeech, interruptInFlightTurn, markPerf]
   );
 
   const transcribeAndSend = useCallback(
@@ -731,6 +795,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         // utterance — bilingual users can freely mix languages.
         const result = await transcribeAudioBlob(blob);
         markPerf('stt_result');
+        if (result.language) lastUserLangRef.current = result.language;
         const text = result.text.trim();
         const convoId = conversationIdRef.current;
         if (!text || !convoId) {
@@ -1106,6 +1171,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         offStreamRef.current();
         offStreamRef.current = null;
       }
+      if (ackTimerRef.current) clearTimeout(ackTimerRef.current);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       if (recognitionRef.current) {
         try {
@@ -1146,6 +1212,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     speechSupported,
     sttEngine,
     ttsEngine,
+    activity,
     sttBlocked,
     voiceMode,
     sessionMcpCount,

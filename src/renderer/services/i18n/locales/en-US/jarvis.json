@@ -39,7 +39,8 @@
     "agent": "Jarvis",
     "enableLocalVoice": "Enable voice input — free, on-device",
     "downloadingVoice": "Downloading voice model… {{percent}}%",
-    "enableLocalVoiceFailed": "Voice setup failed — try again, or use the settings below."
+    "enableLocalVoiceFailed": "Voice setup failed — try again, or use the settings below.",
+    "workingOn": "Working: {{tool}}…"
   },
   "quick": {
     "title": "Quick actions",

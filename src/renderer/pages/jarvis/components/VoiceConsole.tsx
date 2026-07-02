@@ -106,7 +106,7 @@ const VoiceMicControl: React.FC<{
 const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { status, transcript, level, error, speechSupported, sttEngine, sttBlocked, voiceMode, sendText } = voice;
+  const { status, transcript, level, error, speechSupported, sttEngine, sttBlocked, voiceMode, sendText, activity } = voice;
   const [draft, setDraft] = useState('');
   const logRef = useRef<HTMLDivElement | null>(null);
 
@@ -224,6 +224,13 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
           aria-hidden='true'
         />
       </div>
+
+      {/* live agent activity — turns the thinking wait into information */}
+      {status === 'thinking' && activity && (
+        <p className='font-mono text-9px tracking-[0.1em] text-[#7fdfff]/60'>
+          <span className='animate-pulse'>▸</span> {t('jarvis.console.workingOn', { tool: activity })}
+        </p>
+      )}
 
       <div ref={logRef} role='log' aria-live='polite' className='max-h-180px min-h-64px overflow-y-auto rounded-8px border border-[#00e5ff]/15 bg-[#03060f]/60 px-12px py-10px'>
         {transcript.length === 0 ? (
