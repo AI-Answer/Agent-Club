@@ -102,7 +102,7 @@ describe('useVoicePipeline concurrency guard', () => {
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
   });
 
-  it('streams assistant text when content msg_id differs from start msg_id', async () => {
+  it('reveals assistant text as it is spoken when content msg_id differs from start msg_id', async () => {
     const { result } = renderHook(() => useVoicePipeline(HERMES_VOICE_MODEL));
 
     await act(async () => {
@@ -128,6 +128,13 @@ describe('useVoicePipeline concurrency guard', () => {
         conversation_id: 'convo-1',
         data: null,
       });
+    });
+
+    // The transcript is revealed by the speech pump (caption-style), which is
+    // async — give it a tick to speak (jsdom has no speechSynthesis, so the
+    // utterance resolves immediately) and finalize.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
     const jarvisLine = result.current.transcript.find((line) => line.role === 'jarvis');

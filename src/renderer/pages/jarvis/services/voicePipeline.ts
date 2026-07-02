@@ -34,7 +34,7 @@ export const TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT = 'aionui:text-to-speech-config
 
 /** Concise system instruction injected into the Hermes conversation. */
 const PRESET_CONTEXT =
-  'You are JARVIS, a spoken voice assistant. Reply in plain conversational prose — no markdown, no bullet lists, no code blocks, no emoji. Keep replies to 1-3 short sentences; offer to elaborate if the user wants more detail.';
+  'You are JARVIS, a spoken voice assistant. Always reply in the same language the user used. Reply in plain conversational prose — no markdown, no bullet lists, no code blocks, no emoji. Keep replies to 1-3 short sentences; offer to elaborate if the user wants more detail.';
 
 /** Hermes is a built-in ACP backend that owns its own auth/model. */
 export const HERMES_VOICE_MODEL: TProviderWithModel = {
@@ -147,6 +147,9 @@ function synthesizeWithTimeout(text: string): Promise<{ audio: number[] }> {
 }
 
 const VAD_INTERVAL_MS = 80;
+/** Re-transcribe the capture-so-far this often for the live interim
+ *  transcript (local provider only — cloud passes would be billed calls). */
+const INTERIM_STT_INTERVAL_MS = 1_500;
 const VAD_SPEECH_RMS = 0.025;
 /** Hands-free: end capture after this much trailing silence. */
 const VAD_SILENCE_MS = 700;
@@ -239,6 +242,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   const recorderRef = useRef<MediaRecorder | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const vadIntervalRef = useRef<number | null>(null);
+  const interimIntervalRef = useRef<number | null>(null);
   const vadCtxRef = useRef<AudioContext | null>(null);
   const commitRef = useRef(true);
   const turnTokenRef = useRef(0);
@@ -252,13 +256,17 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   const computerControlEngagedRef = useRef(computerControlEngaged);
   const prevEngagedRef = useRef(computerControlEngaged);
   // Streaming sentence TTS: queue of utterances + the per-turn text remainder.
+  // Reply text is REVEALED in the transcript as each sentence starts speaking
+  // (caption-style), so what you read is what you hear.
   const ttsEngineRef = useRef<TtsEngine>('system');
-  const speakQueueRef = useRef<string[]>([]);
+  const speakQueueRef = useRef<{ text: string; lineId: string | null }[]>([]);
   const speakBusyRef = useRef(false);
   /** Bumped to invalidate queued/in-flight speech (barge-in, Esc, new turn). */
   const speakTokenRef = useRef(0);
   const sentenceBufRef = useRef('');
   const firstSpeechOfTurnRef = useRef(true);
+  /** Jarvis line currently being revealed; finalized when speech settles. */
+  const revealLineIdRef = useRef<string | null>(null);
 
   modelRef.current = model;
   statusRef.current = status;
@@ -319,6 +327,27 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     };
   }, [status]);
 
+  /** Mark the currently revealing Jarvis line as final (settled or cut off). */
+  const finalizeRevealedLine = useCallback(() => {
+    const lineId = revealLineIdRef.current;
+    if (!lineId) return;
+    revealLineIdRef.current = null;
+    setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, final: true } : l)));
+  }, []);
+
+  /** Append a just-spoken sentence to its Jarvis transcript line. */
+  const revealSpokenText = useCallback((lineId: string | null, sentence: string) => {
+    if (!lineId) return;
+    revealLineIdRef.current = lineId;
+    setTranscript((prev) => {
+      const idx = prev.findIndex((l) => l.id === lineId);
+      if (idx < 0) return [...prev, { id: lineId, role: 'jarvis' as const, text: sentence, final: false }];
+      const next = prev.slice();
+      next[idx] = { ...next[idx], text: `${next[idx].text} ${sentence}`.trim(), final: false };
+      return next;
+    });
+  }, []);
+
   /** Hard-stop ALL speech: queued sentences, in-flight synth, live audio. */
   const stopPlayback = useCallback(() => {
     speakTokenRef.current += 1;
@@ -333,14 +362,17 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       }
       sourceRef.current = null;
     }
-  }, []);
+    // Whatever was revealed so far is what the user heard — freeze it.
+    finalizeRevealedLine();
+  }, [finalizeRevealedLine]);
 
   /** Settle back to idle once the turn is over AND the speech queue drained. */
   const maybeIdleAfterSpeech = useCallback(() => {
     if (hermesTurnActiveRef.current) return;
     if (speakBusyRef.current || speakQueueRef.current.length > 0) return;
+    finalizeRevealedLine();
     setStatus((s) => (s === 'speaking' || s === 'thinking' ? 'idle' : s));
-  }, []);
+  }, [finalizeRevealedLine]);
 
   /** Play encoded audio bytes through the shared analyser chain; resolves on end. */
   const playAudioBytes = useCallback(
@@ -402,9 +434,13 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
           markPerf('speech_start');
         }
         setStatus('speaking');
+        // Caption-style: the text appears the moment its audio is requested,
+        // so the transcript leads the voice by a beat instead of dumping the
+        // whole reply while audio lags behind.
+        revealSpokenText(next.lineId, next.text);
         if (ttsEngineRef.current !== 'system') {
           try {
-            const res = await synthesizeWithTimeout(next);
+            const res = await synthesizeWithTimeout(next.text);
             if (token !== speakTokenRef.current) return;
             await playAudioBytes(res.audio, token);
           } catch (e) {
@@ -413,10 +449,10 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
             console.warn('[jarvis] remote TTS failed; falling back to system voice', e);
             ttsEngineRef.current = 'system';
             setTtsEngine('system');
-            if (token === speakTokenRef.current) await speakSystem(next, token);
+            if (token === speakTokenRef.current) await speakSystem(next.text, token);
           }
         } else {
-          await speakSystem(next, token);
+          await speakSystem(next.text, token);
         }
       } finally {
         speakBusyRef.current = false;
@@ -429,12 +465,12 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         }
       }
     })();
-  }, [markPerf, maybeIdleAfterSpeech, playAudioBytes, speakSystem]);
+  }, [markPerf, maybeIdleAfterSpeech, playAudioBytes, revealSpokenText, speakSystem]);
 
   const enqueueSpeech = useCallback(
-    (sentences: string[]) => {
+    (sentences: string[], lineId: string | null) => {
       if (sentences.length === 0) return;
-      speakQueueRef.current.push(...sentences);
+      speakQueueRef.current.push(...sentences.map((text) => ({ text, lineId })));
       pumpSpeech();
     },
     [pumpSpeech]
@@ -497,42 +533,29 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
             markPerf('first_content');
           }
           turn.text += chunk;
+          const id = turn.jarvisLineId || `jarvis-${m.msg_id}`;
+          turn.jarvisLineId = id;
           // Streaming TTS: peel complete sentences off the buffer and speak
-          // them immediately — speech starts with the first sentence, not the
-          // full reply.
+          // them immediately. The transcript is NOT written here — pumpSpeech
+          // reveals each sentence as it starts speaking, keeping the written
+          // and spoken reply in sync.
           sentenceBufRef.current += chunk;
           const extraction = extractSentences(sentenceBufRef.current);
           sentenceBufRef.current = extraction.rest;
-          enqueueSpeech(extraction.sentences);
-          const id = turn.jarvisLineId || `jarvis-${m.msg_id}`;
-          turn.jarvisLineId = id;
-          const full = turn.text;
-          setTranscript((prev) => {
-            const idx = prev.findIndex((l) => l.id === id);
-            const line: TranscriptLine = { id, role: 'jarvis', text: full, final: false };
-            if (idx >= 0) {
-              const next = prev.slice();
-              next[idx] = line;
-              return next;
-            }
-            return [...prev, line];
-          });
+          enqueueSpeech(extraction.sentences, id);
           break;
         }
         case 'finish': {
           const turn = resolveTurnForStreamEvent(turnsRef.current, m.msg_id);
           if (!turn) break;
           hermesTurnActiveRef.current = false;
-          const id = turn.jarvisLineId;
-          if (id) {
-            setTranscript((prev) => prev.map((l) => (l.id === id ? { ...l, final: true } : l)));
-          }
           markPerf('finish');
           // Speak whatever is left in the sentence buffer, then settle idle
-          // once the queue drains (maybeIdleAfterSpeech handles both orders).
+          // once the queue drains — maybeIdleAfterSpeech also finalizes the
+          // revealed transcript line at that point.
           const remainder = flushSentenceBuffer(sentenceBufRef.current);
           sentenceBufRef.current = '';
-          if (remainder.length > 0) enqueueSpeech(remainder);
+          if (remainder.length > 0) enqueueSpeech(remainder, turn.jarvisLineId || `jarvis-${m.msg_id}`);
           else maybeIdleAfterSpeech();
           break;
         }
@@ -666,6 +689,10 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       window.clearInterval(vadIntervalRef.current);
       vadIntervalRef.current = null;
     }
+    if (interimIntervalRef.current !== null) {
+      window.clearInterval(interimIntervalRef.current);
+      interimIntervalRef.current = null;
+    }
     if (vadCtxRef.current) {
       void vadCtxRef.current.close().catch(() => {});
       vadCtxRef.current = null;
@@ -773,7 +800,8 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       setTranscript((prev) => [...prev, { id: lineId, role: 'user', text: '…', final: false }]);
       setError(null);
       setStatus('listening');
-      recorder.start();
+      // Timeslice so interim transcription can read the audio captured so far.
+      recorder.start(500);
       capturePendingRef.current = false;
       if (pendingStopRef.current) {
         pendingStopRef.current = false;
@@ -838,6 +866,35 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         if (speechSeen && now - lastVoiceAt > VAD_SILENCE_MS) stopCapture(true);
         else if (!speechSeen && now - startedAt > VAD_NO_SPEECH_MS) stopCapture(false);
       }, VAD_INTERVAL_MS);
+
+      // Live transcript while you speak: with the free local provider we can
+      // afford to re-transcribe the audio-so-far every ~1.5s and show the
+      // partial text in place of the "…" placeholder. Cloud providers skip
+      // this (every pass would be a billed API call) and show text on release.
+      const sttCfg = await ConfigStorage.get('tools.speechToText').catch((): undefined => undefined);
+      if (sttCfg?.provider === 'local') {
+        let interimBusy = false;
+        interimIntervalRef.current = window.setInterval(() => {
+          if (interimBusy || !speechSeen || chunks.length === 0) return;
+          if (recorderRef.current !== recorder) return;
+          interimBusy = true;
+          const partial = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+          void transcribeAudioBlob(partial)
+            .then((result) => {
+              const text = result.text.trim();
+              // Only update while THIS capture is still live — the final pass
+              // owns the line once the recorder stops.
+              if (!text || recorderRef.current !== recorder || interimLineIdRef.current !== lineId) return;
+              setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, text, final: false } : l)));
+            })
+            .catch(() => {
+              /* interim is best-effort; the final pass reports real errors */
+            })
+            .finally(() => {
+              interimBusy = false;
+            });
+        }, INTERIM_STT_INTERVAL_MS);
+      }
     } catch (e) {
       capturePendingRef.current = false;
       pendingStopRef.current = false;
@@ -1067,6 +1124,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         }
       }
       if (vadIntervalRef.current !== null) window.clearInterval(vadIntervalRef.current);
+      if (interimIntervalRef.current !== null) window.clearInterval(interimIntervalRef.current);
       if (vadCtxRef.current) void vadCtxRef.current.close().catch(() => {});
       if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
       stopPlayback();

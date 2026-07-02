@@ -14,15 +14,19 @@ import { SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT, type VoicePipeline, type VoiceStat
 import { JARVIS_COLORS, withAlpha } from './theme';
 
 const VOICE_SETTINGS_ROUTE = '/settings/capabilities?tab=tools';
-/** Pointer hold longer than this starts push-to-talk; shorter release toggles hands-free. */
-const HOLD_THRESHOLD_MS = 280;
 
 type MicVisualState = 'disabled' | 'idle' | 'handsFree' | 'ptt' | 'busy';
 
-function micVisualState(status: VoiceStatus, voiceMode: boolean, micUsable: boolean, pttActive: boolean): MicVisualState {
+/**
+ * The mic is a single-purpose control: TAP toggles a conversation (Jarvis
+ * listens, answers, listens again). While anything is playing or thinking,
+ * tap interrupts. Push-to-talk lives ONLY on holding Space — one gesture per
+ * control, no invisible tap-vs-hold threshold.
+ */
+function micVisualState(status: VoiceStatus, voiceMode: boolean, micUsable: boolean): MicVisualState {
   if (!micUsable || status === 'checking' || status === 'offline') return 'disabled';
-  if (voiceMode) return 'handsFree';
-  if (pttActive || status === 'listening') return 'ptt';
+  if (voiceMode) return status === 'speaking' || status === 'thinking' ? 'busy' : 'handsFree';
+  if (status === 'listening') return 'ptt'; // Space-hold capture in flight
   if (status === 'thinking' || status === 'speaking') return 'busy';
   return 'idle';
 }
@@ -32,75 +36,22 @@ const VoiceMicControl: React.FC<{
   micUsable: boolean;
 }> = ({ voice, micUsable }) => {
   const { t } = useTranslation();
-  const { status, voiceMode, toggleVoiceMode, startListening, stopListening } = voice;
-  const [pttActive, setPttActive] = useState(false);
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pointerDownAtRef = useRef(0);
+  const { status, voiceMode, toggleVoiceMode, stopSpeaking } = voice;
 
-  const clearHoldTimer = useCallback(() => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
+  const visual = micVisualState(status, voiceMode, micUsable);
+
+  const onClick = useCallback(() => {
+    if (visual === 'disabled') return;
+    if (voiceMode) {
+      // In conversation: tapping while Jarvis talks skips the reply but keeps
+      // the conversation; any other tap ends it.
+      if (status === 'speaking') stopSpeaking();
+      else toggleVoiceMode();
+      return;
     }
-  }, []);
-
-  const visual = micVisualState(status, voiceMode, micUsable, pttActive);
-
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (!micUsable || voiceMode) return;
-      e.currentTarget.setPointerCapture(e.pointerId);
-      pointerDownAtRef.current = Date.now();
-      clearHoldTimer();
-      holdTimerRef.current = setTimeout(() => {
-        setPttActive(true);
-        startListening();
-      }, HOLD_THRESHOLD_MS);
-    },
-    [clearHoldTimer, micUsable, startListening, voiceMode]
-  );
-
-  const onPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (!micUsable) return;
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {
-        /* capture may already be released */
-      }
-      clearHoldTimer();
-
-      if (voiceMode) {
-        return;
-      }
-
-      if (pttActive) {
-        setPttActive(false);
-        stopListening();
-        return;
-      }
-
-      const elapsed = Date.now() - pointerDownAtRef.current;
-      if (elapsed < HOLD_THRESHOLD_MS && status === 'idle') {
-        toggleVoiceMode();
-      }
-    },
-    [clearHoldTimer, micUsable, status, stopListening, toggleVoiceMode, voiceMode]
-  );
-
-  const onPointerCancel = useCallback(() => {
-    clearHoldTimer();
-    if (pttActive) {
-      setPttActive(false);
-      stopListening();
-    }
-  }, [clearHoldTimer, pttActive, stopListening]);
-
-  useEffect(() => () => clearHoldTimer(), [clearHoldTimer]);
-
-  useEffect(() => {
-    if (status !== 'listening' && pttActive) setPttActive(false);
-  }, [pttActive, status]);
+    // Not in conversation: tap starts one (and interrupts any playback).
+    toggleVoiceMode();
+  }, [status, stopSpeaking, toggleVoiceMode, visual, voiceMode]);
 
   const label = useMemo(() => {
     switch (visual) {
@@ -136,10 +87,7 @@ const VoiceMicControl: React.FC<{
         className={`voice-mic-btn ${isActive ? 'is-active' : ''} ${visual === 'ptt' ? 'is-ptt' : ''} ${visual === 'busy' ? 'is-busy' : ''}`}
         aria-pressed={voiceMode || visual === 'ptt'}
         aria-label={label}
-        onPointerDown={voiceMode ? undefined : onPointerDown}
-        onPointerUp={voiceMode ? undefined : onPointerUp}
-        onPointerCancel={voiceMode ? undefined : onPointerCancel}
-        onClick={voiceMode ? () => toggleVoiceMode() : undefined}
+        onClick={onClick}
         style={{
           borderColor: isActive ? withAlpha(cyan, 0.85) : withAlpha(cyan, 0.45),
           boxShadow: isActive ? `0 0 28px ${withAlpha(cyan, 0.45)}` : 'none',

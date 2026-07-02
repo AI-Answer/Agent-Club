@@ -47,13 +47,17 @@ const synthesizeWithElevenLabs = async (text: string, ttsConfig: TextToSpeechCon
   const model = ttsConfig?.elevenlabs?.model?.trim() || DEFAULT_ELEVENLABS_TTS_MODEL;
   const baseUrl = (ttsConfig?.elevenlabs?.baseUrl?.trim() || DEFAULT_ELEVENLABS_TTS_BASE_URL).replace(/\/+$/, '');
 
+  // Speaking speed: ElevenLabs accepts 0.7–1.2 via voice_settings.speed.
+  const rawSpeed = ttsConfig?.elevenlabs?.speed;
+  const speed = typeof rawSpeed === 'number' && Number.isFinite(rawSpeed) ? Math.min(1.2, Math.max(0.7, rawSpeed)) : undefined;
+
   const response = await fetch(`${baseUrl}/text-to-speech/${encodeURIComponent(voiceId)}`, {
     method: 'POST',
     headers: {
       'xi-api-key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ text, model_id: model }),
+    body: JSON.stringify({ text, model_id: model, ...(speed !== undefined && speed !== 1 ? { voice_settings: { speed } } : {}) }),
   });
   if (!response.ok) {
     throw new Error(`TTS_REQUEST_FAILED:${await toErrorMessage(response)}`);

@@ -852,6 +852,22 @@ const TextToSpeechSettingsSection: React.FC<{
                 onChange={(value) => handleElevenLabsChange('model', value)}
               />
             </Form.Item>
+            <Form.Item label={t('settings.textToSpeechSpeed')}>
+              <AionSelect
+                value={typeof config.elevenlabs?.speed === 'number' ? String(config.elevenlabs.speed) : '1'}
+                onChange={(value: string) =>
+                  onChange((current) => ({
+                    ...current,
+                    elevenlabs: { ...current.elevenlabs, speed: Number(value) },
+                  }))
+                }
+              >
+                <AionSelect.Option value='0.85'>0.85×</AionSelect.Option>
+                <AionSelect.Option value='1'>1× ({t('settings.textToSpeechSpeedDefault')})</AionSelect.Option>
+                <AionSelect.Option value='1.1'>1.1×</AionSelect.Option>
+                <AionSelect.Option value='1.2'>1.2×</AionSelect.Option>
+              </AionSelect>
+            </Form.Item>
           </>
         )}
         {config.provider === 'openai' && (

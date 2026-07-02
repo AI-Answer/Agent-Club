@@ -132,6 +132,8 @@ export type ElevenLabsTextToSpeechConfig = {
   voiceId?: string;
   /** Model id; empty uses the low-latency flash model. */
   model?: string;
+  /** Speaking speed 0.7–1.2 (ElevenLabs voice_settings.speed); empty = 1.0. */
+  speed?: number;
 };
 
 export type OpenAITextToSpeechConfig = {

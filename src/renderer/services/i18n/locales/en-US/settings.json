@@ -1135,5 +1135,7 @@
     "version": "Version",
     "path": "Path",
     "providerNote": "Provider and API key settings are managed in the Models page. Agent Club CLI supports: Anthropic, OpenAI, AWS Bedrock."
-  }
+  },
+  "textToSpeechSpeed": "Speaking speed",
+  "textToSpeechSpeedDefault": "normal"
 }

@@ -1891,6 +1891,8 @@ export type I18nKey =
   | 'settings.textToSpeechProviderElevenLabs'
   | 'settings.textToSpeechProviderOpenAI'
   | 'settings.textToSpeechProviderSystem'
+  | 'settings.textToSpeechSpeed'
+  | 'settings.textToSpeechSpeedDefault'
   | 'settings.textToSpeechVoice'
   | 'settings.textToSpeechVoiceId'
   | 'settings.theme'
