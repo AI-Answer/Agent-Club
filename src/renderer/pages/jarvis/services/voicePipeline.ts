@@ -133,6 +133,19 @@ export async function resolveSttEngine(): Promise<SttEngine> {
   return webSpeechFallback();
 }
 
+/** Cap on one sentence's remote synthesis: a hung/missing IPC handler or a
+ *  stalled network call must degrade to the system voice, never wedge speech. */
+const SYNTH_TIMEOUT_MS = 10_000;
+
+function synthesizeWithTimeout(text: string): Promise<{ audio: number[] }> {
+  return Promise.race([
+    ipcBridge.textToSpeech.synthesize.invoke({ text }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('TTS_TIMEOUT')), SYNTH_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 const VAD_INTERVAL_MS = 80;
 const VAD_SPEECH_RMS = 0.025;
 /** Hands-free: end capture after this much trailing silence. */
@@ -391,7 +404,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         setStatus('speaking');
         if (ttsEngineRef.current !== 'system') {
           try {
-            const res = await ipcBridge.textToSpeech.synthesize.invoke({ text: next });
+            const res = await synthesizeWithTimeout(next);
             if (token !== speakTokenRef.current) return;
             await playAudioBytes(res.audio, token);
           } catch (e) {
