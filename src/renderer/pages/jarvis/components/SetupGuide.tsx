@@ -14,8 +14,8 @@ const HERMES_DOCS_URL = 'https://hermes-agent.nousresearch.com';
 /**
  * First-run guide shown when the Hermes CLI is not detected. Replaces the old
  * bare "HERMES OFFLINE" label with actionable steps: install the CLI, enable
- * its voice toolset, allow the mic — plus a re-scan that re-runs detection
- * without leaving the page.
+ * voice input with one click in the console, talk — plus a re-scan that
+ * re-runs detection without leaving the page.
  */
 interface SetupGuideProps {
   /** Re-run Hermes detection (voicePipeline.recheck). */
@@ -60,7 +60,7 @@ const SetupGuide: React.FC<SetupGuideProps> = ({ onRescan, scanning, scannedEmpt
 
       <div className='mt-18px flex flex-col gap-16px'>
         <Step index={1} title={t('jarvis.setup.step1Title')} body={t('jarvis.setup.step1Body')} command='hermes' link={{ href: HERMES_DOCS_URL, label: t('jarvis.setup.step1Docs') }} />
-        <Step index={2} title={t('jarvis.setup.step2Title')} body={t('jarvis.setup.step2Body')} command='hermes tools enable tts' />
+        <Step index={2} title={t('jarvis.setup.step2Title')} body={t('jarvis.setup.step2Body')} />
         <Step index={3} title={t('jarvis.setup.step3Title')} body={t('jarvis.setup.step3Body')} />
       </div>
 

@@ -108,9 +108,8 @@ Jarvis Mode is a full-screen voice console for the [Hermes agent](https://hermes
 To use it:
 
 1. Install the Hermes CLI (Nous Research) so the `hermes` command is on your PATH. Agent Club detects it automatically; the in-app setup guide walks you through it.
-2. Optional, for spoken replies in Hermes's own voice: run `hermes tools enable tts` once. Without it, Jarvis falls back to your system voice.
-3. For voice **input**, open **Settings → Capabilities → MCP & Voice → Speech to Text** and choose **Local Whisper (offline)** — free, private, works after a one-time model download — or add a cloud key (OpenAI, Deepgram, ElevenLabs).
-4. Open **Jarvis Mode** from the sidebar. Hold Space to talk, press Esc to interrupt, or just type — the text composer always works, even where speech recognition is unavailable.
+2. Press **Enable voice input** in the Jarvis console — it downloads a free on-device transcription model (~150 MB), no account or key needed. Prefer cloud accuracy? Add an OpenAI, Deepgram, or ElevenLabs key under **Settings → Capabilities → MCP & Voice** instead.
+3. Talk: hold the mic (or Space) for one message, tap it for hands-free, or just type — the text composer always works. Replies are spoken sentence-by-sentence while they stream; with an ElevenLabs or OpenAI key you get a natural voice, otherwise the system voice. Esc interrupts.
 
 ## Install Agent Club
 

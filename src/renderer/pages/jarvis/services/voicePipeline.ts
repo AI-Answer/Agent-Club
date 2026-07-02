@@ -23,12 +23,13 @@ import { ConfigStorage, type IMcpServer, type TProviderWithModel } from '@/commo
 import { isSpeechToTextConfigured, resolveTextToSpeechProvider, type TextToSpeechProvider } from '@/common/types/speech';
 import { uuid } from '@/common/utils';
 import { getSpeechInputAvailability, pickRecordingMimeType } from '@/renderer/hooks/system/useSpeechInput';
+import { isElectronDesktop } from '@/renderer/utils/platform';
 import { transcribeAudioBlob } from '@/renderer/services/SpeechToTextService';
 import { extractSentences, flushSentenceBuffer } from '@/renderer/utils/speech/sentenceChunker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resolveJarvisSessionMcpServers } from './jarvisMcpServers';
 
-const SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT = 'aionui:speech-to-text-config-changed';
+export const SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT = 'aionui:speech-to-text-config-changed';
 export const TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT = 'aionui:text-to-speech-config-changed';
 
 /** Concise system instruction injected into the Hermes conversation. */
@@ -81,6 +82,17 @@ export type SttEngine = 'recorder' | 'webspeech' | 'none';
 export type TtsEngine = TextToSpeechProvider;
 
 /**
+ * Web Speech is only a real option outside Electron: Chromium's cloud speech
+ * service needs Google keys Electron doesn't ship, so offering the mic there
+ * invites a guaranteed failure. Report 'none' instead and let the console
+ * show setup guidance up front.
+ */
+function webSpeechFallback(): SttEngine {
+  if (isElectronDesktop()) return 'none';
+  return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+}
+
+/**
  * Pick the voice for spoken replies — the shared resolver honors the explicit
  * provider choice when its key exists (ElevenLabs or OpenAI, both reusing
  * their STT keys) and falls back to the system voice.
@@ -103,22 +115,22 @@ export async function resolveSttEngine(): Promise<SttEngine> {
   try {
     const cfg = await ConfigStorage.get('tools.speechToText');
     if (!cfg?.enabled || getSpeechInputAvailability() !== 'record') {
-      return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+      return webSpeechFallback();
     }
 
     if (cfg.provider === 'local') {
       if (!isSpeechToTextConfigured(cfg)) {
-        return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+        return webSpeechFallback();
       }
       const ready = await ipcBridge.speechToText.isLocalReady.invoke({ modelId: cfg.local?.modelId });
-      return ready.ready ? 'recorder' : getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+      return ready.ready ? 'recorder' : webSpeechFallback();
     }
 
     if (isSpeechToTextConfigured(cfg)) return 'recorder';
   } catch {
     // storage unavailable — fall through to the runtime check
   }
-  return getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+  return webSpeechFallback();
 }
 
 const VAD_INTERVAL_MS = 80;
@@ -693,7 +705,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         setVoiceMode(false);
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes('STT_DISABLED') || msg.includes('NOT_CONFIGURED') || msg.includes('STT_LOCAL_MODEL_NOT_DOWNLOADED')) {
-          const next: SttEngine = getSpeechRecognitionCtor() ? 'webspeech' : 'none';
+          const next: SttEngine = webSpeechFallback();
           sttEngineRef.current = next;
           setSttEngine(next);
         } else {

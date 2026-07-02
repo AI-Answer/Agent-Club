@@ -7,7 +7,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import type { VoicePipeline, VoiceStatus } from '../services/voicePipeline';
+import { ipcBridge } from '@/common';
+import { ConfigStorage } from '@/common/config/storage';
+import { DEFAULT_WHISPER_MODEL_ID } from '@/common/types/whisperModels';
+import { SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT, type VoicePipeline, type VoiceStatus } from '../services/voicePipeline';
 import { JARVIS_COLORS, withAlpha } from './theme';
 
 const VOICE_SETTINGS_ROUTE = '/settings/capabilities?tab=tools';
@@ -159,6 +162,66 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
   const [draft, setDraft] = useState('');
   const logRef = useRef<HTMLDivElement | null>(null);
 
+  // One-click voice input: enable the local Whisper provider and download its
+  // model right here — no settings detour. Only offered when the whisper CLI
+  // is actually available in this build (isLocalReady.binaryAvailable).
+  const [localVoice, setLocalVoice] = useState<{ canOneClick: boolean | null; busy: boolean; percent: number | null; failed: boolean }>({
+    canOneClick: null,
+    busy: false,
+    percent: null,
+    failed: false,
+  });
+
+  useEffect(() => {
+    if (sttEngine === 'recorder') return;
+    let cancelled = false;
+    ipcBridge.speechToText.isLocalReady
+      .invoke({ modelId: DEFAULT_WHISPER_MODEL_ID })
+      .then((r) => {
+        if (!cancelled) setLocalVoice((s) => ({ ...s, canOneClick: r.binaryAvailable }));
+      })
+      .catch(() => {
+        if (!cancelled) setLocalVoice((s) => ({ ...s, canOneClick: false }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sttEngine]);
+
+  const enableLocalVoice = useCallback(async () => {
+    setLocalVoice((s) => ({ ...s, busy: true, percent: null, failed: false }));
+    let offProgress: (() => void) | null = null;
+    try {
+      const current = await ConfigStorage.get('tools.speechToText');
+      const modelId = current?.local?.modelId || DEFAULT_WHISPER_MODEL_ID;
+      await ConfigStorage.set('tools.speechToText', {
+        ...current,
+        enabled: true,
+        provider: 'local',
+        local: { language: '', ...current?.local, modelId },
+      });
+      const ready = await ipcBridge.speechToText.isLocalReady.invoke({ modelId });
+      if (!ready.modelDownloaded) {
+        offProgress = ipcBridge.speechToText.localModelDownloadProgress.on((e) => {
+          if (e.modelId !== modelId) return;
+          if (e.status === 'downloading' || e.status === 'starting') {
+            setLocalVoice((s) => ({ ...s, percent: typeof e.percent === 'number' ? Math.round(e.percent) : s.percent }));
+          }
+        });
+        const res = await ipcBridge.speechToText.downloadLocalModel.invoke({ modelId });
+        if (!res.success) throw new Error(res.msg || 'download failed');
+      }
+      // The pipeline listens for this and flips the engine to 'recorder'.
+      window.dispatchEvent(new CustomEvent(SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT));
+    } catch (e) {
+      console.warn('[jarvis] one-click voice setup failed', e);
+      setLocalVoice((s) => ({ ...s, failed: true }));
+    } finally {
+      offProgress?.();
+      setLocalVoice((s) => ({ ...s, busy: false, percent: null }));
+    }
+  }, []);
+
   const statusLabel: Record<string, string> = {
     checking: t('jarvis.status.checking'),
     offline: t('jarvis.status.offline'),
@@ -259,19 +322,35 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
       </form>
 
       {sttBlocked && <p className='font-mono text-9px leading-relaxed tracking-[0.06em] text-[#ffb547]/80'>{t('jarvis.console.sttBlocked')}</p>}
-      {!speechSupported && <p className='font-mono text-9px leading-relaxed tracking-[0.06em] text-[#ffb547]/80'>{t('jarvis.console.speechUnsupported')}</p>}
       {sttEngine !== 'recorder' && (
-        <div className='flex flex-col gap-6px'>
-          {!sttBlocked && speechSupported && <p className='font-mono text-9px leading-relaxed tracking-[0.06em] text-[#ffb547]/80'>{t('jarvis.console.enableSttHint')}</p>}
+        <div className='flex flex-col gap-8px'>
+          {!sttBlocked && <p className='font-mono text-9px leading-relaxed tracking-[0.06em] text-[#ffb547]/80'>{t('jarvis.console.enableSttHint')}</p>}
+          {localVoice.canOneClick && (
+            <button
+              type='button'
+              disabled={localVoice.busy}
+              onClick={() => void enableLocalVoice()}
+              className='w-fit rounded-8px border px-14px py-9px font-mono text-10px font-700 tracking-[0.16em] transition-all'
+              style={{
+                cursor: localVoice.busy ? 'wait' : 'pointer',
+                borderColor: withAlpha(cyan, 0.6),
+                background: withAlpha(cyan, 0.12),
+                color: JARVIS_COLORS.cyanBright,
+              }}
+            >
+              {(localVoice.busy ? t('jarvis.console.downloadingVoice', { percent: localVoice.percent ?? 0 }) : t('jarvis.console.enableLocalVoice')).toUpperCase()}
+            </button>
+          )}
+          {localVoice.failed && <p className='font-mono text-9px tracking-[0.06em] text-[#ff8da0]/70'>{t('jarvis.console.enableLocalVoiceFailed')}</p>}
           <button
             type='button'
             onClick={() => navigate(VOICE_SETTINGS_ROUTE)}
-            className='w-fit rounded-6px border px-10px py-6px font-mono text-9px font-700 tracking-[0.16em] transition-all'
+            className='w-fit rounded-6px border px-10px py-6px font-mono text-9px font-600 tracking-[0.16em] transition-all'
             style={{
               cursor: 'pointer',
-              borderColor: withAlpha(JARVIS_COLORS.amber, 0.55),
-              background: withAlpha(JARVIS_COLORS.amber, 0.08),
-              color: JARVIS_COLORS.amber,
+              borderColor: withAlpha(JARVIS_COLORS.amber, 0.4),
+              background: 'transparent',
+              color: withAlpha(JARVIS_COLORS.amber, 0.85),
             }}
           >
             {t('jarvis.console.openVoiceSettings').toUpperCase()}
