@@ -119,3 +119,77 @@ export function isSpeechToTextConfigured(config: SpeechToTextConfig | undefined)
   }
   return Boolean(getSpeechToTextProviderApiKey(config));
 }
+
+// --- Text-to-speech (Jarvis spoken replies) ---------------------------------
+
+export type TextToSpeechProvider = 'system' | 'elevenlabs' | 'openai';
+
+export type ElevenLabsTextToSpeechConfig = {
+  /** Falls back to the ElevenLabs speech-to-text (Scribe) key when empty. */
+  apiKey?: string;
+  baseUrl?: string;
+  /** ElevenLabs voice id; empty uses the app default voice. */
+  voiceId?: string;
+  /** Model id; empty uses the low-latency flash model. */
+  model?: string;
+};
+
+export type OpenAITextToSpeechConfig = {
+  /** Falls back to the OpenAI speech-to-text (Whisper) key when empty. */
+  apiKey?: string;
+  baseUrl?: string;
+  /** Built-in voice name (alloy, nova, onyx, …); empty uses the default. */
+  voice?: string;
+  /** Model id; empty uses the default TTS model. */
+  model?: string;
+};
+
+export type TextToSpeechConfig = {
+  provider: TextToSpeechProvider;
+  elevenlabs?: ElevenLabsTextToSpeechConfig;
+  openai?: OpenAITextToSpeechConfig;
+};
+
+export type TextToSpeechRequest = {
+  text: string;
+};
+
+export type TextToSpeechResult = {
+  /** Encoded audio bytes (serialized over IPC). */
+  audio: number[];
+  mimeType: string;
+  provider: 'elevenlabs' | 'openai';
+  model: string;
+  voiceId: string;
+};
+
+/** Resolve the ElevenLabs TTS key: dedicated key first, then the Scribe key. */
+export function getTextToSpeechElevenLabsKey(tts: TextToSpeechConfig | undefined, stt: SpeechToTextConfig | undefined): string {
+  const own = tts?.elevenlabs?.apiKey?.trim();
+  if (own) return own;
+  return stt?.elevenlabs?.apiKey?.trim() ?? '';
+}
+
+/** Resolve the OpenAI TTS key: dedicated key first, then the Whisper STT key. */
+export function getTextToSpeechOpenAIKey(tts: TextToSpeechConfig | undefined, stt: SpeechToTextConfig | undefined): string {
+  const own = tts?.openai?.apiKey?.trim();
+  if (own) return own;
+  return stt?.openai?.apiKey?.trim() ?? '';
+}
+
+/**
+ * Pick the effective voice for spoken replies. The explicit provider choice is
+ * honored when its key exists; otherwise any available remote key beats the
+ * robotic system voice, which is always the final fallback. Shared by the
+ * renderer (engine display/state) and the main-process service (routing) so
+ * the two can never disagree.
+ */
+export function resolveTextToSpeechProvider(tts: TextToSpeechConfig | undefined, stt: SpeechToTextConfig | undefined): TextToSpeechProvider {
+  const elKey = getTextToSpeechElevenLabsKey(tts, stt);
+  const openaiKey = getTextToSpeechOpenAIKey(tts, stt);
+  if (tts?.provider === 'system') return 'system';
+  if (tts?.provider === 'openai' && openaiKey) return 'openai';
+  if (elKey) return 'elevenlabs';
+  if (openaiKey) return 'openai';
+  return 'system';
+}

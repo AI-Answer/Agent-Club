@@ -10,7 +10,7 @@ import {
   type IMcpServer,
   BUILTIN_IMAGE_GEN_ID,
 } from '@/common/config/storage';
-import type { SpeechToTextConfig, SpeechToTextProvider } from '@/common/types/speech';
+import type { SpeechToTextConfig, SpeechToTextProvider, TextToSpeechConfig, TextToSpeechProvider } from '@/common/types/speech';
 import { DEFAULT_WHISPER_MODEL_ID, WHISPER_MODEL_IDS, type WhisperModelId } from '@/common/types/whisperModels';
 import { ipcBridge } from '@/common';
 import { acpConversation } from '@/common/adapter/ipcBridge';
@@ -42,6 +42,36 @@ type MessageInstance = ReturnType<typeof Message.useMessage>[0];
 
 const isBuiltinImageGenServer = (server: IMcpServer) => server.builtin === true && server.id === BUILTIN_IMAGE_GEN_ID;
 const SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT = 'aionui:speech-to-text-config-changed';
+const TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT = 'aionui:text-to-speech-config-changed';
+
+const DEFAULT_TEXT_TO_SPEECH_CONFIG: TextToSpeechConfig = {
+  provider: 'elevenlabs',
+  elevenlabs: {
+    apiKey: '',
+    baseUrl: '',
+    voiceId: '',
+    model: '',
+  },
+  openai: {
+    apiKey: '',
+    baseUrl: '',
+    voice: '',
+    model: '',
+  },
+};
+
+const normalizeTextToSpeechConfig = (config?: TextToSpeechConfig): TextToSpeechConfig => ({
+  ...DEFAULT_TEXT_TO_SPEECH_CONFIG,
+  ...config,
+  elevenlabs: {
+    ...DEFAULT_TEXT_TO_SPEECH_CONFIG.elevenlabs,
+    ...config?.elevenlabs,
+  },
+  openai: {
+    ...DEFAULT_TEXT_TO_SPEECH_CONFIG.openai,
+    ...config?.openai,
+  },
+});
 const DEFAULT_SPEECH_TO_TEXT_CONFIG: SpeechToTextConfig = {
   enabled: false,
   provider: 'openai',
@@ -92,6 +122,46 @@ const normalizeSpeechToTextConfig = (config?: SpeechToTextConfig): SpeechToTextC
     ...config?.local,
   },
 });
+
+/** Spoken-language choices for transcription. Native names on purpose — a
+ *  user hunting for their language recognizes it fastest in that language. */
+const SPEECH_LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Español' },
+  { value: 'pt', label: 'Português' },
+  { value: 'fr', label: 'Français' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'nl', label: 'Nederlands' },
+  { value: 'pl', label: 'Polski' },
+  { value: 'tr', label: 'Türkçe' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'uk', label: 'Українська' },
+  { value: 'ar', label: 'العربية' },
+  { value: 'hi', label: 'हिन्दी' },
+  { value: 'zh', label: '中文' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+];
+
+/** Language picker for voice input: auto-detect by default, or force one.
+ *  Preserves any custom code a user previously typed into the old text field. */
+const SpeechLanguageSelect: React.FC<{ value?: string; onChange: (value: string) => void }> = ({ value, onChange }) => {
+  const { t } = useTranslation();
+  const current = (value ?? '').trim();
+  const isKnown = current === '' || SPEECH_LANGUAGE_OPTIONS.some((o) => o.value === current);
+  return (
+    <AionSelect value={current} onChange={(v: string) => onChange(v)}>
+      <AionSelect.Option value=''>{t('settings.speechToTextLanguageAuto')}</AionSelect.Option>
+      {SPEECH_LANGUAGE_OPTIONS.map((o) => (
+        <AionSelect.Option key={o.value} value={o.value}>
+          {o.label}
+        </AionSelect.Option>
+      ))}
+      {!isKnown && <AionSelect.Option value={current}>{current}</AionSelect.Option>}
+    </AionSelect>
+  );
+};
 
 const SpeechToTextSettingsSection: React.FC<{
   config: SpeechToTextConfig;
@@ -291,7 +361,7 @@ const SpeechToTextSettingsSection: React.FC<{
               <Input value={config.openai?.model} onChange={(value) => handleOpenAIChange('model', value)} />
             </Form.Item>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextLanguage', 'optional')}>
-              <Input value={config.openai?.language} onChange={(value) => handleOpenAIChange('language', value)} />
+              <SpeechLanguageSelect value={config.openai?.language} onChange={(value) => handleOpenAIChange('language', value)} />
             </Form.Item>
           </>
         )}
@@ -315,7 +385,7 @@ const SpeechToTextSettingsSection: React.FC<{
               />
             </Form.Item>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextLanguage', 'optional')}>
-              <Input value={config.elevenlabs?.language} onChange={(value) => handleElevenLabsChange('language', value)} />
+              <SpeechLanguageSelect value={config.elevenlabs?.language} onChange={(value) => handleElevenLabsChange('language', value)} />
             </Form.Item>
           </>
         )}
@@ -335,7 +405,7 @@ const SpeechToTextSettingsSection: React.FC<{
               <Input value={config.deepgram?.model} onChange={(value) => handleDeepgramChange('model', value)} />
             </Form.Item>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextLanguage', 'optional')}>
-              <Input value={config.deepgram?.language} onChange={(value) => handleDeepgramChange('language', value)} />
+              <SpeechLanguageSelect value={config.deepgram?.language} onChange={(value) => handleDeepgramChange('language', value)} />
             </Form.Item>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextDetectLanguage', 'optional')}>
               <Switch
@@ -373,11 +443,7 @@ const SpeechToTextSettingsSection: React.FC<{
               </AionSelect>
             </Form.Item>
             <Form.Item label={renderSpeechToTextFieldLabel('settings.speechToTextLanguage', 'optional')}>
-              <Input
-                value={config.local?.language}
-                placeholder='auto'
-                onChange={(value) => handleLocalChange('language', value)}
-              />
+              <SpeechLanguageSelect value={config.local?.language} onChange={(value) => handleLocalChange('language', value)} />
             </Form.Item>
             <div className='flex flex-wrap items-center gap-10px'>
               <Button type='primary' loading={localDownloading} onClick={() => void handleDownloadLocalModel()}>
@@ -702,6 +768,116 @@ const ModalMcpManagementSection: React.FC<{
   );
 };
 
+const TextToSpeechSettingsSection: React.FC<{
+  config: TextToSpeechConfig;
+  onChange: (updater: (current: TextToSpeechConfig) => TextToSpeechConfig) => void;
+}> = ({ config, onChange }) => {
+  const { t } = useTranslation();
+
+  const handleProviderChange = useCallback(
+    (value: string) => {
+      onChange((current) => ({
+        ...current,
+        provider: value as TextToSpeechProvider,
+      }));
+    },
+    [onChange]
+  );
+
+  const handleElevenLabsChange = useCallback(
+    (field: keyof NonNullable<TextToSpeechConfig['elevenlabs']>, value: string) => {
+      onChange((current) => ({
+        ...current,
+        elevenlabs: {
+          ...current.elevenlabs,
+          [field]: value,
+        },
+      }));
+    },
+    [onChange]
+  );
+
+  const handleOpenAIChange = useCallback(
+    (field: keyof NonNullable<TextToSpeechConfig['openai']>, value: string) => {
+      onChange((current) => ({
+        ...current,
+        openai: {
+          ...current.openai,
+          [field]: value,
+        },
+      }));
+    },
+    [onChange]
+  );
+
+  return (
+    <div className='px-[12px] md:px-[32px] py-[24px] bg-2 rd-12px md:rd-16px border border-border-2'>
+      <div className='flex flex-col gap-4px mb-8px'>
+        <span className='text-14px text-t-primary'>{t('settings.textToSpeech')}</span>
+        <span className='text-13px text-t-secondary'>{t('settings.textToSpeechDescription')}</span>
+      </div>
+
+      <Divider className='mt-0px mb-20px' />
+
+      <Form layout='horizontal' labelAlign='left' className='space-y-12px'>
+        <Form.Item label={t('settings.speechToTextProvider')}>
+          <AionSelect value={config.provider} onChange={handleProviderChange}>
+            <AionSelect.Option value='elevenlabs'>{t('settings.textToSpeechProviderElevenLabs')}</AionSelect.Option>
+            <AionSelect.Option value='openai'>{t('settings.textToSpeechProviderOpenAI')}</AionSelect.Option>
+            <AionSelect.Option value='system'>{t('settings.textToSpeechProviderSystem')}</AionSelect.Option>
+          </AionSelect>
+        </Form.Item>
+
+        {config.provider === 'elevenlabs' && (
+          <>
+            <Form.Item label={t('settings.speechToTextApiKey')}>
+              <Input.Password
+                value={config.elevenlabs?.apiKey}
+                visibilityToggle
+                placeholder={t('settings.textToSpeechApiKeyPlaceholder')}
+                onChange={(value) => handleElevenLabsChange('apiKey', value)}
+              />
+            </Form.Item>
+            <Form.Item label={t('settings.textToSpeechVoiceId')}>
+              <Input
+                value={config.elevenlabs?.voiceId}
+                placeholder='21m00Tcm4TlvDq8ikWAM'
+                onChange={(value) => handleElevenLabsChange('voiceId', value)}
+              />
+            </Form.Item>
+            <Form.Item label={t('settings.speechToTextModel')}>
+              <Input
+                value={config.elevenlabs?.model}
+                placeholder='eleven_flash_v2_5'
+                onChange={(value) => handleElevenLabsChange('model', value)}
+              />
+            </Form.Item>
+          </>
+        )}
+        {config.provider === 'openai' && (
+          <>
+            <Form.Item label={t('settings.speechToTextApiKey')}>
+              <Input.Password
+                value={config.openai?.apiKey}
+                visibilityToggle
+                placeholder={t('settings.textToSpeechApiKeyPlaceholderOpenAI')}
+                onChange={(value) => handleOpenAIChange('apiKey', value)}
+              />
+            </Form.Item>
+            <Form.Item label={t('settings.textToSpeechVoice')}>
+              <Input value={config.openai?.voice} placeholder='alloy' onChange={(value) => handleOpenAIChange('voice', value)} />
+            </Form.Item>
+            <Form.Item label={t('settings.speechToTextModel')}>
+              <Input value={config.openai?.model} placeholder='gpt-4o-mini-tts' onChange={(value) => handleOpenAIChange('model', value)} />
+            </Form.Item>
+          </>
+        )}
+        {config.provider !== 'system' && <div className='text-12px text-t-tertiary'>{t('settings.textToSpeechFallbackHint')}</div>}
+      </Form>
+    </div>
+  );
+};
+
 const ToolsModalContent: React.FC = () => {
   const { t } = useTranslation();
   const [mcpMessage, mcpMessageContext] = Message.useMessage({ maxCount: 10 });
@@ -709,6 +885,7 @@ const ToolsModalContent: React.FC = () => {
     IConfigStorageRefer['tools.imageGenerationModel'] | undefined
   >();
   const [speechToTextConfig, setSpeechToTextConfig] = useState<SpeechToTextConfig>(DEFAULT_SPEECH_TO_TEXT_CONFIG);
+  const [textToSpeechConfig, setTextToSpeechConfig] = useState<TextToSpeechConfig>(DEFAULT_TEXT_TO_SPEECH_CONFIG);
   const [isUpdatingImageGeneration, setIsUpdatingImageGeneration] = useState(false);
   const { modelListWithImage: data } = useConfigModelListWithImage();
   const { mcpServers, extensionMcpServers, saveMcpServers } = useMcpServers();
@@ -744,10 +921,12 @@ const ToolsModalContent: React.FC = () => {
       try {
         const storedModel = await ConfigStorage.get('tools.imageGenerationModel');
         const storedSpeechToTextConfig = await ConfigStorage.get('tools.speechToText');
+        const storedTextToSpeechConfig = await ConfigStorage.get('tools.textToSpeech');
         if (storedModel) {
           setImageGenerationModel(storedModel);
         }
         setSpeechToTextConfig(normalizeSpeechToTextConfig(storedSpeechToTextConfig));
+        setTextToSpeechConfig(normalizeTextToSpeechConfig(storedTextToSpeechConfig));
       } catch (error) {
         console.error('Failed to load tools config:', error);
       }
@@ -764,6 +943,19 @@ const ToolsModalContent: React.FC = () => {
       });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT));
+      }
+      return next;
+    });
+  }, []);
+
+  const updateTextToSpeechConfig = useCallback((updater: (current: TextToSpeechConfig) => TextToSpeechConfig) => {
+    setTextToSpeechConfig((current) => {
+      const next = normalizeTextToSpeechConfig(updater(current));
+      ConfigStorage.set('tools.textToSpeech', next).catch((error) => {
+        console.error('Failed to save text-to-speech config:', error);
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT));
       }
       return next;
     });
@@ -1050,6 +1242,7 @@ const ToolsModalContent: React.FC = () => {
             </Form>
           </div>
           <SpeechToTextSettingsSection config={speechToTextConfig} onChange={updateSpeechToTextConfig} />
+          <TextToSpeechSettingsSection config={textToSpeechConfig} onChange={updateTextToSpeechConfig} />
         </div>
       </AionScrollArea>
     </div>

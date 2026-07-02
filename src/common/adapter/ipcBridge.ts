@@ -28,6 +28,8 @@ import type {
   SpeechToTextLocalReadyResult,
   SpeechToTextRequest,
   SpeechToTextResult,
+  TextToSpeechRequest,
+  TextToSpeechResult,
 } from '../types/speech';
 import type {
   PeekabooDesktopControlPermissionPane,
@@ -511,6 +513,11 @@ export const speechToText = {
   localModelDownloadProgress: bridge.buildEmitter<SpeechToTextLocalModelDownloadProgressEvent>(
     'speech-to-text.local.download.progress'
   ),
+};
+
+export const textToSpeech = {
+  /** Synthesize one short utterance (a sentence) to encoded audio bytes. */
+  synthesize: bridge.buildProvider<TextToSpeechResult, TextToSpeechRequest>('text-to-speech.synthesize'),
 };
 
 export const fileWatch = {

@@ -33,6 +33,7 @@ import { initPreviewHistoryBridge } from './previewHistoryBridge';
 import { initShellBridge } from './shellBridge';
 import { initStarOfficeBridge } from './starOfficeBridge';
 import { initSpeechToTextBridge } from './speechToTextBridge';
+import { initTextToSpeechBridge } from './textToSpeechBridge';
 import { initTaskBridge } from './taskBridge';
 import { initUpdateBridge } from './updateBridge';
 import { initWebuiBridge } from './webuiBridge';
@@ -97,6 +98,7 @@ export function initAllBridges(deps: BridgeDependencies): void {
   initTaskBridge(deps.workerTaskManager);
   initStarOfficeBridge();
   initSpeechToTextBridge();
+  initTextToSpeechBridge();
   initWeixinLoginBridge();
   initWorkspaceSnapshotBridge();
   initRemoteAgentBridge();
@@ -146,6 +148,7 @@ export {
   initSpeechToTextBridge,
   initStarOfficeBridge,
   initSystemSettingsBridge,
+  initTextToSpeechBridge,
   initAmbientBridge,
   initTaskBridge,
   initUpdateBridge,

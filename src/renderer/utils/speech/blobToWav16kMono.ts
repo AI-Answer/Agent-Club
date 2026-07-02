@@ -79,6 +79,6 @@ export async function blobToWav16kMono(blob: Blob): Promise<Blob> {
     const wavBuffer = encodePcm16Wav(rendered.getChannelData(0), TARGET_SAMPLE_RATE);
     return new Blob([wavBuffer], { type: 'audio/wav' });
   } finally {
-    await decodeCtx.close().catch(() => undefined);
+    await decodeCtx.close().catch((): void => undefined);
   }
 }

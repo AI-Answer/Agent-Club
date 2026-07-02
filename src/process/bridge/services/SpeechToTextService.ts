@@ -132,7 +132,8 @@ const buildDeepgramUrl = (config: SpeechToTextConfig['deepgram'], languageHint?:
   url.searchParams.set('punctuate', String(config?.punctuate !== false));
   url.searchParams.set('smart_format', String(config?.smartFormat !== false));
 
-  const effectiveLanguage = languageHint || config?.language;
+  // The user's explicit setting wins; the caller's hint is only a fallback.
+  const effectiveLanguage = config?.language?.trim() || languageHint;
   if (effectiveLanguage) {
     url.searchParams.set('language', effectiveLanguage);
   } else if (config?.detectLanguage !== false) {
@@ -231,7 +232,9 @@ export class SpeechToTextService {
     formData.append('file', blob, request.fileName);
     formData.append('model', config.openai?.model || DEFAULT_OPENAI_MODEL);
 
-    const language = request.languageHint || config.openai?.language;
+    // The user's explicit setting wins; the caller's hint is only a fallback.
+    // Empty = omit the field so Whisper auto-detects per utterance.
+    const language = config.openai?.language?.trim() || request.languageHint;
     if (language) {
       // OpenAI Whisper requires ISO 639-1 codes (e.g. "en"), not BCP 47 (e.g. "en-us")
       formData.append('language', language.split('-')[0].toLowerCase());
@@ -280,7 +283,9 @@ export class SpeechToTextService {
     // Voice-console transcripts should be plain text — no "(laughter)" tags.
     formData.append('tag_audio_events', 'false');
 
-    const language = request.languageHint || config.elevenlabs?.language;
+    // The user's explicit setting wins; the caller's hint is only a fallback.
+    // Empty = omit the field so Scribe auto-detects per utterance.
+    const language = config.elevenlabs?.language?.trim() || request.languageHint;
     if (language) {
       // Scribe expects ISO-639 codes (e.g. "en"), not BCP 47 (e.g. "en-US").
       formData.append('language_code', language.split('-')[0].toLowerCase());
@@ -359,14 +364,28 @@ export class SpeechToTextService {
       await writeFile(audioPath, audioBuffer);
 
       const outPrefix = path.join(tmpDir, 'output');
-      const language = request.languageHint || config.local?.language || 'auto';
+      // The user's explicit setting wins; the caller's hint is only a
+      // fallback; default = whisper.cpp's own per-utterance auto-detection.
+      const language = config.local?.language?.trim() || request.languageHint || 'auto';
       const languageFlag = language.trim().toLowerCase() === 'auto' ? 'auto' : language.split('-')[0].toLowerCase();
+
+      // The bundled macOS binary is copied from Homebrew with its dylibs in
+      // ./lib, but its load commands still point at Homebrew paths. Point dyld
+      // at the colocated lib dir so it works on machines without Homebrew.
+      const env =
+        process.platform === 'darwin'
+          ? {
+              ...process.env,
+              DYLD_FALLBACK_LIBRARY_PATH: [path.join(resolution.cwd, 'lib'), process.env.DYLD_FALLBACK_LIBRARY_PATH].filter(Boolean).join(':'),
+            }
+          : process.env;
 
       await execFileAsync(
         resolution.binaryPath,
         ['-m', modelPath, '-f', audioPath, '-nt', '-l', languageFlag, '-of', outPrefix, '-otxt'],
         {
           cwd: resolution.cwd,
+          env,
           timeout: 120_000,
           maxBuffer: 10 * 1024 * 1024,
         }

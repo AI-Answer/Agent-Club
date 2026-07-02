@@ -171,7 +171,7 @@ export async function downloadWhisperModel(
       return { success: false, error: result.message };
     }
 
-    await unlink(targetPath).catch(() => undefined);
+    await unlink(targetPath).catch((): void => undefined);
     await rename(tempPath, targetPath);
 
     const finalSize = totalBytesFromFile(targetPath);

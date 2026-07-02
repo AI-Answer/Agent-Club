@@ -9,7 +9,7 @@ import type { DashboardConfig, DashboardSnapshot } from '@/common/types/dashboar
 import type { JourneyKitsVisibility } from '@/common/types/journeyKits';
 import type { HonchoMemoryConfig } from '@/common/types/memory';
 import type { AgentVaultConfig, OnePasswordSecurityConfig } from '@/common/types/security';
-import type { SpeechToTextConfig } from '@/common/types/speech';
+import type { SpeechToTextConfig, TextToSpeechConfig } from '@/common/types/speech';
 import { storage } from '@office-ai/platform';
 
 /**
@@ -115,6 +115,7 @@ export interface IConfigStorageRefer {
     switch?: boolean;
   };
   'tools.speechToText'?: SpeechToTextConfig;
+  'tools.textToSpeech'?: TextToSpeechConfig;
   // 是否在粘贴文件到工作区时询问确认（true = 不再询问）
   'workspace.pasteConfirm'?: boolean;
   // 上传的文件是否保存到工作区目录（true = 保存到工作区，false = 保存到缓存目录）
@@ -307,6 +308,8 @@ export type TChatConversation =
           agentName?: string;
           customAgentId?: string; // UUID for identifying specific custom agent
           presetContext?: string; // 智能助手的预设规则/提示词 / Preset context from smart assistant
+          /** Session-scoped MCP servers injected at spawn (Jarvis) — not written to agent config files */
+          additionalMcpServers?: IMcpServer[];
           /** 启用的 skills 列表，用于过滤 SkillManager 加载的 skills / Enabled skills list for filtering SkillManager skills */
           enabledSkills?: string[];
           /** 排除的内置自动注入 skills / Builtin auto-injected skills to exclude */
