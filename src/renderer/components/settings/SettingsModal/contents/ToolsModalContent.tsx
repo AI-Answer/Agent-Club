@@ -824,6 +824,7 @@ const TextToSpeechSettingsSection: React.FC<{
           <AionSelect value={config.provider} onChange={handleProviderChange}>
             <AionSelect.Option value='elevenlabs'>{t('settings.textToSpeechProviderElevenLabs')}</AionSelect.Option>
             <AionSelect.Option value='openai'>{t('settings.textToSpeechProviderOpenAI')}</AionSelect.Option>
+            <AionSelect.Option value='kokoro'>{t('settings.textToSpeechProviderKokoro')}</AionSelect.Option>
             <AionSelect.Option value='system'>{t('settings.textToSpeechProviderSystem')}</AionSelect.Option>
           </AionSelect>
         </Form.Item>
@@ -888,6 +889,7 @@ const TextToSpeechSettingsSection: React.FC<{
             </Form.Item>
           </>
         )}
+        {config.provider === 'kokoro' && <div className='text-12px text-t-tertiary'>{t('settings.textToSpeechKokoroHint')}</div>}
         {config.provider !== 'system' && <div className='text-12px text-t-tertiary'>{t('settings.textToSpeechFallbackHint')}</div>}
       </Form>
     </div>

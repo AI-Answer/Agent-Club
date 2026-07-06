@@ -604,6 +604,8 @@
   "textToSpeechProviderElevenLabs": "ElevenLabs (natural, low latency)",
   "textToSpeechProviderOpenAI": "OpenAI (natural)",
   "textToSpeechProviderSystem": "System voice (built-in, free)",
+  "textToSpeechProviderKokoro": "Local voice sidecar (Kokoro, free)",
+  "textToSpeechKokoroHint": "Runs on this machine via the Agent Club voice sidecar — no API key, no cloud. Falls back to the system voice when the sidecar is not running.",
   "textToSpeechVoiceId": "Voice ID",
   "textToSpeechVoice": "Voice",
   "textToSpeechApiKeyPlaceholder": "Leave empty to reuse your ElevenLabs Scribe key",

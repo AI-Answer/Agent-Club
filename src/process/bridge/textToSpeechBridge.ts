@@ -6,9 +6,14 @@
 
 import { ipcBridge } from '@/common';
 import { TextToSpeechService } from './services/TextToSpeechService';
+import { VoiceSidecarService } from './services/VoiceSidecarService';
 
 export function initTextToSpeechBridge(): void {
   ipcBridge.textToSpeech.synthesize.provider(async (request) => {
     return TextToSpeechService.synthesize(request);
+  });
+
+  ipcBridge.voiceSidecar.status.provider(async () => {
+    return VoiceSidecarService.status();
   });
 }

@@ -27,8 +27,17 @@ vi.mock('@process/services/whisper/WhisperModelStore', () => ({
   isWhisperModelDownloaded: vi.fn(),
 }));
 
+vi.mock('@process/bridge/services/VoiceSidecarService', () => ({
+  VoiceSidecarService: {
+    status: vi.fn().mockResolvedValue({ up: false, stt: false, tts: false, wake: false }),
+    transcribe: vi.fn(),
+    synthesize: vi.fn(),
+  },
+}));
+
 import { ProcessConfig } from '@process/utils/initStorage';
 import { SpeechToTextService } from '@process/bridge/services/SpeechToTextService';
+import { VoiceSidecarService } from '@process/bridge/services/VoiceSidecarService';
 import { resolveWhisperCli } from '@process/agent/whisper/binaryResolver';
 import { getWhisperModelPath, isWhisperModelDownloaded } from '@process/services/whisper/WhisperModelStore';
 import { mainError, mainLog, mainWarn } from '@process/utils/mainLogger';
@@ -37,6 +46,7 @@ import { writeFile } from 'node:fs/promises';
 describe('SpeechToTextService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(VoiceSidecarService.status).mockResolvedValue({ up: false, stt: false, tts: false, wake: false });
   });
 
   afterEach(() => {
@@ -45,6 +55,7 @@ describe('SpeechToTextService', () => {
 
   it('rejects requests when speech-to-text is disabled', async () => {
     vi.mocked(ProcessConfig.get).mockResolvedValue(undefined);
+    vi.mocked(VoiceSidecarService.status).mockResolvedValue({ up: false, stt: false, tts: false, wake: false });
 
     await expect(
       SpeechToTextService.transcribe({
@@ -65,6 +76,26 @@ describe('SpeechToTextService', () => {
         errorCode: 'STT_DISABLED',
       })
     );
+  });
+
+  it('uses the voice sidecar when its STT path is live', async () => {
+    vi.mocked(VoiceSidecarService.status).mockResolvedValue({ up: true, stt: true, tts: false, wake: true });
+    vi.mocked(VoiceSidecarService.transcribe).mockResolvedValue({ text: 'hola', language: 'es' });
+
+    const result = await SpeechToTextService.transcribe({
+      audioBuffer: new Uint8Array([1, 2, 3, 4, 5]),
+      fileName: 'sample.webm',
+      mimeType: 'audio/webm',
+      languageHint: 'es',
+    });
+
+    expect(VoiceSidecarService.transcribe).toHaveBeenCalled();
+    expect(result).toEqual({
+      text: 'hola',
+      language: 'es',
+      provider: 'local',
+      model: 'sidecar-whisper',
+    });
   });
 
   it('sends OpenAI transcription requests with multipart form data', async () => {

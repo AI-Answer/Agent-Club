@@ -69,7 +69,7 @@ const JarvisPage: React.FC = () => {
   }, [analyser]);
 
   useEffect(() => {
-    if (!hermesInstalled || !speechSupported || sttBlocked) return;
+    if (!hermesInstalled || sttBlocked) return;
     const isTyping = (t: EventTarget | null): boolean => {
       const el = t as HTMLElement | null;
       const tag = el?.tagName;
@@ -91,7 +91,7 @@ const JarvisPage: React.FC = () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
     };
-  }, [hermesInstalled, speechSupported, sttBlocked, startListening, stopListening, voice.voiceMode]);
+  }, [hermesInstalled, sttBlocked, startListening, stopListening, voice.voiceMode]);
 
   return (
     <main className='jarvis-stage'>

@@ -1,0 +1,13 @@
+# Agent Club voice sidecar — see README.md for setup.
+# CPU baseline (macOS / Linux / Windows without CUDA):
+fastapi
+uvicorn
+numpy
+soundfile
+faster-whisper
+kokoro-onnx
+onnxruntime
+# wake word ("Hey Jarvis") — see README for the --no-deps note on CUDA machines
+openwakeword
+sounddevice
+websockets

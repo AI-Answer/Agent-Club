@@ -29,9 +29,22 @@ import { transcribeAudioBlob } from '@/renderer/services/SpeechToTextService';
 import { extractSentences, flushSentenceBuffer } from '@/renderer/utils/speech/sentenceChunker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resolveJarvisSessionMcpServers } from './jarvisMcpServers';
+import { connectVoiceSidecarWake } from './voiceSidecarWake';
 
 export const SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT = 'aionui:speech-to-text-config-changed';
 export const TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT = 'aionui:text-to-speech-config-changed';
+
+/** Local dismiss commands — handled without sending to Hermes (jarvis-hud pattern). */
+const DISMISS_RE = /^(stop|cancel|never ?mind|nada|silencio|para|quiet|shut up|nothing|no|nope)[\s.!,]*$/i;
+
+export type VoiceSidecarSnapshot = {
+  up: boolean;
+  stt: boolean;
+  tts: boolean;
+  wake: boolean;
+};
+
+const SIDECAR_DOWN: VoiceSidecarSnapshot = { up: false, stt: false, tts: false, wake: false };
 
 /** Concise system instruction injected into the Hermes conversation. */
 const PRESET_CONTEXT =
@@ -100,8 +113,16 @@ function webSpeechFallback(): SttEngine {
  */
 export async function resolveTtsEngine(): Promise<TtsEngine> {
   try {
-    const [tts, stt] = await Promise.all([ConfigStorage.get('tools.textToSpeech'), ConfigStorage.get('tools.speechToText')]);
-    return resolveTextToSpeechProvider(tts, stt);
+    const [tts, stt, sidecar] = await Promise.all([
+      ConfigStorage.get('tools.textToSpeech'),
+      ConfigStorage.get('tools.speechToText'),
+      ipcBridge.voiceSidecar.status.invoke().catch(() => SIDECAR_DOWN),
+    ]);
+    const base = resolveTextToSpeechProvider(tts, stt);
+    // Live Kokoro beats the robotic system voice; explicit remote keys still win.
+    if (sidecar.tts && (base === 'system' || tts?.provider === 'kokoro')) return 'kokoro';
+    if (base === 'kokoro' && !sidecar.tts) return 'system';
+    return base;
   } catch {
     // storage unavailable — fall through
   }
@@ -109,11 +130,23 @@ export async function resolveTtsEngine(): Promise<TtsEngine> {
 }
 
 /**
- * Pick the best available STT engine. Prefers the app's configured
- * Speech-to-Text tool; falls back to Web Speech where supported.
+ * Pick the best available STT engine. Prefers the warm local sidecar when
+ * present; then the app's configured Speech-to-Text tool; then Web Speech.
  */
 export async function resolveSttEngine(): Promise<SttEngine> {
   try {
+    if (getSpeechInputAvailability() !== 'record') {
+      return webSpeechFallback();
+    }
+
+    // In Electron the mic is always the entry point — browser permission is
+    // the only gate. Transcription routing (sidecar → configured provider)
+    // happens in the main process when the clip is sent.
+    if (isElectronDesktop()) return 'recorder';
+
+    const sidecar = await ipcBridge.voiceSidecar.status.invoke().catch(() => SIDECAR_DOWN);
+    if (sidecar.stt) return 'recorder';
+
     const cfg = await ConfigStorage.get('tools.speechToText');
     if (!cfg?.enabled || getSpeechInputAvailability() !== 'record') {
       return webSpeechFallback();
@@ -158,9 +191,12 @@ function pickAckFiller(language: string | null): string {
   return set[Math.floor(Math.random() * set.length)];
 }
 
-function synthesizeWithTimeout(text: string): Promise<{ audio: number[] }> {
+function synthesizeWithTimeout(text: string, provider: Exclude<TtsEngine, 'system'>): Promise<{ audio: number[] }> {
   return Promise.race([
-    ipcBridge.textToSpeech.synthesize.invoke({ text }),
+    ipcBridge.textToSpeech.synthesize.invoke({
+      text,
+      provider: provider === 'kokoro' ? 'kokoro' : provider,
+    }),
     new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('TTS_TIMEOUT')), SYNTH_TIMEOUT_MS);
     }),
@@ -225,6 +261,10 @@ export interface VoicePipeline {
   voiceMode: boolean;
   /** MCP servers injected into the current Hermes session. */
   sessionMcpCount: number;
+  /** Optional local voice sidecar (warm STT / Kokoro / wake word). */
+  sidecar: VoiceSidecarSnapshot;
+  /** True when the sidecar wake listener is armed ("Hey Jarvis"). */
+  wakeArmed: boolean;
   toggleVoiceMode: () => void;
   startListening: () => void;
   stopListening: () => void;
@@ -248,12 +288,16 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   const [sttEngine, setSttEngine] = useState<SttEngine>('none');
   const [ttsEngine, setTtsEngine] = useState<TtsEngine>('system');
   const [sessionMcpCount, setSessionMcpCount] = useState(0);
+  const [sidecar, setSidecar] = useState<VoiceSidecarSnapshot>(SIDECAR_DOWN);
+  const [wakeArmed, setWakeArmed] = useState(false);
   const [bootstrapNonce, setBootstrapNonce] = useState(0);
 
   const speechSupported = sttEngine !== 'none';
 
   const voiceModeRef = useRef(false);
   const sttEngineRef = useRef<SttEngine>('none');
+  const startListeningRef = useRef<() => void>(() => {});
+  const sidecarRef = useRef<VoiceSidecarSnapshot>(SIDECAR_DOWN);
   const statusRef = useRef<VoiceStatus>('checking');
   const conversationIdRef = useRef<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -473,13 +517,12 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         revealSpokenText(next.lineId, next.text);
         if (ttsEngineRef.current !== 'system') {
           try {
-            const res = await synthesizeWithTimeout(next.text);
+            const res = await synthesizeWithTimeout(next.text, ttsEngineRef.current);
             if (token !== speakTokenRef.current) return;
             await playAudioBytes(res.audio, token);
           } catch (e) {
-            // Remote TTS unreachable/misconfigured — fall back to the system
-            // voice for the rest of the session (a config change re-resolves).
-            console.warn('[jarvis] remote TTS failed; falling back to system voice', e);
+            // Remote/local TTS unreachable — fall back to the system voice.
+            console.warn('[jarvis] TTS failed; falling back to system voice', e);
             ttsEngineRef.current = 'system';
             setTtsEngine('system');
             if (token === speakTokenRef.current) await speakSystem(next.text, token);
@@ -718,8 +761,14 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      const [engine, voice] = await Promise.all([resolveSttEngine(), resolveTtsEngine()]);
+      const [engine, voice, sidecarStatus] = await Promise.all([
+        resolveSttEngine(),
+        resolveTtsEngine(),
+        ipcBridge.voiceSidecar.status.invoke().catch(() => SIDECAR_DOWN),
+      ]);
       if (cancelled) return;
+      sidecarRef.current = sidecarStatus;
+      setSidecar(sidecarStatus);
       sttEngineRef.current = engine;
       setSttEngine(engine);
       if (engine === 'recorder') setSttBlocked(false);
@@ -732,8 +781,12 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     };
     window.addEventListener(SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT, onConfigChanged);
     window.addEventListener(TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT, onConfigChanged);
+    const sidecarPoll = window.setInterval(() => {
+      void refresh();
+    }, 30_000);
     return () => {
       cancelled = true;
+      window.clearInterval(sidecarPoll);
       window.removeEventListener(SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT, onConfigChanged);
       window.removeEventListener(TEXT_TO_SPEECH_CONFIG_CHANGED_EVENT, onConfigChanged);
     };
@@ -764,10 +817,27 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     setStatus((s) => (s === 'listening' || s === 'thinking' ? 'idle' : s));
   }, []);
 
+  const handleDismiss = useCallback(
+    (lineId?: string) => {
+      if (lineId) dropCaptureLine(lineId);
+      void interruptInFlightTurn();
+      stopPlayback();
+      setStatus('idle');
+      if (voiceModeRef.current) {
+        window.setTimeout(() => startListeningRef.current(), 350);
+      }
+    },
+    [dropCaptureLine, interruptInFlightTurn, stopPlayback]
+  );
+
   const dispatchUserMessage = useCallback(
     async (text: string) => {
       const convoId = conversationIdRef.current;
       if (!text || !convoId) return;
+      if (DISMISS_RE.test(text.trim())) {
+        handleDismiss();
+        return;
+      }
       await interruptInFlightTurn();
       beginTurnPerf();
       markPerf('send_message');
@@ -784,7 +854,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         enqueueSpeech([pickAckFiller(lastUserLangRef.current)], null);
       }, ACK_FILLER_DELAY_MS);
     },
-    [beginTurnPerf, enqueueSpeech, interruptInFlightTurn, markPerf]
+    [beginTurnPerf, enqueueSpeech, handleDismiss, interruptInFlightTurn, markPerf]
   );
 
   const transcribeAndSend = useCallback(
@@ -800,6 +870,11 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         const convoId = conversationIdRef.current;
         if (!text || !convoId) {
           dropCaptureLine(lineId);
+          return;
+        }
+        if (DISMISS_RE.test(text)) {
+          setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, text, final: true } : l)));
+          handleDismiss();
           return;
         }
         setTranscript((prev) => prev.map((l) => (l.id === lineId ? { ...l, text, final: true } : l)));
@@ -818,7 +893,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         }
       }
     },
-    [dispatchUserMessage, dropCaptureLine, markPerf]
+    [dispatchUserMessage, dropCaptureLine, handleDismiss, markPerf]
   );
 
   const startRecorderCapture = useCallback(async () => {
@@ -937,7 +1012,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       // partial text in place of the "…" placeholder. Cloud providers skip
       // this (every pass would be a billed API call) and show text on release.
       const sttCfg = await ConfigStorage.get('tools.speechToText').catch((): undefined => undefined);
-      if (sttCfg?.provider === 'local') {
+      if (sttCfg?.provider === 'local' || sidecarRef.current.stt) {
         let interimBusy = false;
         interimIntervalRef.current = window.setInterval(() => {
           if (interimBusy || !speechSeen || chunks.length === 0) return;
@@ -1075,6 +1150,32 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     })();
   }, [beginTurnPerf, dispatchUserMessage, ensureAudioContext, hermesInstalled, interruptInFlightTurn, markPerf, startRecorderCapture, stopPlayback]);
 
+  startListeningRef.current = startListening;
+
+  useEffect(() => {
+    if (!hermesInstalled || !sidecar.wake) return;
+    return connectVoiceSidecarWake({
+      onHello: (armed) => setWakeArmed(armed),
+      onWake: () => {
+        void interruptInFlightTurn();
+        stopPlayback();
+        setStatus('listening');
+      },
+      onWakeEnd: () => {
+        setStatus((s) => (s === 'listening' ? 'idle' : s));
+      },
+      onTranscript: (text) => {
+        if (DISMISS_RE.test(text)) {
+          handleDismiss();
+          return;
+        }
+        const lineId = `user-wake-${uuid()}`;
+        setTranscript((prev) => [...prev, { id: lineId, role: 'user', text, final: true }]);
+        void dispatchUserMessage(text);
+      },
+    });
+  }, [dispatchUserMessage, handleDismiss, hermesInstalled, interruptInFlightTurn, sidecar.wake, stopPlayback]);
+
   const stopListening = useCallback(() => {
     if (capturePendingRef.current) {
       pendingStopRef.current = true;
@@ -1136,12 +1237,16 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       const clean = text.trim();
       const convoId = conversationIdRef.current;
       if (!clean || !convoId || !hermesInstalled) return false;
+      if (DISMISS_RE.test(clean)) {
+        handleDismiss();
+        return true;
+      }
       stopPlayback();
       setTranscript((prev) => [...prev, { id: `user-${uuid()}`, role: 'user', text: clean, final: true }]);
       void dispatchUserMessage(clean);
       return true;
     },
-    [dispatchUserMessage, hermesInstalled, stopPlayback]
+    [dispatchUserMessage, handleDismiss, hermesInstalled, stopPlayback]
   );
 
   const toggleVoiceMode = useCallback(() => {
@@ -1216,6 +1321,8 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     sttBlocked,
     voiceMode,
     sessionMcpCount,
+    sidecar,
+    wakeArmed,
     toggleVoiceMode,
     startListening,
     stopListening,

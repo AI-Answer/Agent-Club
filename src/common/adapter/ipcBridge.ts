@@ -520,6 +520,11 @@ export const textToSpeech = {
   synthesize: bridge.buildProvider<TextToSpeechResult, TextToSpeechRequest>('text-to-speech.synthesize'),
 };
 
+export const voiceSidecar = {
+  /** Probe the optional local voice sidecar (warm STT / Kokoro TTS / wake word). */
+  status: bridge.buildProvider<{ up: boolean; tts: boolean; stt: boolean; sttDevice?: string; wake: boolean; voice?: string }, void>('voice-sidecar.status'),
+};
+
 export const fileWatch = {
   startWatch: bridge.buildProvider<IBridgeResponse, { filePath: string }>('file-watch-start'), // 开始监听文件变化
   stopWatch: bridge.buildProvider<IBridgeResponse, { filePath: string }>('file-watch-stop'), // 停止监听文件变化

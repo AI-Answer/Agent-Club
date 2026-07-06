@@ -27,7 +27,7 @@
     "micRelease": "Release Space to send",
     "micHoldInterrupt": "Tap to interrupt",
     "micUnavailable": "Microphone unavailable",
-    "hintIdle": "Tap the mic to start a conversation — Jarvis listens again after each reply. Hold Space to say a single message. Esc silences.",
+    "hintIdle": "Tap the mic for hands-free, or hold it to talk once. Space works too. Esc silences.",
     "hintHandsFree": "Just speak, then pause — Jarvis answers and listens again. Tap the mic to end.",
     "hintPtt": "Release Space to send. Esc cancels.",
     "hintBusy": "Tap the mic to interrupt and talk. Esc just silences.",
@@ -40,7 +40,10 @@
     "enableLocalVoice": "Enable voice input — free, on-device",
     "downloadingVoice": "Downloading voice model… {{percent}}%",
     "enableLocalVoiceFailed": "Voice setup failed — try again, or use the settings below.",
-    "workingOn": "Working: {{tool}}…"
+    "workingOn": "Working: {{tool}}…",
+    "sidecarStt": "Local voice link · warm on-device STT",
+    "sidecarTts": "Kokoro voice",
+    "sidecarWake": "say \"Hey Jarvis\""
   },
   "quick": {
     "title": "Quick actions",
@@ -57,8 +60,8 @@
     "step1Title": "Install the Hermes CLI",
     "step1Body": "Install Hermes by Nous Research and make sure the command below is available in your terminal. Agent Club detects it automatically.",
     "step1Docs": "Open the Hermes documentation",
-    "step2Title": "Enable voice input (one click)",
-    "step2Body": "Once Hermes is linked, press \"Enable voice input\" in the console — Jarvis downloads a free on-device transcription model (~150 MB), no account or key needed. Prefer cloud accuracy? Add an OpenAI, ElevenLabs, or Deepgram key in settings instead.",
+    "step2Title": "Grant microphone access",
+    "step2Body": "Tap or hold the mic icon in the console. macOS will ask once — after that, voice just works. Optional cloud keys (OpenAI, ElevenLabs, Deepgram) live in Settings → Capabilities if you want them.",
     "step3Title": "Talk to Jarvis",
     "step3Body": "Hold the mic (or Space) to talk, tap it for hands-free, or just type. Replies are spoken aloud — in a natural voice when an ElevenLabs or OpenAI key is available. Esc interrupts.",
     "rescan": "Re-scan for Hermes",

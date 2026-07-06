@@ -211,3 +211,12 @@ graphify-out/
 .graphify_python
 
 .snow/
+
+# Voice sidecar runtime artifacts (downloaded per machine, never committed)
+resources/voice-sidecar/.venv/
+resources/voice-sidecar/__pycache__/
+resources/voice-sidecar/*.onnx
+resources/voice-sidecar/*.bin
+
+# memsearch plugin data
+.memsearch/

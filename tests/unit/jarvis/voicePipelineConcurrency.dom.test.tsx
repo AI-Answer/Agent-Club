@@ -43,6 +43,12 @@ vi.mock('@/common', () => ({
     speechToText: {
       isLocalReady: { invoke: vi.fn().mockResolvedValue({ ready: false }) },
     },
+    voiceSidecar: {
+      status: { invoke: vi.fn().mockResolvedValue({ up: false, stt: false, tts: false, wake: false }) },
+    },
+    textToSpeech: {
+      synthesize: { invoke: vi.fn().mockResolvedValue({ audio: [1, 2, 3] }) },
+    },
   },
 }));
 

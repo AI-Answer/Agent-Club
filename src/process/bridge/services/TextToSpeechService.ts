@@ -14,6 +14,7 @@ import {
 } from '@/common/types/speech';
 import { mainError, mainLog } from '@process/utils/mainLogger';
 import { ProcessConfig } from '@process/utils/initStorage';
+import { VoiceSidecarService } from './VoiceSidecarService';
 
 const DEFAULT_ELEVENLABS_TTS_BASE_URL = 'https://api.elevenlabs.io/v1';
 /** Lowest-latency ElevenLabs model (~75ms generation), 32 languages. */
@@ -101,13 +102,36 @@ export class TextToSpeechService {
 
     const ttsConfig = await ProcessConfig.get('tools.textToSpeech');
     const sttConfig = await ProcessConfig.get('tools.speechToText');
-    const provider = resolveTextToSpeechProvider(ttsConfig, sttConfig);
+    const provider = request.provider ?? resolveTextToSpeechProvider(ttsConfig, sttConfig);
     if (provider === 'system') {
       throw new Error('TTS_NOT_CONFIGURED');
     }
 
     const startedAt = Date.now();
     try {
+      if (provider === 'kokoro') {
+        const sidecar = await VoiceSidecarService.status();
+        if (!sidecar.tts) {
+          throw new Error('TTS_NOT_CONFIGURED');
+        }
+        const { audio, voice } = await VoiceSidecarService.synthesize(text);
+        mainLog(TTS_LOG_TAG, 'Synthesis completed', {
+          provider: 'kokoro',
+          model: 'kokoro-v1',
+          voiceId: voice || 'bm_george',
+          textLength: text.length,
+          audioBytes: audio.byteLength,
+          durationMs: Date.now() - startedAt,
+        });
+        return {
+          audio: Array.from(audio),
+          mimeType: 'audio/wav',
+          provider: 'kokoro',
+          model: 'kokoro-v1',
+          voiceId: voice || 'bm_george',
+        };
+      }
+
       const outcome =
         provider === 'elevenlabs'
           ? await synthesizeWithElevenLabs(text, ttsConfig, getTextToSpeechElevenLabsKey(ttsConfig, sttConfig))

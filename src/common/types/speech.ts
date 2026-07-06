@@ -122,7 +122,7 @@ export function isSpeechToTextConfigured(config: SpeechToTextConfig | undefined)
 
 // --- Text-to-speech (Jarvis spoken replies) ---------------------------------
 
-export type TextToSpeechProvider = 'system' | 'elevenlabs' | 'openai';
+export type TextToSpeechProvider = 'system' | 'elevenlabs' | 'openai' | 'kokoro';
 
 export type ElevenLabsTextToSpeechConfig = {
   /** Falls back to the ElevenLabs speech-to-text (Scribe) key when empty. */
@@ -154,13 +154,16 @@ export type TextToSpeechConfig = {
 
 export type TextToSpeechRequest = {
   text: string;
+  /** Engine the renderer resolved; the service falls back to its own
+   *  resolution when absent. 'kokoro' = the local voice sidecar. */
+  provider?: 'elevenlabs' | 'openai' | 'kokoro';
 };
 
 export type TextToSpeechResult = {
   /** Encoded audio bytes (serialized over IPC). */
   audio: number[];
   mimeType: string;
-  provider: 'elevenlabs' | 'openai';
+  provider: 'elevenlabs' | 'openai' | 'kokoro';
   model: string;
   voiceId: string;
 };
@@ -190,6 +193,10 @@ export function resolveTextToSpeechProvider(tts: TextToSpeechConfig | undefined,
   const elKey = getTextToSpeechElevenLabsKey(tts, stt);
   const openaiKey = getTextToSpeechOpenAIKey(tts, stt);
   if (tts?.provider === 'system') return 'system';
+  // 'kokoro' = the local voice sidecar; whether it is actually RUNNING is
+  // checked by the caller (renderer engine resolution / main service), which
+  // degrades to the system voice when it isn't.
+  if (tts?.provider === 'kokoro') return 'kokoro';
   if (tts?.provider === 'openai' && openaiKey) return 'openai';
   if (elKey) return 'elevenlabs';
   if (openaiKey) return 'openai';

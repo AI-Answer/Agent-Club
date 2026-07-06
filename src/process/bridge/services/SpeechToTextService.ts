@@ -19,6 +19,7 @@ import {
 } from '@process/services/whisper/WhisperModelStore';
 import { mainError, mainLog, mainWarn } from '@process/utils/mainLogger';
 import { ProcessConfig } from '@process/utils/initStorage';
+import { VoiceSidecarService } from './VoiceSidecarService';
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -175,22 +176,34 @@ export class SpeechToTextService {
     });
 
     try {
-      const config = await resolveSpeechToTextConfig();
-      mainLog(STT_LOG_TAG, 'Resolved speech-to-text provider', {
-        requestId,
-        provider: config.provider,
-        model:
-          config.provider === 'openai'
-            ? config.openai?.model || DEFAULT_OPENAI_MODEL
-            : config.provider === 'elevenlabs'
-              ? config.elevenlabs?.model || DEFAULT_ELEVENLABS_MODEL
-              : config.provider === 'local'
-                ? resolveWhisperModelId(config.local?.modelId)
-                : config.deepgram?.model,
+      // Zero-config voice: when the STT tool is disabled/unset but the local
+      // voice sidecar is live, serve the request from the sidecar instead of
+      // failing — the sidecar's whole point is voice without setup.
+      const config = await resolveSpeechToTextConfig().catch(async (error): Promise<SpeechToTextConfig | undefined> => {
+        if (getErrorMessage(error) === 'STT_DISABLED' && (await VoiceSidecarService.status()).stt) {
+          return undefined;
+        }
+        throw error;
       });
 
-      const result =
-        config.provider === 'openai'
+      if (config) {
+        mainLog(STT_LOG_TAG, 'Resolved speech-to-text provider', {
+          requestId,
+          provider: config.provider,
+          model:
+            config.provider === 'openai'
+              ? config.openai?.model || DEFAULT_OPENAI_MODEL
+              : config.provider === 'elevenlabs'
+                ? config.elevenlabs?.model || DEFAULT_ELEVENLABS_MODEL
+                : config.provider === 'local'
+                  ? resolveWhisperModelId(config.local?.modelId)
+                  : config.deepgram?.model,
+        });
+      }
+
+      const result = !config
+        ? await this.transcribeWithSidecar(undefined, request)
+        : config.provider === 'openai'
           ? await this.transcribeWithOpenAI(config, request)
           : config.provider === 'elevenlabs'
             ? await this.transcribeWithElevenLabs(config, request)
@@ -341,16 +354,52 @@ export class SpeechToTextService {
     };
   }
 
+  /**
+   * Warm faster-whisper in the voice sidecar. Only used for the 'local'
+   * provider — explicit remote provider choices are never rerouted here.
+   */
+  private static async transcribeWithSidecar(
+    config: SpeechToTextConfig | undefined,
+    request: SpeechToTextRequest
+  ): Promise<SpeechToTextResult> {
+    // The user's explicit setting wins; the caller's hint is only a
+    // fallback; 'auto'/empty = the sidecar detects per utterance.
+    const configured = config?.local?.language?.trim() || request.languageHint || '';
+    const language = configured.toLowerCase() === 'auto' ? '' : configured.split('-')[0].toLowerCase();
+    const audioBuffer = normalizeAudioBuffer(request.audioBuffer);
+    const { text, language: detected } = await VoiceSidecarService.transcribe(new Uint8Array(audioBuffer), request.mimeType || 'application/octet-stream', language);
+    return {
+      language: detected || language || undefined,
+      model: 'sidecar-whisper',
+      provider: 'local',
+      text,
+    };
+  }
+
   private static async transcribeWithLocal(
     config: SpeechToTextConfig,
     request: SpeechToTextRequest
   ): Promise<SpeechToTextResult> {
     const resolution = resolveWhisperCli();
+    const modelId = resolveWhisperModelId(config.local?.modelId);
+    const cliReady = Boolean(resolution) && isWhisperModelDownloaded(modelId);
+
+    // Benchmarked on Apple Silicon: whisper.cpp runs on Metal and beats the
+    // CPU-only sidecar even paying process spawn (~0.6s vs ~1.1s per
+    // utterance) — so a ready CLI wins on macOS. Everywhere else the warm
+    // sidecar (CUDA on Windows/Linux, warm CPU otherwise) wins, and it also
+    // makes 'local' work with zero whisper-cli setup.
+    const preferCli = cliReady && process.platform === 'darwin';
+    if (!preferCli) {
+      const sidecar = await VoiceSidecarService.status();
+      if (sidecar.stt) {
+        return this.transcribeWithSidecar(config, request);
+      }
+    }
+
     if (!resolution) {
       throw new Error('STT_LOCAL_BINARY_MISSING');
     }
-
-    const modelId = resolveWhisperModelId(config.local?.modelId);
     if (!isWhisperModelDownloaded(modelId)) {
       throw new Error('STT_LOCAL_MODEL_NOT_DOWNLOADED');
     }

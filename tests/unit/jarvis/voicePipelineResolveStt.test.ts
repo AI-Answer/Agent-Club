@@ -16,6 +16,9 @@ vi.mock('@/common', () => ({
     speechToText: {
       isLocalReady: { invoke: (...args: unknown[]) => mockIsLocalReady(...args) },
     },
+    voiceSidecar: {
+      status: { invoke: vi.fn().mockResolvedValue({ up: false, stt: false, tts: false, wake: false }) },
+    },
   },
 }));
 
@@ -27,6 +30,10 @@ vi.mock('@/common/config/storage', () => ({
 
 vi.mock('@/renderer/hooks/system/useSpeechInput', () => ({
   getSpeechInputAvailability: () => mockGetSpeechInputAvailability(),
+}));
+
+vi.mock('@/renderer/utils/platform', () => ({
+  isElectronDesktop: () => false,
 }));
 
 vi.mock('@/common/types/speech', () => ({
@@ -44,6 +51,13 @@ describe('resolveSttEngine', () => {
 
   it('returns recorder when cloud speech-to-text is configured', async () => {
     mockConfigGet.mockResolvedValue({ enabled: true, provider: 'openai', apiKey: 'k' });
+    await expect(resolveSttEngine()).resolves.toBe('recorder');
+  });
+
+  it('returns recorder when the voice sidecar STT is live', async () => {
+    const { ipcBridge } = await import('@/common');
+    vi.mocked(ipcBridge.voiceSidecar.status.invoke).mockResolvedValue({ up: true, stt: true, tts: false, wake: true });
+    mockConfigGet.mockResolvedValue({ enabled: false });
     await expect(resolveSttEngine()).resolves.toBe('recorder');
   });
 
