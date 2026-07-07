@@ -249,6 +249,8 @@ export interface VoicePipeline {
   hermesInstalled: boolean;
   transcript: TranscriptLine[];
   analyser: AnalyserNode | null;
+  /** Live mic analyser while listening — real voice-input level for the orb. */
+  micAnalyser: AnalyserNode | null;
   level: number;
   error: string | null;
   speechSupported: boolean;
@@ -310,7 +312,16 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   const micStreamRef = useRef<MediaStream | null>(null);
   const vadIntervalRef = useRef<number | null>(null);
   const interimIntervalRef = useRef<number | null>(null);
+  /** In-flight interim (live-caption) transcription, if any. The final
+   *  transcription on release must wait for this rather than run alongside
+   *  it — two concurrent whisper invocations contend for the same CPU/Metal
+   *  resources and each ends up slower than running sequentially. */
+  const interimInFlightRef = useRef<Promise<void> | null>(null);
   const vadCtxRef = useRef<AudioContext | null>(null);
+  /** Live mic analyser (same node the VAD reads) — exposed so the GraphCore
+   *  orb can react to the user's actual voice input, not just app state. */
+  const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const [micAnalyser, setMicAnalyser] = useState<AnalyserNode | null>(null);
   const commitRef = useRef(true);
   const turnTokenRef = useRef(0);
   const interimLineIdRef = useRef<string | null>(null);
@@ -326,7 +337,8 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
   // Reply text is REVEALED in the transcript as each sentence starts speaking
   // (caption-style), so what you read is what you hear.
   const ttsEngineRef = useRef<TtsEngine>('system');
-  const speakQueueRef = useRef<{ text: string; lineId: string | null }[]>([]);
+  type SpeechQueueItem = { text: string; lineId: string | null; synthPromise: Promise<{ audio: number[] }> | null };
+  const speakQueueRef = useRef<SpeechQueueItem[]>([]);
   const speakBusyRef = useRef(false);
   /** Bumped to invalidate queued/in-flight speech (barge-in, Esc, new turn). */
   const speakTokenRef = useRef(0);
@@ -493,6 +505,27 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     });
   }, []);
 
+  /**
+   * Start synthesis for the next couple of queued sentences without waiting
+   * for the current one to finish playing. Without this, each sentence only
+   * begins synthesizing after the previous one's audio ends — turning every
+   * multi-sentence reply into a string of audible dead-air gaps (Kokoro/
+   * ElevenLabs/OpenAI synth is not instant, ~0.3-1s per sentence). System
+   * voice needs no prefetch: speechSynthesis.speak() is a local, near-instant
+   * enqueue.
+   */
+  const prefetchAhead = useCallback(() => {
+    const engine = ttsEngineRef.current;
+    if (engine === 'system') return;
+    const queue = speakQueueRef.current;
+    for (let i = 0; i < Math.min(2, queue.length); i++) {
+      const item = queue[i];
+      if (!item.synthPromise) {
+        item.synthPromise = synthesizeWithTimeout(item.text, engine);
+      }
+    }
+  }, []);
+
   /** Drain the speech queue one utterance at a time. */
   const pumpSpeech = useCallback(() => {
     if (speakBusyRef.current) return;
@@ -517,8 +550,10 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         revealSpokenText(next.lineId, next.text);
         if (ttsEngineRef.current !== 'system') {
           try {
-            const res = await synthesizeWithTimeout(next.text, ttsEngineRef.current);
+            const res = await (next.synthPromise ?? synthesizeWithTimeout(next.text, ttsEngineRef.current));
             if (token !== speakTokenRef.current) return;
+            // While this sentence PLAYS, get the following one(s) synthesizing.
+            prefetchAhead();
             await playAudioBytes(res.audio, token);
           } catch (e) {
             // Remote/local TTS unreachable — fall back to the system voice.
@@ -541,15 +576,16 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         }
       }
     })();
-  }, [markPerf, maybeIdleAfterSpeech, playAudioBytes, revealSpokenText, speakSystem]);
+  }, [markPerf, maybeIdleAfterSpeech, playAudioBytes, prefetchAhead, revealSpokenText, speakSystem]);
 
   const enqueueSpeech = useCallback(
     (sentences: string[], lineId: string | null) => {
       if (sentences.length === 0) return;
-      speakQueueRef.current.push(...sentences.map((text) => ({ text, lineId })));
+      speakQueueRef.current.push(...sentences.map((text): SpeechQueueItem => ({ text, lineId, synthPromise: null })));
+      prefetchAhead();
       pumpSpeech();
     },
-    [pumpSpeech]
+    [prefetchAhead, pumpSpeech]
   );
 
   const interruptInFlightTurn = useCallback(async () => {
@@ -810,6 +846,8 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       micStreamRef.current = null;
     }
     recorderRef.current = null;
+    micAnalyserRef.current = null;
+    setMicAnalyser(null);
   }, []);
 
   const dropCaptureLine = useCallback((lineId: string) => {
@@ -932,9 +970,32 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
           dropCaptureLine(lineId);
           return;
         }
+        // Recording has genuinely stopped here, but transcription (STT) can
+        // take multiple seconds — without this, status stays 'listening' for
+        // that whole window, so the mic/orb still LOOK like they're actively
+        // recording well after release, and the orb loses its mic-level
+        // analyser (capture just ended) with nothing to replace it. Flip to
+        // 'thinking' immediately so both give real feedback that release was
+        // registered and something is happening.
+        setStatus('thinking');
         beginTurnPerf();
         markPerf('mic_stop');
-        void transcribeAndSend(blob, lineId);
+        // If a live-caption (interim) transcription is still running, let it
+        // finish first instead of firing the final one alongside it — two
+        // concurrent whisper invocations contend for the same CPU/Metal
+        // resources and each ends up slower than doing them back to back.
+        const pendingInterim = interimInFlightRef.current;
+        const runFinal = async (): Promise<void> => {
+          if (pendingInterim) {
+            try {
+              await pendingInterim;
+            } catch {
+              /* interim failures are already swallowed at the source */
+            }
+          }
+          await transcribeAndSend(blob, lineId);
+        };
+        void runFinal();
       };
 
       setTranscript((prev) => [...prev, { id: lineId, role: 'user', text: '…', final: false }]);
@@ -970,6 +1031,8 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
         vadCtx.createMediaStreamSource(stream).connect(analyserNode);
         vadCtxRef.current = vadCtx;
         vadData = new Uint8Array(analyserNode.fftSize);
+        micAnalyserRef.current = analyserNode;
+        setMicAnalyser(analyserNode);
       } catch {
         /* no VAD */
       }
@@ -1019,7 +1082,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
           if (recorderRef.current !== recorder) return;
           interimBusy = true;
           const partial = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
-          void transcribeAudioBlob(partial)
+          const thisInFlight: Promise<void> = transcribeAudioBlob(partial)
             .then((result) => {
               const text = result.text.trim();
               // Only update while THIS capture is still live — the final pass
@@ -1030,9 +1093,11 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
             .catch(() => {
               /* interim is best-effort; the final pass reports real errors */
             })
-            .finally(() => {
+            .finally((): void => {
               interimBusy = false;
+              if (interimInFlightRef.current === thisInFlight) interimInFlightRef.current = null;
             });
+          interimInFlightRef.current = thisInFlight;
         }, INTERIM_STT_INTERVAL_MS);
       }
     } catch (e) {
@@ -1312,6 +1377,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     hermesInstalled,
     transcript,
     analyser,
+    micAnalyser,
     level,
     error,
     speechSupported,

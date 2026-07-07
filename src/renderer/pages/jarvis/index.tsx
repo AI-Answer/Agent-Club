@@ -36,7 +36,7 @@ const JarvisPage: React.FC = () => {
   const navigate = useNavigate();
   const control = useControlBridge(true);
   const voice = useVoicePipeline(HERMES_VOICE_MODEL, { computerControlEngaged: control.engaged });
-  const { status, hermesInstalled, analyser, speechSupported, sttBlocked, startListening, stopListening, cancelListening, stopSpeaking, sendText, recheck } = voice;
+  const { status, hermesInstalled, analyser, micAnalyser, activity, speechSupported, sttBlocked, startListening, stopListening, cancelListening, stopSpeaking, sendText, recheck } = voice;
 
   const mode = useMemo(() => statusToCoreMode(status), [status]);
 
@@ -59,6 +59,28 @@ const JarvisPage: React.FC = () => {
   }, [cancelListening, stopSpeaking]);
 
   const getLevel = useCallback((): number | null => {
+    if (status === 'listening') {
+      // Raw mic input reads far quieter than already-loud synthesized
+      // speech on a frequency-bin average, so the orb barely moved. Use
+      // time-domain RMS instead — the same metric the mic's own
+      // voice-activity detector uses (VAD_SPEECH_RMS = 0.025 counts as
+      // "speech"), with a gain that maps normal talking volume into a
+      // visually meaningful 0..1 range.
+      const an = micAnalyser;
+      if (!an) return null;
+      const buf = new Uint8Array(an.fftSize);
+      an.getByteTimeDomainData(buf);
+      let sumSq = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = (buf[i] - 128) / 128;
+        sumSq += v * v;
+      }
+      const rms = Math.sqrt(sumSq / buf.length);
+      const MIC_GAIN = 6;
+      return Math.min(1, rms * MIC_GAIN);
+    }
+    // Speaking: reflect Jarvis's own spoken output (already at full,
+    // normalized digital volume, so a frequency-bin average reads well).
     const an = analyser;
     if (!an) return null;
     const buf = new Uint8Array(an.frequencyBinCount);
@@ -66,7 +88,7 @@ const JarvisPage: React.FC = () => {
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i];
     return sum / buf.length / 255;
-  }, [analyser]);
+  }, [analyser, micAnalyser, status]);
 
   useEffect(() => {
     if (!hermesInstalled || sttBlocked) return;
@@ -85,17 +107,29 @@ const JarvisPage: React.FC = () => {
       e.preventDefault();
       stopListening();
     };
+    // If the window loses focus while Space is held (alt-tab, a system
+    // dialog, clicking another app), the keyup never reaches us and the mic
+    // is left recording forever — the next press then lands on an already-
+    // stuck capture. Force-release on blur/hide as a safety net.
+    const releaseOnFocusLoss = () => stopListening();
+    const onVisibilityChange = () => {
+      if (document.hidden) stopListening();
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', releaseOnFocusLoss);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', releaseOnFocusLoss);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [hermesInstalled, sttBlocked, startListening, stopListening, voice.voiceMode]);
 
   return (
     <main className='jarvis-stage'>
-      <GraphCore mode={mode} bgMode='depth' getLevel={getLevel} />
+      <GraphCore mode={mode} bgMode='depth' getLevel={getLevel} toolActive={Boolean(activity)} />
 
       <div className='scrim scrim-l' aria-hidden='true' />
       <div className='scrim scrim-r' aria-hidden='true' />

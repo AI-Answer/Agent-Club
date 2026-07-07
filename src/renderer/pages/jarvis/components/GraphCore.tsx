@@ -98,6 +98,35 @@ function fakeSpeechLevel(): number {
   return gate * Math.max(0, syllables);
 }
 
+// synthetic "thinking" envelope — a slow breathing pulse with a faster
+// ripple layered on top, deliberately smoother/less staccato than speech's
+// syllable bursts so it reads as "processing" rather than "talking". Drives
+// the same uLevel uniform as speech (shimmer/alpha ripple/boost/edge
+// opacity/halo), so working mode gets real rhythmic movement instead of a
+// flat speed/brightness multiplier.
+function fakeThinkingLevel(): number {
+  const t = performance.now() * 0.001;
+  const breathe = 0.5 + 0.5 * Math.sin(t * 1.6);
+  const ripple = 0.5 + 0.5 * Math.sin(t * 4.3 + 1.7);
+  return 0.2 + 0.5 * breathe * (0.55 + 0.45 * ripple);
+}
+
+// gentle idle shimmer for "listening" when no real mic analyser is available
+// yet (e.g. the Web Speech fallback engine, which has no MediaStream to read).
+function fakeListeningLevel(): number {
+  const t = performance.now() * 0.001;
+  return 0.15 + 0.15 * Math.sin(t * 2.4);
+}
+
+// sharper, faster pulse for "doing something concrete" (an active tool call)
+// vs. the smoother generic thinking breathe — distinguishes "working on it"
+// from "actually taking an action right now".
+function fakeToolActiveLevel(): number {
+  const t = performance.now() * 0.001;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 7.5);
+  return 0.35 + 0.55 * pulse;
+}
+
 function glowTexture(): THREE.Texture {
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -117,19 +146,24 @@ export default function GraphCore({
   mode = "idle",
   bgMode = "depth",
   getLevel,
+  toolActive = false,
 }: {
   mode?: CoreMode;
   bgMode?: BgMode;
   /** real speech envelope 0..1, or null when no audio is playing */
   getLevel?: () => number | null;
+  /** true while Hermes has an active tool call running (not just "thinking") */
+  toolActive?: boolean;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<CoreMode>(mode);
   const bgRef = useRef<BgMode>(bgMode);
   const getLevelRef = useRef(getLevel);
+  const toolActiveRef = useRef(toolActive);
   modeRef.current = mode;
   bgRef.current = bgMode;
   getLevelRef.current = getLevel;
+  toolActiveRef.current = toolActive;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -439,11 +473,24 @@ export default function GraphCore({
       lastT = t;
       const feel = FEELS[modeRef.current];
 
-      // voice envelope — fast attack, soft release; real RMS when audio is live
+      // voice envelope — fast attack, soft release; real RMS when audio is
+      // live. "working" (thinking) gets its own slower breathing envelope so
+      // the shimmer/ripple/boost the shader already reacts to actually MOVES
+      // with processing; "listening" reads the user's own live mic input
+      // (via getLevel, wired to the mic analyser while listening) so the orb
+      // is calibrated to their actual voice, not just a flat speed bump.
       let targetLevel = 0;
       if (modeRef.current === "speaking") {
         const real = getLevelRef.current?.();
         targetLevel = real ?? fakeSpeechLevel();
+      } else if (modeRef.current === "working") {
+        // An active tool call gets a sharper, faster pulse than plain
+        // thinking — "doing something concrete" should read differently
+        // from "still composing a reply".
+        targetLevel = toolActiveRef.current ? fakeToolActiveLevel() : fakeThinkingLevel();
+      } else if (modeRef.current === "listening") {
+        const real = getLevelRef.current?.();
+        targetLevel = real ?? fakeListeningLevel();
       }
       level += (targetLevel - level) * (targetLevel > level ? 0.5 : 0.12);
       speed += (feel.speed - speed) * 0.03;
@@ -523,6 +570,12 @@ export default function GraphCore({
 
       cloud.rotation.y = simT * 0.1;
       cloud.rotation.x = Math.sin(t * 0.07) * 0.08 + target.y * 0.25;
+      // A literal size "breathe" tied directly to level — brightness/shimmer
+      // shifts alone were too subtle to read as "the orb is reacting to me".
+      // A scale change is unmistakable regardless of how closely anyone's
+      // looking, across every mode that drives level (listening/thinking/
+      // speaking).
+      cloud.scale.setScalar(1 + level * 0.18);
       bloom.strength = 0.45 + level * 0.35;
 
       camera.position.x += (target.x * 1.1 - camera.position.x) * 0.04;

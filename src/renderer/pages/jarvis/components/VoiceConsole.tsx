@@ -40,6 +40,21 @@ const VoiceMicControl: React.FC<{
 
   const visual = micVisualState(status, voiceMode, micUsable, pttActive);
 
+  // Space is an in-window shortcut — like any app's, it only reaches us
+  // while this window has OS focus. Without this, "press Space" silently
+  // does nothing when focus is elsewhere and looks like a broken control.
+  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
+  useEffect(() => {
+    const onFocus = () => setWindowFocused(true);
+    const onBlur = () => setWindowFocused(false);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
       if (!micUsable || voiceMode) return;
@@ -91,6 +106,17 @@ const VoiceMicControl: React.FC<{
 
   useEffect(() => () => clearHoldTimer(), [clearHoldTimer]);
 
+  // If the window loses focus mid-hold (alt-tab, a system dialog, clicking
+  // another app) the pointerup that would normally release capture never
+  // fires here, leaving the mic stuck recording — the NEXT press then lands
+  // on an already-active capture and appears to do nothing. Mirror
+  // onPointerCancel as a safety net.
+  useEffect(() => {
+    const releaseOnFocusLoss = () => onPointerCancel();
+    window.addEventListener('blur', releaseOnFocusLoss);
+    return () => window.removeEventListener('blur', releaseOnFocusLoss);
+  }, [onPointerCancel]);
+
   useEffect(() => {
     if (status !== 'listening' && pttActive) setPttActive(false);
   }, [pttActive, status]);
@@ -121,8 +147,9 @@ const VoiceMicControl: React.FC<{
     if (voiceMode) return t('jarvis.console.hintHandsFree');
     if (visual === 'ptt') return t('jarvis.console.hintPtt');
     if (visual === 'busy') return t('jarvis.console.hintBusy');
+    if (visual === 'idle' && !windowFocused) return t('jarvis.console.hintIdleUnfocused');
     return t('jarvis.console.hintIdle');
-  }, [micUsable, t, visual, voiceMode]);
+  }, [micUsable, t, visual, voiceMode, windowFocused]);
 
   const cyan = JARVIS_COLORS.cyan;
   const isActive = visual === 'handsFree' || visual === 'ptt';
@@ -156,7 +183,7 @@ const VoiceMicControl: React.FC<{
 
 const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
   const { t } = useTranslation();
-  const { status, transcript, level, error, sttBlocked, voiceMode, sendText, activity, sidecar, wakeArmed } = voice;
+  const { status, transcript, level, error, sttBlocked, voiceMode, sendText, activity, sidecar, wakeArmed, recheck } = voice;
   const [draft, setDraft] = useState('');
   const logRef = useRef<HTMLDivElement | null>(null);
 
@@ -204,7 +231,7 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
           {t('jarvis.console.title').toUpperCase()} // {(statusLabel[status] ?? status).toUpperCase()}
         </span>
         <span
-          className='h-10px w-10px rounded-full transition-all duration-75'
+          className={`h-10px w-10px rounded-full transition-all duration-75 ${status === 'thinking' ? 'jarvis-status-dot-thinking' : ''}`}
           style={{
             background: cyan,
             transform: `scale(${0.7 + pulse * 1.1})`,
@@ -215,10 +242,21 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
         />
       </div>
 
-      {/* live agent activity — turns the thinking wait into information */}
-      {status === 'thinking' && activity && (
+      {/* thinking indicator — always visible while waiting on a reply, not just
+          when a tool call is active, so silent "thinking" time isn't dead air */}
+      {status === 'thinking' && (
         <p className='font-mono text-9px tracking-[0.1em] text-[#7fdfff]/60'>
-          <span className='animate-pulse'>▸</span> {t('jarvis.console.workingOn', { tool: activity })}
+          {activity ? (
+            <>
+              <span className='animate-pulse'>▸</span> {t('jarvis.console.workingOn', { tool: activity })}
+            </>
+          ) : (
+            <span className='inline-flex items-center gap-4px' aria-label={t('jarvis.status.thinking')}>
+              <span className='jarvis-thinking-dot' style={{ animationDelay: '0ms' }}>●</span>
+              <span className='jarvis-thinking-dot' style={{ animationDelay: '150ms' }}>●</span>
+              <span className='jarvis-thinking-dot' style={{ animationDelay: '300ms' }}>●</span>
+            </span>
+          )}
         </p>
       )}
 
@@ -276,7 +314,20 @@ const VoiceConsoleView: React.FC<{ voice: VoicePipeline }> = ({ voice }) => {
       </form>
 
       {sttBlocked && <p className='font-mono text-9px leading-relaxed tracking-[0.06em] text-[#ffb547]/80'>{t('jarvis.console.sttBlocked')}</p>}
-      {error && status !== 'offline' && <p className='font-mono text-9px tracking-[0.06em] text-[#ff8da0]/70'>{error}</p>}
+      {error && status !== 'offline' && (
+        <div className='flex items-center justify-between gap-8px'>
+          <p className='font-mono text-9px tracking-[0.06em] text-[#ff8da0]/70'>{error}</p>
+          {status === 'error' && (
+            <button
+              type='button'
+              onClick={recheck}
+              className='shrink-0 rounded-6px border border-[#ff8da0]/40 bg-[#ff8da0]/10 px-8px py-4px font-mono text-9px font-700 tracking-[0.1em] text-[#ff8da0]'
+            >
+              {t('jarvis.console.reconnect').toUpperCase()}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
