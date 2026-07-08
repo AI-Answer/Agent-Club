@@ -49,6 +49,7 @@ vi.mock('../../src/common', () => ({
       get: { invoke: (...args: unknown[]) => mockConvGet(...args) },
       sendMessage: { invoke: (...args: unknown[]) => mockSendMessage(...args) },
       stop: { invoke: (...args: unknown[]) => mockStop(...args) },
+      getSlashCommands: { invoke: () => Promise.resolve({ success: true, data: { commands: [] } }) },
       responseStream: {
         on: (handler: (msg: Record<string, unknown>) => void) => {
           capturedResponseHandler = handler;

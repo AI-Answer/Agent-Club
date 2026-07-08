@@ -10,6 +10,14 @@ import i18nConfig from '../../src/common/config/i18n-config.json';
 const LOCALES_DIR = path.resolve(__dirname, '../../src/renderer/services/i18n/locales');
 const SUPPORTED_LANGUAGES = i18nConfig.supportedLanguages;
 const REQUIRED_MODULES = i18nConfig.modules;
+/** Locale directories that actually exist on disk — used for the drift-check
+ *  below, which is more meaningful checked against every translated locale
+ *  than against SUPPORTED_LANGUAGES (currently just the English-only UI
+ *  picker list; see i18n-config.test.ts). */
+const ALL_LOCALE_DIRS = fs
+  .readdirSync(LOCALES_DIR, { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name);
 
 // Helper: recursively collect all translation keys
 function getAllKeys(obj: unknown, prefix = ''): string[] {
@@ -94,7 +102,7 @@ describe('i18n Modular Structure Tests', () => {
       }
     });
 
-    for (const lang of SUPPORTED_LANGUAGES) {
+    for (const lang of ALL_LOCALE_DIRS) {
       if (lang === referenceLang) continue;
 
       it(`${lang} translation coverage should be greater than 70%`, () => {

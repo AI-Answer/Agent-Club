@@ -85,7 +85,12 @@ describe('renderer i18n localStorage guards', () => {
     vi.restoreAllMocks();
   });
 
-  it('initializes without localStorage and still loads the saved language', async () => {
+  // Agent Club currently ships English-only (see i18n-config.test.ts) —
+  // ensureAndSwitch normalizes every language through normalizeLanguageCode,
+  // which now falls back unsupported codes (ja-JP, ko-KR, tr, ...) to en-US.
+  // These guard against a stale saved/broadcast language ever reaching
+  // i18next un-normalized, not against the specific old language list.
+  it('initializes without localStorage and normalizes an unsupported saved language to en-US', async () => {
     await import('@/renderer/services/i18n');
     await Promise.resolve();
     await Promise.resolve();
@@ -95,25 +100,25 @@ describe('renderer i18n localStorage guards', () => {
         lng: 'en-US',
       })
     );
-    expect(mockI18n.changeLanguage).toHaveBeenCalledWith('ja-JP');
+    expect(mockI18n.changeLanguage).toHaveBeenCalledWith('en-US');
   });
 
-  it('updates language from the main-process broadcast without touching localStorage', async () => {
+  it('normalizes an unsupported main-process broadcast language to en-US', async () => {
     await import('@/renderer/services/i18n');
     await Promise.resolve();
 
     await mockOnLanguageChanged.handler?.({ language: 'ko-KR' });
 
-    expect(mockI18n.changeLanguage).toHaveBeenCalledWith('ko-KR');
+    expect(mockI18n.changeLanguage).toHaveBeenCalledWith('en-US');
   });
 
-  it('persists language through ConfigStorage even when localStorage is unavailable', async () => {
+  it('persists the normalized language through ConfigStorage even when localStorage is unavailable', async () => {
     const module = await import('@/renderer/services/i18n');
     await Promise.resolve();
 
     await module.changeLanguage('tr');
 
-    expect(mockConfigStorageSet).toHaveBeenCalledWith('language', 'tr-TR');
-    expect(mockChangeLanguageInvoke).toHaveBeenCalledWith({ language: 'tr-TR' });
+    expect(mockConfigStorageSet).toHaveBeenCalledWith('language', 'en-US');
+    expect(mockChangeLanguageInvoke).toHaveBeenCalledWith({ language: 'en-US' });
   });
 });

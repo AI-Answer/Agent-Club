@@ -97,7 +97,7 @@ describe('useConversationShortcuts', () => {
     });
 
     expect(ctrlEvent.defaultPrevented).toBe(true);
-    expect(navigate).toHaveBeenCalledWith('/guid');
+    expect(navigate).toHaveBeenCalledWith('/guid', { state: { resetAssistant: true } });
 
     const metaEvent = createCancelableKeydown({ key: 't', metaKey: true });
     act(() => {

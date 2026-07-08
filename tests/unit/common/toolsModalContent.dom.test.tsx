@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -80,6 +80,7 @@ vi.mock('@icon-park/react', () => ({
   Help: () => <span data-testid='icon-help' />,
   Down: () => <span data-testid='icon-down' />,
   Plus: () => <span data-testid='icon-plus' />,
+  LinkCloud: () => <span data-testid='icon-link-cloud' />,
 }));
 
 vi.mock('@arco-design/web-react', () => {
@@ -95,6 +96,16 @@ vi.mock('@arco-design/web-react', () => {
     Divider: () => <hr />,
     Form: Object.assign(FormComponent, { Item: FormItem }),
     Tooltip: ({ children }: React.PropsWithChildren) => <>{children}</>,
+    Tag: ({ children }: React.PropsWithChildren) => <span>{children}</span>,
+    Collapse: Object.assign(({ children }: React.PropsWithChildren) => <div>{children}</div>, {
+      Item: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
+    }),
+    Alert: ({ children, content }: React.PropsWithChildren<{ content?: React.ReactNode }>) => (
+      <div>
+        {content}
+        {children}
+      </div>
+    ),
     Input: Object.assign(
       ({ value, onChange }: { value?: string; onChange?: (value: string) => void }) => (
         <input value={value} onChange={(event) => onChange?.(event.target.value)} />
@@ -227,6 +238,12 @@ vi.mock('@/common/adapter/ipcBridge', () => ({
       invoke: vi.fn(() => Promise.resolve({ success: true, data: [] })),
     },
   },
+  mcpService: {
+    getPeekabooDesktopControlPermissions: { invoke: vi.fn(() => Promise.resolve({ success: true, data: { accessibility: false, screenRecording: false } })) },
+    requestPeekabooDesktopControlPermissions: { invoke: vi.fn(() => Promise.resolve({ success: true })) },
+    openPeekabooPermissionSettings: { invoke: vi.fn(() => Promise.resolve({ success: true })) },
+    getPeekabooDesktopControlSetup: { invoke: vi.fn(() => Promise.resolve({ success: true, data: { proxyScriptPath: '' } })) },
+  },
 }));
 
 vi.mock('@/renderer/hooks/mcp', () => ({
@@ -347,7 +364,10 @@ describe('ToolsModalContent image generation status refresh', () => {
   it('persists speech-to-text provider settings when the user switches provider and updates credentials', async () => {
     render(<ToolsModalContent />);
 
-    const providerSelect = await screen.findByLabelText(/settings\.speechToTextProvider/);
+    // The STT and TTS sections reuse the same label keys ("Provider",
+    // "API Key") — the STT section renders first, so it's always index 0.
+    await screen.findAllByLabelText(/settings\.speechToTextProvider/);
+    const providerSelect = screen.getAllByLabelText(/settings\.speechToTextProvider/)[0];
     fireEvent.change(providerSelect, { target: { value: 'deepgram' } });
 
     await waitFor(() => {
@@ -359,7 +379,7 @@ describe('ToolsModalContent image generation status refresh', () => {
       );
     });
 
-    const apiKeyInput = await screen.findByLabelText(/settings\.speechToTextApiKey/);
+    const apiKeyInput = (await screen.findAllByLabelText(/settings\.speechToTextApiKey/))[0];
     fireEvent.change(apiKeyInput, { target: { value: 'deepgram-secret' } });
 
     await waitFor(() => {
@@ -378,17 +398,20 @@ describe('ToolsModalContent image generation status refresh', () => {
   it('shows required and optional markers for OpenAI and Deepgram speech-to-text fields', async () => {
     render(<ToolsModalContent />);
 
-    await screen.findByLabelText(/settings\.speechToTextApiKey/);
+    await screen.findAllByLabelText(/settings\.speechToTextApiKey/);
 
-    expect(screen.getAllByText(/settings\.speechToTextRequired/)).toHaveLength(1);
-    expect(screen.getAllByText(/settings\.speechToTextOptional/)).toHaveLength(3);
+    // The STT and TTS sections both render required/optional field markers —
+    // scope to the STT section specifically since that's what this test covers.
+    const sttSection = screen.getByText('settings.speechToText').closest('div')!.parentElement!.parentElement!;
+    expect(within(sttSection).getAllByText(/settings\.speechToTextRequired/)).toHaveLength(1);
+    expect(within(sttSection).getAllByText(/settings\.speechToTextOptional/)).toHaveLength(3);
 
-    const providerSelect = screen.getByLabelText(/settings\.speechToTextProvider/);
+    const providerSelect = within(sttSection).getByLabelText(/settings\.speechToTextProvider/);
     fireEvent.change(providerSelect, { target: { value: 'deepgram' } });
 
     await screen.findByLabelText(/settings\.speechToTextDetectLanguage/);
 
-    expect(screen.getAllByText(/settings\.speechToTextRequired/)).toHaveLength(1);
-    expect(screen.getAllByText(/settings\.speechToTextOptional/)).toHaveLength(6);
+    expect(within(sttSection).getAllByText(/settings\.speechToTextRequired/)).toHaveLength(1);
+    expect(within(sttSection).getAllByText(/settings\.speechToTextOptional/)).toHaveLength(6);
   });
 });

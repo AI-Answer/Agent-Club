@@ -57,10 +57,7 @@ describe('extension constants', () => {
       delete process.env.AIONUI_HUB_URL;
       vi.resetModules();
       const { HUB_REMOTE_URLS: urls } = await import('../../src/process/extensions/constants');
-      expect(urls).toEqual([
-        'https://raw.githubusercontent.com/iOfficeAI/AionHub/dist-latest/',
-        'https://cdn.jsdelivr.net/gh/iOfficeAI/AionHub@dist-latest/',
-      ]);
+      expect(urls).toEqual(['https://raw.githubusercontent.com/AI-Answer/Agent-Club/main/resources/hub/']);
     });
 
     it('should prepend custom URLs from env var', async () => {
@@ -68,7 +65,7 @@ describe('extension constants', () => {
       vi.resetModules();
       const { HUB_REMOTE_URLS: urls } = await import('../../src/process/extensions/constants');
       expect(urls[0]).toBe('http://localhost:3000/');
-      expect(urls.length).toBe(3);
+      expect(urls.length).toBe(2);
     });
 
     it('should support comma-separated URLs', async () => {
@@ -77,7 +74,7 @@ describe('extension constants', () => {
       const { HUB_REMOTE_URLS: urls } = await import('../../src/process/extensions/constants');
       expect(urls[0]).toBe('http://a.com/');
       expect(urls[1]).toBe('http://b.com/');
-      expect(urls.length).toBe(4);
+      expect(urls.length).toBe(3);
     });
 
     it('should filter empty segments and trim whitespace', async () => {
@@ -86,7 +83,7 @@ describe('extension constants', () => {
       const { HUB_REMOTE_URLS: urls } = await import('../../src/process/extensions/constants');
       expect(urls[0]).toBe('http://a.com/');
       expect(urls[1]).toBe('http://b.com/');
-      expect(urls.length).toBe(4);
+      expect(urls.length).toBe(3);
     });
   });
 

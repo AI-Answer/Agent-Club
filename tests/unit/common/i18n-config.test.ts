@@ -7,11 +7,11 @@
 import { SUPPORTED_LANGUAGES } from '@/common/config/i18n';
 
 describe('i18n config', () => {
-  it('should include uk-UA in supported languages', () => {
-    expect(SUPPORTED_LANGUAGES).toContain('uk-UA');
-  });
-
-  it('should have zh-CN as the first language in this project', () => {
-    expect(SUPPORTED_LANGUAGES[0]).toBe('zh-CN');
+  // Agent Club currently ships English-only in the language picker — the
+  // other locale directories on disk (zh-CN, ja-JP, uk-UA, ...) still have
+  // real translations and can be re-enabled by widening this list, but
+  // aren't currently exposed.
+  it('supports only en-US for now', () => {
+    expect(SUPPORTED_LANGUAGES).toEqual(['en-US']);
   });
 });

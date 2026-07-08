@@ -13,8 +13,10 @@ vi.mock('react-i18next', () => ({
 
 // Mock react-router-dom
 const mockSetSearchParams = vi.fn();
+const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
+  useNavigate: () => mockNavigate,
 }));
 
 // Mock @arco-design/web-react
@@ -55,6 +57,7 @@ vi.mock('@arco-design/web-react', async (importOriginal) => {
 vi.mock('@icon-park/react', () => {
   return {
     Delete: () => <span data-testid='icon-delete' />,
+    Download: () => <span data-testid='icon-download' />,
     FolderOpen: () => <span data-testid='icon-folder' />,
     Info: () => <span data-testid='icon-info' />,
     Lightning: () => <span data-testid='icon-lightning' />,
@@ -62,6 +65,7 @@ vi.mock('@icon-park/react', () => {
     Search: () => <span data-testid='icon-search' />,
     Plus: () => <span data-testid='icon-plus' />,
     Refresh: () => <span data-testid='icon-refresh' />,
+    Save: () => <span data-testid='icon-save' />,
   };
 });
 
@@ -92,9 +96,20 @@ vi.mock('@/common', () => {
         exportSkillWithSymlink: { invoke: (...args: any[]) => mockExportSkillWithSymlink(...args) },
         addCustomExternalPath: { invoke: (...args: any[]) => mockAddCustomExternalPath(...args) },
         listBuiltinAutoSkills: { invoke: (...args: any[]) => mockListBuiltinAutoSkills(...args) },
+        searchJourneyKits: { invoke: vi.fn().mockResolvedValue({ success: true, data: { kits: [] } }) },
+        installJourneyKit: { invoke: vi.fn().mockResolvedValue({ success: true }) },
+        getJourneyKitsConfig: { invoke: vi.fn().mockResolvedValue({ success: true, data: { author: '' } }) },
+        saveJourneyKitsConfig: { invoke: vi.fn().mockResolvedValue({ success: true, data: { author: '' } }) },
+        listJourneyKitsOwned: { invoke: vi.fn().mockResolvedValue({ success: true, data: { kits: [] } }) },
+        publishJourneyKitSkill: { invoke: vi.fn().mockResolvedValue({ success: true }) },
+        deleteJourneyKitOwned: { invoke: vi.fn().mockResolvedValue({ success: true }) },
       },
       dialog: {
         showOpen: { invoke: (...args: any[]) => mockShowOpen(...args) },
+      },
+      security: {
+        getState: { invoke: vi.fn().mockResolvedValue({ success: true, data: { agentVault: { enabled: false, keys: [] } } }) },
+        saveAgentVault: { invoke: vi.fn().mockResolvedValue({ success: true }) },
       },
     },
   };
@@ -258,10 +273,10 @@ describe('SkillsHubSettings Component', () => {
       expect(screen.getByText('Discovered External Skills')).toBeInTheDocument();
     });
 
-    // Click Add button (has title "Add" mocked effectively)
-    // Instead of targeting testid, let's grab the add button. In UI it's a Plus icon.
-    const plusIcon = screen.getByTestId('icon-plus');
-    fireEvent.click(plusIcon.parentElement!);
+    // The "add custom external path" button is the only one with title="Add" —
+    // getByTestId('icon-plus') is ambiguous now that the Agent Vault section
+    // (its own Plus-icon "add key" button) renders in the same page.
+    fireEvent.click(screen.getByTitle('Add'));
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-modal')).toBeInTheDocument();

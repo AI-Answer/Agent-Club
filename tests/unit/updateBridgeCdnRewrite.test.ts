@@ -72,28 +72,29 @@ const makeGitHubReleaseResponse = () => [
     tag_name: 'v1.9.22',
     name: 'v1.9.22',
     body: 'release notes',
-    html_url: 'https://github.com/iOfficeAI/AionUi/releases/tag/v1.9.22',
+    html_url: 'https://github.com/AI-Answer/Agent-Club/releases/tag/v1.9.22',
     published_at: '2026-04-29T00:00:00Z',
     prerelease: false,
     draft: false,
     assets: [
       {
-        name: 'AionUi-1.9.22-mac-arm64.dmg',
+        name: 'Agent-Club-1.9.22-mac-arm64.dmg',
         browser_download_url:
-          'https://github.com/iOfficeAI/AionUi/releases/download/v1.9.22/AionUi-1.9.22-mac-arm64.dmg',
+          'https://github.com/AI-Answer/Agent-Club/releases/download/v1.9.22/Agent-Club-1.9.22-mac-arm64.dmg',
         size: 123,
         content_type: 'application/x-apple-diskimage',
       },
       {
-        name: 'AionUi-1.9.22-win-x64.exe',
-        browser_download_url: 'https://github.com/iOfficeAI/AionUi/releases/download/v1.9.22/AionUi-1.9.22-win-x64.exe',
+        name: 'Agent-Club-1.9.22-win-x64.exe',
+        browser_download_url:
+          'https://github.com/AI-Answer/Agent-Club/releases/download/v1.9.22/Agent-Club-1.9.22-win-x64.exe',
         size: 456,
         content_type: 'application/vnd.microsoft.portable-executable',
       },
       {
-        name: 'AionUi-1.9.22-linux-amd64.deb',
+        name: 'Agent-Club-1.9.22-linux-amd64.deb',
         browser_download_url:
-          'https://github.com/iOfficeAI/AionUi/releases/download/v1.9.22/AionUi-1.9.22-linux-amd64.deb',
+          'https://github.com/AI-Answer/Agent-Club/releases/download/v1.9.22/Agent-Club-1.9.22-linux-amd64.deb',
         size: 789,
       },
     ],
@@ -118,7 +119,10 @@ describe('updateBridge CDN URL rewriting', () => {
     vi.clearAllMocks();
   });
 
-  it('rewrites asset.url to the CDN path and keeps GitHub URL in fallbackUrl', async () => {
+  // Agent Club does not operate the upstream AionUi CDN, so release assets
+  // are served directly from GitHub — no rewrite to a third-party host that
+  // wouldn't have this fork's binaries.
+  it('serves asset.url directly from GitHub, with no CDN rewrite', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => makeGitHubReleaseResponse(),
@@ -127,27 +131,28 @@ describe('updateBridge CDN URL rewriting', () => {
 
     try {
       const handler = await getCheckHandler();
-      const result = await handler({ repo: 'iOfficeAI/AionUi' });
+      const result = await handler({ repo: 'AI-Answer/Agent-Club' });
 
       expect(result.success).toBe(true);
       const assets = result.data?.latest?.assets ?? [];
       expect(assets.length).toBe(3);
 
-      const macAsset = assets.find((a: { name: string }) => a.name === 'AionUi-1.9.22-mac-arm64.dmg');
+      const macAsset = assets.find((a: { name: string }) => a.name === 'Agent-Club-1.9.22-mac-arm64.dmg');
       expect(macAsset).toBeDefined();
-      expect(macAsset?.url).toBe('https://static.aionui.com/releases/1.9.22/AionUi-1.9.22-mac-arm64.dmg');
-      expect(macAsset?.fallbackUrl).toBe(
-        'https://github.com/iOfficeAI/AionUi/releases/download/v1.9.22/AionUi-1.9.22-mac-arm64.dmg'
+      expect(macAsset?.url).toBe(
+        'https://github.com/AI-Answer/Agent-Club/releases/download/v1.9.22/Agent-Club-1.9.22-mac-arm64.dmg'
       );
 
-      const linuxAsset = assets.find((a: { name: string }) => a.name === 'AionUi-1.9.22-linux-amd64.deb');
-      expect(linuxAsset?.url).toBe('https://static.aionui.com/releases/1.9.22/AionUi-1.9.22-linux-amd64.deb');
+      const linuxAsset = assets.find((a: { name: string }) => a.name === 'Agent-Club-1.9.22-linux-amd64.deb');
+      expect(linuxAsset?.url).toBe(
+        'https://github.com/AI-Answer/Agent-Club/releases/download/v1.9.22/Agent-Club-1.9.22-linux-amd64.deb'
+      );
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it('uses the normalized version (no v prefix) in the CDN path', async () => {
+  it('never points asset.url at the (no longer operated) AionUi CDN', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => makeGitHubReleaseResponse(),
@@ -156,10 +161,10 @@ describe('updateBridge CDN URL rewriting', () => {
 
     try {
       const handler = await getCheckHandler();
-      const result = await handler({ repo: 'iOfficeAI/AionUi' });
+      const result = await handler({ repo: 'AI-Answer/Agent-Club' });
       const asset = result.data?.latest?.assets?.[0];
-      expect(asset?.url).toMatch(/^https:\/\/static\.aionui\.com\/releases\/1\.9\.22\//);
-      expect(asset?.url).not.toMatch(/\/v1\.9\.22\//);
+      expect(asset?.url).not.toMatch(/static\.aionui\.com/);
+      expect(asset?.url).toMatch(/^https:\/\/github\.com\//);
     } finally {
       vi.unstubAllGlobals();
     }

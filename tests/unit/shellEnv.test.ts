@@ -25,6 +25,10 @@ vi.mock('@/common/platform', () => ({
   getPlatformServices: () => ({
     paths: {
       isPackaged: () => mocks.isPackaged(),
+      getDataDir: () => '/mock/userData',
+      getTempDir: () => '/mock/temp',
+      getHomeDir: () => '/mock/home',
+      needsCliSafeSymlinks: () => false,
     },
   }),
 }));
