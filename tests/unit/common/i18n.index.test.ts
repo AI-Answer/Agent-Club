@@ -7,19 +7,21 @@
 import { describe, it, expect } from 'vitest';
 import { SUPPORTED_LANGUAGES, normalizeLanguageCode } from '@/common/config/i18n';
 
+// Agent Club currently ships English-only in the language picker — see
+// i18n-config.test.ts for why (other locale dirs still exist on disk).
 describe('common i18n config module', () => {
-  it('should have uk-UA as a supported language', () => {
-    expect(SUPPORTED_LANGUAGES).toContain('uk-UA');
+  it('falls back unsupported locales (e.g. uk-UA) to the default language', () => {
+    expect(normalizeLanguageCode('uk')).toBe('en-US');
+    expect(normalizeLanguageCode('uk-UA')).toBe('en-US');
+    expect(normalizeLanguageCode('UK-UA')).toBe('en-US');
   });
 
-  it('should normalize uk-UA correctly', () => {
-    // Test if normalizeLanguageCode handles uk-UA or similar variants
-    expect(normalizeLanguageCode('uk')).toBe('uk-UA');
-    expect(normalizeLanguageCode('uk-UA')).toBe('uk-UA');
-    expect(normalizeLanguageCode('UK-UA')).toBe('uk-UA');
+  it('normalizes en-US as itself', () => {
+    expect(normalizeLanguageCode('en-US')).toBe('en-US');
+    expect(normalizeLanguageCode('en_US')).toBe('en-US');
   });
 
-  it('should have enough supported languages', () => {
-    expect(SUPPORTED_LANGUAGES.length).toBeGreaterThan(6);
+  it('has exactly the currently-supported languages', () => {
+    expect(SUPPORTED_LANGUAGES).toEqual(['en-US']);
   });
 });

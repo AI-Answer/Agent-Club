@@ -32,6 +32,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@icon-park/react', () => ({
   Earth: () => React.createElement('span', { 'data-testid': 'earth-icon' }, 'Earth'),
+  Youtube: () => React.createElement('span', { 'data-testid': 'youtube-icon' }, 'Youtube'),
 }));
 
 vi.mock('@renderer/pages/guid/index.module.css', () => ({
@@ -45,41 +46,41 @@ describe('QuickActionButtons', () => {
     vi.clearAllMocks();
   });
 
-  it('calls the bug report callback from the first quick action', () => {
-    const onOpenBugReport = vi.fn();
+  it('calls the feedback callback from the first quick action', () => {
+    const onOpenFeedback = vi.fn();
 
     render(
       <QuickActionButtons
         onOpenLink={vi.fn()}
-        onOpenBugReport={onOpenBugReport}
+        onOpenFeedback={onOpenFeedback}
         inactiveBorderColor='#ccc'
         activeShadow='none'
       />
     );
 
     fireEvent.click(screen.getByText('conversation.welcome.quickActionFeedback').closest('div') as HTMLElement);
-    expect(onOpenBugReport).toHaveBeenCalledTimes(1);
+    expect(onOpenFeedback).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the repo and WebUI quick actions working without triggering bug report', () => {
+  it('keeps the repo and WebUI quick actions working without triggering feedback', () => {
     const onOpenLink = vi.fn();
-    const onOpenBugReport = vi.fn();
+    const onOpenFeedback = vi.fn();
 
     render(
       <QuickActionButtons
         onOpenLink={onOpenLink}
-        onOpenBugReport={onOpenBugReport}
+        onOpenFeedback={onOpenFeedback}
         inactiveBorderColor='#ccc'
         activeShadow='none'
       />
     );
 
     fireEvent.click(screen.getByText('conversation.welcome.quickActionStar').closest('div') as HTMLElement);
-    expect(onOpenLink).toHaveBeenCalledWith('https://github.com/iOfficeAI/AionUi');
-    expect(onOpenBugReport).not.toHaveBeenCalled();
+    expect(onOpenLink).toHaveBeenCalledWith('https://www.youtube.com/@SaminYasar_?sub_confirmation=1');
+    expect(onOpenFeedback).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByText(/settings\.webui/).closest('div') as HTMLElement);
     expect(navigateMock).toHaveBeenCalledWith('/settings/webui');
-    expect(onOpenBugReport).not.toHaveBeenCalled();
+    expect(onOpenFeedback).not.toHaveBeenCalled();
   });
 });

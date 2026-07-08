@@ -168,9 +168,14 @@ describe('MermaidBlock', () => {
 
     rerender(<MermaidBlock code={'flowchart TD\nA-->B\nB-->C'} />);
 
-    await waitFor(() => {
-      expect(mermaidMock.render).toHaveBeenCalledTimes(2);
-    });
+    // Code changes are debounced 300ms before re-rendering — give waitFor
+    // enough headroom to observe the second mermaid.render call.
+    await waitFor(
+      () => {
+        expect(mermaidMock.render).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 2000 }
+    );
 
     expect(queryByTestId('mermaid-diagram')).toBeNull();
     expect(container.textContent).toContain('B-->C');

@@ -23,6 +23,16 @@ function getAsarUnpackEntries(): string[] {
   return matches.map((m) => m[1]);
 }
 
+/** electron-builder asarUnpack entries may be glob patterns (e.g. 'out/main/builtin-mcp-*.js'),
+ *  so a build output is "covered" if it matches an entry either exactly or via wildcard. */
+function isCovered(file: string, asarEntries: string[]): boolean {
+  return asarEntries.some((entry) => {
+    if (!entry.includes('*')) return entry === file;
+    const pattern = '^' + entry.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$';
+    return new RegExp(pattern).test(file);
+  });
+}
+
 describe('MCP asar unpack consistency', () => {
   it('every MCP build output must be listed in electron-builder.yml asarUnpack', () => {
     const buildOutputs = getBuildOutputFiles();
@@ -30,7 +40,7 @@ describe('MCP asar unpack consistency', () => {
 
     expect(buildOutputs.length).toBeGreaterThan(0);
 
-    const missing = buildOutputs.filter((f) => !asarEntries.includes(f));
+    const missing = buildOutputs.filter((f) => !isCovered(f, asarEntries));
     if (missing.length > 0) {
       throw new Error(
         `MCP scripts built but NOT in asarUnpack:\n` +

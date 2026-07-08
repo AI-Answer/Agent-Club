@@ -159,8 +159,8 @@ describe('AgentHubModal', () => {
 
     expect(screen.getByText('Want a new Agent listed here?')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open a PR on AionHub' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open the Agent Club repo' }));
 
-    expect(mockOpenExternalUrl).toHaveBeenCalledWith('https://github.com/iOfficeAI/AionHub');
+    expect(mockOpenExternalUrl).toHaveBeenCalledWith('https://github.com/AI-Answer/Agent-Club');
   });
 });

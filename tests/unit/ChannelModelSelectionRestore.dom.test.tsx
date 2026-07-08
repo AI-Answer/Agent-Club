@@ -35,6 +35,9 @@ vi.mock('@arco-design/web-react', async (importOriginal) => {
 
 vi.mock('@icon-park/react', () => ({
   CheckOne: () => <span data-testid='check-icon' />,
+  CloseOne: () => <span data-testid='close-icon' />,
+  Copy: () => <span data-testid='copy-icon' />,
+  Refresh: () => <span data-testid='refresh-icon' />,
 }));
 
 // Track ConfigStorage.get call count to verify retry behavior
@@ -79,6 +82,10 @@ vi.mock('@/common/adapter/ipcBridge', async (importOriginal) => {
     channel: {
       getPluginStatus: { invoke: vi.fn().mockResolvedValue({ success: true, data: [] }) },
       pluginStatusChanged: { on: vi.fn().mockReturnValue(() => {}) },
+      getPendingPairings: { invoke: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+      getAuthorizedUsers: { invoke: vi.fn().mockResolvedValue({ success: true, data: [] }) },
+      pairingRequested: { on: vi.fn().mockReturnValue(() => {}) },
+      userAuthorized: { on: vi.fn().mockReturnValue(() => {}) },
     },
     webui: {
       getStatus: { invoke: vi.fn().mockResolvedValue({ success: false }) },

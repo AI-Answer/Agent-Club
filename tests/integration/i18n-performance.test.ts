@@ -8,8 +8,24 @@ import * as path from 'path';
 import i18nConfig from '../../src/common/config/i18n-config.json';
 
 const LOCALES_DIR = path.resolve(__dirname, '../../src/renderer/services/i18n/locales');
-const SUPPORTED_LANGUAGES = i18nConfig.supportedLanguages;
 const MODULES = i18nConfig.modules;
+/** Locale directories actually shipped on disk — the baseline "load everything
+ *  eagerly" scenario lazy-loading replaced (i18nConfig.supportedLanguages is a
+ *  narrower, unrelated UI-picker list and doesn't reflect this). */
+const ALL_LOCALE_DIRS = fs.readdirSync(LOCALES_DIR, { withFileTypes: true }).filter((e) => e.isDirectory());
+
+/** Read one locale's module file, falling back to en-US — matching the app's
+ *  real i18next fallbackLng behavior for modules a locale hasn't translated
+ *  yet (e.g. a newly added module like 'jarvis'). */
+async function readModule(locale: string, module: string): Promise<unknown> {
+  const modulePath = path.join(LOCALES_DIR, locale, `${module}.json`);
+  try {
+    return JSON.parse(await fs.promises.readFile(modulePath, 'utf-8'));
+  } catch {
+    const fallbackPath = path.join(LOCALES_DIR, 'en-US', `${module}.json`);
+    return JSON.parse(await fs.promises.readFile(fallbackPath, 'utf-8'));
+  }
+}
 const SINGLE_MODULE_BUDGET_MS = Number(process.env.I18N_SINGLE_MODULE_BUDGET_MS ?? 50);
 const FULL_LOCALE_BUDGET_MS = Number(process.env.I18N_FULL_LOCALE_BUDGET_MS ?? 300);
 const STARTUP_BUDGET_MS = Number(process.env.I18N_STARTUP_BUDGET_MS ?? 400);
@@ -96,13 +112,7 @@ describe('i18n Performance Tests', () => {
     it('should load startup locale within time budget', async () => {
       const start = performance.now();
 
-      await Promise.all(
-        MODULES.map(async (module) => {
-          const modulePath = path.join(LOCALES_DIR, 'zh-CN', `${module}.json`);
-          const content = await fs.promises.readFile(modulePath, 'utf-8');
-          return JSON.parse(content);
-        })
-      );
+      await Promise.all(MODULES.map((module) => readModule('zh-CN', module)));
 
       const end = performance.now();
 
@@ -114,9 +124,7 @@ describe('i18n Performance Tests', () => {
 
       const zhCNTranslations: Record<string, unknown> = {};
       for (const module of MODULES) {
-        const modulePath = path.join(LOCALES_DIR, 'zh-CN', `${module}.json`);
-        const content = await fs.promises.readFile(modulePath, 'utf-8');
-        zhCNTranslations[module] = JSON.parse(content);
+        zhCNTranslations[module] = await readModule('zh-CN', module);
       }
       loadedTranslations.set('zh-CN', zhCNTranslations);
 
@@ -125,9 +133,7 @@ describe('i18n Performance Tests', () => {
       const jaJPTranslations: Record<string, unknown> = {};
       await Promise.all(
         MODULES.map(async (module) => {
-          const modulePath = path.join(LOCALES_DIR, 'ja-JP', `${module}.json`);
-          const content = await fs.promises.readFile(modulePath, 'utf-8');
-          jaJPTranslations[module] = JSON.parse(content);
+          jaJPTranslations[module] = await readModule('ja-JP', module);
         })
       );
       loadedTranslations.set('ja-JP', jaJPTranslations);
@@ -141,7 +147,7 @@ describe('i18n Performance Tests', () => {
   describe('Lazy Loading Impact', () => {
     it('should reduce startup memory by loading only required locale', () => {
       const estimatedSizePerLocale = 100 * 1024;
-      const oldMemoryUsage = SUPPORTED_LANGUAGES.length * estimatedSizePerLocale;
+      const oldMemoryUsage = ALL_LOCALE_DIRS.length * estimatedSizePerLocale;
       const newMemoryUsage = estimatedSizePerLocale;
 
       const reduction = (oldMemoryUsage - newMemoryUsage) / oldMemoryUsage;

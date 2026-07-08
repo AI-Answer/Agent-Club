@@ -225,6 +225,14 @@ describe('fsBridge skills functionality', () => {
             enableSkillsMarket: createCommandMock('enable-skills-market'),
             disableSkillsMarket: createCommandMock('disable-skills-market'),
             listBuiltinAutoSkills: createCommandMock('list-builtin-auto-skills'),
+            // JourneyKits: discover and install compatible skills
+            searchJourneyKits: createCommandMock('journey-kits.search'),
+            installJourneyKit: createCommandMock('journey-kits.install'),
+            getJourneyKitsConfig: createCommandMock('journey-kits.config.get'),
+            saveJourneyKitsConfig: createCommandMock('journey-kits.config.save'),
+            listJourneyKitsOwned: createCommandMock('journey-kits.owned.list'),
+            publishJourneyKitSkill: createCommandMock('journey-kits.skill.publish'),
+            deleteJourneyKitOwned: createCommandMock('journey-kits.owned.delete'),
           },
           fileStream: {
             contentUpdate: { emit: vi.fn() },
