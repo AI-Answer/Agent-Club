@@ -10,11 +10,13 @@ import './jarvis.css';
 
 import GraphCore, { type CoreMode } from './components/GraphCore';
 import ControlStatus from './components/ControlStatus';
+import DailyBrief from './components/DailyBrief';
 import QuickActions from './components/QuickActions';
 import SetupGuide from './components/SetupGuide';
 import TopBar from './components/TopBar';
 import VoiceConsole from './components/VoiceConsole';
 import { useControlBridge } from './services/controlBridge';
+import { useDemoPhase } from './services/demoDirector';
 import { HERMES_VOICE_MODEL, useVoicePipeline, type VoiceStatus } from './services/voicePipeline';
 
 function statusToCoreMode(status: VoiceStatus): CoreMode {
@@ -38,7 +40,15 @@ const JarvisPage: React.FC = () => {
   const voice = useVoicePipeline(HERMES_VOICE_MODEL, { computerControlEngaged: control.engaged });
   const { status, hermesInstalled, analyser, speechSupported, sttBlocked, startListening, stopListening, cancelListening, stopSpeaking, sendText, recheck } = voice;
 
-  const mode = useMemo(() => statusToCoreMode(status), [status]);
+  // DEMO-ONLY: the external performance runner (perform.sh / start.sh) drives
+  // the orb through listening glow -> speaking glow while the briefing audio
+  // plays outside the app.
+  const demoPhase = useDemoPhase();
+  const mode = useMemo(() => {
+    if (demoPhase === 'listening') return 'listening';
+    if (demoPhase === 'speaking' && status !== 'speaking') return 'speaking';
+    return statusToCoreMode(status);
+  }, [demoPhase, status]);
 
   const [rescans, setRescans] = useState(0);
   const needsSetup = !hermesInstalled && (status === 'offline' || (status === 'checking' && rescans > 0));
@@ -65,8 +75,12 @@ const JarvisPage: React.FC = () => {
     an.getByteFrequencyData(buf);
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i];
-    return sum / buf.length / 255;
-  }, [analyser]);
+    const level = sum / buf.length / 255;
+    // DEMO-ONLY: app audio silent while the external runner speaks — return
+    // null so GraphCore falls back to its synthetic speech pulse.
+    if (demoPhase === 'speaking' && level < 0.02) return null;
+    return level;
+  }, [analyser, demoPhase]);
 
   useEffect(() => {
     if (!hermesInstalled || !speechSupported || sttBlocked) return;
@@ -109,6 +123,7 @@ const JarvisPage: React.FC = () => {
       {hermesInstalled && (
         <aside className='jarvis-dock boot-stagger' style={{ animationDelay: '0.2s' }}>
           <VoiceConsole voice={voice} />
+          <DailyBrief />
           <QuickActions onSend={sendText} disabled={status === 'offline' || status === 'checking'} />
           <ControlStatus control={control} voice={voice} />
         </aside>

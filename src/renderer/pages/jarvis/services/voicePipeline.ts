@@ -26,6 +26,7 @@ import { getSpeechInputAvailability, pickRecordingMimeType } from '@/renderer/ho
 import { transcribeAudioBlob } from '@/renderer/services/SpeechToTextService';
 import { extractSentences, flushSentenceBuffer } from '@/renderer/utils/speech/sentenceChunker';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { DEMO_BRIEFING_TEXT, fetchDemoAudioBytes, isDemoTrigger, startDemoCues } from './demoDirector';
 import { resolveJarvisSessionMcpServers } from './jarvisMcpServers';
 
 const SPEECH_TO_TEXT_CONFIG_CHANGED_EVENT = 'aionui:speech-to-text-config-changed';
@@ -657,10 +658,54 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
     setStatus((s) => (s === 'listening' || s === 'thinking' ? 'idle' : s));
   }, []);
 
+  /**
+   * DEMO-ONLY: play the pre-rendered morning briefing through the analyser
+   * chain (orb animates) and fire the local screen-cue timeline in sync.
+   */
+  const runMorningBriefingDemo = useCallback(async () => {
+    await interruptInFlightTurn();
+    setError(null);
+    setStatus('thinking');
+    const lineId = `jarvis-demo-${uuid()}`;
+    try {
+      const bytes = await fetchDemoAudioBytes();
+      const ctx = ensureAudioContext();
+      if (ctx.state === 'suspended') await ctx.resume();
+      const audioBuf = await ctx.decodeAudioData(Uint8Array.from(bytes).buffer);
+      const token = speakTokenRef.current;
+      setTranscript((prev) => [...prev, { id: lineId, role: 'jarvis', text: DEMO_BRIEFING_TEXT, final: true }]);
+      setStatus('speaking');
+      startDemoCues();
+      if (token !== speakTokenRef.current) return;
+      const an = analyserRef.current;
+      if (!an) return;
+      const src = ctx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(an);
+      sourceRef.current = src;
+      await new Promise<void>((resolve) => {
+        src.onended = () => {
+          if (sourceRef.current === src) sourceRef.current = null;
+          resolve();
+        };
+        src.start();
+      });
+      setStatus((s) => (s === 'speaking' ? 'idle' : s));
+    } catch (e) {
+      console.warn('[jarvis:demo] briefing playback failed', e);
+      setStatus('idle');
+      setError(e instanceof Error ? e.message : 'Demo briefing failed.');
+    }
+  }, [ensureAudioContext, interruptInFlightTurn]);
+
   const dispatchUserMessage = useCallback(
     async (text: string) => {
       const convoId = conversationIdRef.current;
       if (!text || !convoId) return;
+      if (isDemoTrigger(text)) {
+        void runMorningBriefingDemo();
+        return;
+      }
       await interruptInFlightTurn();
       beginTurnPerf();
       markPerf('send_message');
@@ -668,7 +713,7 @@ export function useVoicePipeline(model: TProviderWithModel | null, options?: Voi
       setStatus('thinking');
       void ipcBridge.acpConversation.sendMessage.invoke({ input: text, msg_id: uuid(36), conversation_id: convoId });
     },
-    [beginTurnPerf, interruptInFlightTurn, markPerf]
+    [beginTurnPerf, interruptInFlightTurn, markPerf, runMorningBriefingDemo]
   );
 
   const transcribeAndSend = useCallback(
